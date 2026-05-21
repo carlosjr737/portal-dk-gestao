@@ -73,6 +73,12 @@ export default async function InadimplenciaPage({
               Conta Azul conectada
             </span>
           ) : null}
+          {data.contaAzulReceivableStatus &&
+          data.contaAzulReceivableStatus !== "ATRASADO" ? (
+            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
+              Modo teste: {data.contaAzulReceivableStatus}
+            </span>
+          ) : null}
           {isContaAzulProvider ? (
             <a
               href="/api/integrations/conta-azul/connect"
@@ -300,6 +306,9 @@ async function getInadimplenciaData(filters: {
   const isContaAzulConnected = Boolean(
     contaAzulTokens?.accessToken && contaAzulTokens.status === "connected",
   );
+  const contaAzulReceivableStatus = isContaAzulProvider
+    ? getContaAzulReceivableStatus()
+    : null;
 
   try {
     const receivables = await provider.getOverdueReceivables({
@@ -336,6 +345,7 @@ async function getInadimplenciaData(filters: {
       filteredReceivables,
       null,
       isContaAzulConnected,
+      contaAzulReceivableStatus,
     );
   } catch (error) {
     console.error("Finance overdue receivables load error:", error);
@@ -346,6 +356,7 @@ async function getInadimplenciaData(filters: {
       [],
       providerMessage,
       isContaAzulConnected,
+      contaAzulReceivableStatus,
     );
   }
 }
@@ -522,6 +533,7 @@ function buildData(
   receivables: OverdueReceivableWithMatch[],
   errorMessage: string | null,
   isConnected = false,
+  contaAzulReceivableStatus: string | null = null,
 ) {
   const totalOpenAmount = receivables.reduce(
     (total, receivable) => total + receivable.openAmount,
@@ -546,7 +558,12 @@ function buildData(
     oldestDueDate,
     errorMessage,
     isConnected,
+    contaAzulReceivableStatus,
   };
+}
+
+function getContaAzulReceivableStatus() {
+  return process.env.CONTA_AZUL_RECEIVABLE_STATUS || "ATRASADO";
 }
 
 function normalizeDocument(value: string | null | undefined) {

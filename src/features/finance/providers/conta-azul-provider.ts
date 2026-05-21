@@ -28,8 +28,9 @@ export class ContaAzulProvider implements FinanceProvider {
     params: GetOverdueReceivablesParams = {},
   ): Promise<OverdueReceivable[]> {
     const client = this.getClient();
+    const receivableStatus = getContaAzulReceivableStatus();
     const receivables = await client.searchOverdueReceivables(
-      buildContaAzulOverdueReceivablesFilters(params),
+      buildContaAzulOverdueReceivablesFilters(params, receivableStatus),
     );
     const peopleById = await this.getPeopleByIds(
       getUniqueCustomerIds(receivables),
@@ -37,7 +38,9 @@ export class ContaAzulProvider implements FinanceProvider {
     );
     const overdueReceivables: OverdueReceivable[] = [];
 
-    for (const receivable of receivables.filter(isContaAzulOverdueReceivable)) {
+    for (const receivable of receivables.filter((item) =>
+      isContaAzulOverdueReceivable(item, receivableStatus),
+    )) {
       const person = receivable.cliente?.id
         ? peopleById.get(receivable.cliente.id) ?? null
         : null;
@@ -48,6 +51,7 @@ export class ContaAzulProvider implements FinanceProvider {
     }
 
     console.info("Conta Azul overdue receivables loaded:", {
+      status: receivableStatus,
       receivables: receivables.length,
       enrichedWithDocument: overdueReceivables.filter((receivable) =>
         Boolean(normalizeDocument(receivable.customerDocument)),
@@ -159,21 +163,19 @@ function mapContaAzulReceivableToOverdueReceivable(
   };
 }
 
-const contaAzulOverdueStatusFilterFormats = {
-  simplePortuguese: { status: "ATRASADO" },
-  portugueseArrayValue: { status: ["ATRASADO"] },
-  simpleEnglish: { status: "OVERDUE" },
-  bracketPortuguese: { status: "ATRASADO", statusParamName: "status[]" },
-} as const;
-
 function buildContaAzulOverdueReceivablesFilters(
   params: GetOverdueReceivablesParams,
+  status: string,
 ) {
   return {
-    ...contaAzulOverdueStatusFilterFormats.simplePortuguese,
+    status,
     fromDueDate: params.fromDueDate,
     toDueDate: params.toDueDate,
   };
+}
+
+function getContaAzulReceivableStatus() {
+  return process.env.CONTA_AZUL_RECEIVABLE_STATUS || "ATRASADO";
 }
 
 function mapContaAzulPersonToFinanceCustomer(
@@ -237,8 +239,12 @@ function normalizeText(value: string | undefined) {
   );
 }
 
-function isContaAzulOverdueReceivable(receivable: ContaAzulReceivable) {
+function isContaAzulOverdueReceivable(
+  receivable: ContaAzulReceivable,
+  configuredStatus: string,
+) {
   return (
+    receivable.status === configuredStatus ||
     receivable.status === "ATRASADO" ||
     receivable.status === "OVERDUE" ||
     receivable.status_traduzido === "ATRASADO"

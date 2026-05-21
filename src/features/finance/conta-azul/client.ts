@@ -248,13 +248,15 @@ function getErrorMessage(status: number, responseText: string) {
   }
 }
 
-function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getDefaultFromDueDate() {
   const date = new Date();
   date.setMonth(date.getMonth() - 12);
+  return date.toISOString().slice(0, 10);
+}
+
+function getDefaultToDueDate() {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 12);
   return date.toISOString().slice(0, 10);
 }
 
@@ -264,7 +266,7 @@ function buildReceivablesQueryParams(params: SearchReceivablesParams = {}) {
   return {
     [statusParamName]: params.status ?? "ATRASADO",
     data_vencimento_de: params.fromDueDate ?? getDefaultFromDueDate(),
-    data_vencimento_ate: params.toDueDate ?? getTodayDate(),
+    data_vencimento_ate: params.toDueDate ?? getDefaultToDueDate(),
   };
 }
 
