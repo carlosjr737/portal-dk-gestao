@@ -149,7 +149,6 @@ export async function createEnrollment(
 
   if (data.status === "active") {
     await ensureGrowthChurnEvent({
-      supabase,
       enrollmentId: data.id as string,
       eventType: "entrada",
       eventDate: (data.start_date as string | null) ?? null,
@@ -265,7 +264,6 @@ export async function cancelEnrollment(
   }
 
   await ensureGrowthChurnEvent({
-    supabase,
     enrollmentId: parsed.data.enrollment_id,
     eventType: "saida",
     eventDate: cancelledAt,

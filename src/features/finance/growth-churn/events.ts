@@ -1,13 +1,10 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-type SupabaseClientLike = Pick<SupabaseClient, "from">;
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type GrowthChurnEventType = "entrada" | "saida";
 
 type EnsureGrowthChurnEventParams = {
-  supabase: SupabaseClientLike;
   enrollmentId: string;
   eventType: GrowthChurnEventType;
   eventDate?: string | null;
@@ -37,7 +34,6 @@ type EnrollmentSnapshot = {
 };
 
 export async function ensureGrowthChurnEvent({
-  supabase,
   enrollmentId,
   eventType,
   eventDate,
@@ -45,6 +41,7 @@ export async function ensureGrowthChurnEvent({
   reasonNotes,
   source,
 }: EnsureGrowthChurnEventParams) {
+  const supabase = createAdminClient();
   const { data: existingEvent, error: existingError } = await supabase
     .from("growth_churn_events")
     .select("id")
@@ -114,7 +111,7 @@ export async function ensureGrowthChurnEvent({
 }
 
 async function getChurnReasonId(
-  supabase: SupabaseClientLike,
+  supabase: ReturnType<typeof createAdminClient>,
   reasonName: string | null | undefined,
 ) {
   const preferredName = mapCancellationReasonToChurnReason(reasonName);
