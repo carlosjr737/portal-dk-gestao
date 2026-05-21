@@ -293,11 +293,15 @@ async function getInadimplenciaData(filters: {
     return buildData(providerName, [], null);
   }
 
+  const isContaAzulProvider = providerName === "conta_azul";
+  const contaAzulTokens = isContaAzulProvider
+    ? await getSafeContaAzulTokens()
+    : null;
+  const isContaAzulConnected = Boolean(
+    contaAzulTokens?.accessToken && contaAzulTokens.status === "connected",
+  );
+
   try {
-    const isContaAzulProvider = providerName === "conta_azul";
-    const contaAzulTokens = isContaAzulProvider
-      ? await getSafeContaAzulTokens()
-      : null;
     const receivables = await provider.getOverdueReceivables({
       fromDueDate: filters.fromDueDate || undefined,
       toDueDate: filters.toDueDate || undefined,
@@ -320,27 +324,31 @@ async function getInadimplenciaData(filters: {
       providerName,
       filteredReceivables,
       null,
-      Boolean(contaAzulTokens?.accessToken && contaAzulTokens.status === "connected"),
+      isContaAzulConnected,
     );
   } catch (error) {
     console.error("Finance overdue receivables load error:", error);
-    const providerMessage =
-      error instanceof Error &&
-      (error.message.includes("CONTA_AZUL_ACCESS_TOKEN") ||
-        error.message.includes("Token da Conta Azul"))
-        ? error.message
-        : error instanceof Error &&
-            error.message.includes("Conta Azul precisa ser reconectada")
-          ? error.message
-        : "Não foi possível carregar a inadimplência financeira.";
+    const providerMessage = getFinanceProviderErrorMessage(error, providerName);
 
     return buildData(
       providerName,
       [],
       providerMessage,
-      false,
+      isContaAzulConnected,
     );
   }
+}
+
+function getFinanceProviderErrorMessage(error: unknown, providerName: string) {
+  if (!(error instanceof Error)) {
+    return "Não foi possível carregar a inadimplência financeira.";
+  }
+
+  if (providerName === "conta_azul") {
+    return error.message;
+  }
+
+  return "Não foi possível carregar a inadimplência financeira.";
 }
 
 async function getSafeContaAzulTokens() {

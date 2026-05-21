@@ -28,10 +28,9 @@ export class ContaAzulProvider implements FinanceProvider {
     params: GetOverdueReceivablesParams = {},
   ): Promise<OverdueReceivable[]> {
     const client = this.getClient();
-    const receivables = await client.searchOverdueReceivables({
-      fromDueDate: params.fromDueDate,
-      toDueDate: params.toDueDate,
-    });
+    const receivables = await client.searchOverdueReceivables(
+      buildContaAzulOverdueReceivablesFilters(params),
+    );
     const peopleById = await this.getPeopleByIds(
       getUniqueCustomerIds(receivables),
       client,
@@ -139,6 +138,23 @@ function mapContaAzulReceivableToOverdueReceivable(
     daysOverdue: calculateDaysOverdue(receivable.data_vencimento),
     status: receivable.status,
     source: "conta_azul",
+  };
+}
+
+const contaAzulOverdueStatusFilterFormats = {
+  simplePortuguese: { status: "ATRASADO" },
+  portugueseArrayValue: { status: ["ATRASADO"] },
+  simpleEnglish: { status: "OVERDUE" },
+  bracketPortuguese: { status: "ATRASADO", statusParamName: "status[]" },
+} as const;
+
+function buildContaAzulOverdueReceivablesFilters(
+  params: GetOverdueReceivablesParams,
+) {
+  return {
+    ...contaAzulOverdueStatusFilterFormats.simplePortuguese,
+    fromDueDate: params.fromDueDate,
+    toDueDate: params.toDueDate,
   };
 }
 

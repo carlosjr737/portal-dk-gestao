@@ -19,6 +19,8 @@ type ContaAzulClientConfig = {
 };
 
 type SearchReceivablesParams = {
+  status?: string | string[];
+  statusParamName?: "status" | "status[]";
   fromDueDate?: string;
   toDueDate?: string;
 };
@@ -39,6 +41,9 @@ export class ContaAzulApiError extends Error {
     this.name = "ContaAzulApiError";
   }
 }
+
+type ContaAzulQueryValue = string | number | string[] | undefined;
+type ContaAzulQueryParams = Record<string, ContaAzulQueryValue>;
 
 export class ContaAzulClient {
   private readonly baseUrl: string;
@@ -69,7 +74,7 @@ export class ContaAzulClient {
 
   private async getAllPages<T>(
     path: string,
-    query: Record<string, string | number | undefined>,
+    query: ContaAzulQueryParams,
     options: { pageSize?: number; maxPages?: number } = {},
   ) {
     const pageSize = options.pageSize ?? 100;
@@ -102,13 +107,19 @@ export class ContaAzulClient {
 
   private async get<T>(
     path: string,
-    query: Record<string, string | number | undefined>,
+    query: ContaAzulQueryParams,
     retryOnUnauthorized = true,
   ): Promise<T> {
     const url = new URL(path, this.baseUrl);
 
     for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined && value !== "") {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item !== "") {
+            url.searchParams.append(key, item);
+          }
+        }
+      } else if (value !== undefined && value !== "") {
         url.searchParams.append(key, String(value));
       }
     }
@@ -125,19 +136,33 @@ export class ContaAzulClient {
     });
 
     if (response.status === 401) {
+      const responseText = await response.text();
+      this.logFailedRequest(url, query, response.status, responseText, reconnectMessage);
+
       if (!retryOnUnauthorized) {
         throw new ContaAzulApiError(reconnectMessage, response.status);
       }
 
-      this.accessToken = await refreshContaAzulAccessToken();
+      try {
+        this.accessToken = await refreshContaAzulAccessToken();
+      } catch (error) {
+        console.error(
+          "Conta Azul token refresh failed after unauthorized response:",
+          error instanceof Error ? error.message : error,
+        );
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
       return this.get<T>(path, query, false);
     }
 
     if (!response.ok) {
-      throw new ContaAzulApiError(
-        await getErrorMessage(response),
-        response.status,
-      );
+      const responseText = await response.text();
+      const message = getErrorMessage(response.status, responseText);
+
+      this.logFailedRequest(url, query, response.status, responseText, message);
+
+      throw new ContaAzulApiError(message, response.status);
     }
 
     return (await response.json()) as T;
@@ -171,6 +196,29 @@ export class ContaAzulClient {
 
     throw new ContaAzulApiError(accessTokenNotConfiguredMessage);
   }
+
+  private logFailedRequest(
+    url: URL,
+    query: ContaAzulQueryParams,
+    status: number,
+    responseText: string,
+    message: string,
+  ) {
+    const queryParams = buildLogQueryParams(query);
+
+    console.error("Conta Azul API request failed:", {
+      url: `${url.origin}${url.pathname}`,
+      queryParams,
+      status,
+      responseText,
+      message,
+      ...(status === 400
+        ? {
+            rejectedFilters: queryParams,
+          }
+        : {}),
+    });
+  }
 }
 
 function getContaAzulConfig(): ContaAzulClientConfig {
@@ -180,11 +228,19 @@ function getContaAzulConfig(): ContaAzulClientConfig {
   };
 }
 
-async function getErrorMessage(response: Response) {
-  const fallback = `Erro na API Conta Azul (${response.status}).`;
+function getErrorMessage(status: number, responseText: string) {
+  if (status === 401) {
+    return reconnectMessage;
+  }
+
+  if (status === 403) {
+    return "Conta Azul conectada, mas sem permissão para acessar contas a receber.";
+  }
+
+  const fallback = `Erro na API Conta Azul (${status}).`;
 
   try {
-    const body = (await response.json()) as { message?: string; erro?: string };
+    const body = JSON.parse(responseText) as { message?: string; erro?: string };
     return body.message ?? body.erro ?? fallback;
   } catch {
     return fallback;
@@ -202,13 +258,12 @@ function getDefaultFromDueDate() {
 }
 
 function buildReceivablesQueryParams(params: SearchReceivablesParams = {}) {
+  const statusParamName = params.statusParamName ?? "status";
+
   return {
-    status: JSON.stringify(["ATRASADO"]),
+    [statusParamName]: params.status ?? "ATRASADO",
     data_vencimento_de: params.fromDueDate ?? getDefaultFromDueDate(),
     data_vencimento_ate: params.toDueDate ?? getTodayDate(),
-    // Confirmado na documentação atual: pagina e tamanho_pagina.
-    // Status em array centralizado aqui. Alternativas comuns: status=ATRASADO ou status[]=ATRASADO.
-    // Se a Conta Azul alterar os nomes, ajustar apenas esta montagem.
   };
 }
 
@@ -218,4 +273,15 @@ function buildPeopleQueryParams(params: SearchPeopleParams = {}) {
     documentos: params.document,
     tipo_perfil: "Cliente",
   };
+}
+
+function buildLogQueryParams(query: ContaAzulQueryParams) {
+  return Object.fromEntries(
+    Object.entries(query).filter(
+      ([, value]) =>
+        value !== undefined &&
+        value !== "" &&
+        (!Array.isArray(value) || value.length > 0),
+    ),
+  );
 }
