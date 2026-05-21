@@ -23,6 +23,7 @@ type GuardianMatch = {
   fullName: string;
   document: string | null;
   students: string[];
+  matchStatus: "linked_by_conta_azul_id" | "matched_by_document";
 };
 
 type OverdueReceivableWithMatch = OverdueReceivable & {
@@ -243,7 +244,7 @@ export default async function InadimplenciaPage({
                       {getCustomerDocumentLabel(receivable)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {receivable.portalGuardian?.fullName ?? "Não vinculado"}
+                      {getPortalGuardianLabel(receivable)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {receivable.portalGuardian?.students.length
@@ -315,17 +316,12 @@ async function getInadimplenciaData(filters: {
       fromDueDate: filters.fromDueDate || undefined,
       toDueDate: filters.toDueDate || undefined,
     });
-    const guardiansByDocument = await getGuardiansByDocument(
-      receivables
-        .map((receivable) => normalizeDocument(receivable.customerDocument))
-        .filter(Boolean),
-    );
+    const guardiansByReceivable = await getGuardiansByReceivableLinks(receivables);
     const enrichedReceivables = receivables.map((receivable) => ({
       ...receivable,
-      portalGuardian: receivable.customerDocument
-        ? guardiansByDocument.get(normalizeDocument(receivable.customerDocument)) ??
-          null
-        : null,
+      portalGuardian:
+        guardiansByReceivable.get(receivable.externalId) ??
+        null,
     }));
 
     console.info("Finance overdue guardian matching:", {
@@ -385,32 +381,78 @@ async function getSafeContaAzulTokens() {
   }
 }
 
-async function getGuardiansByDocument(documents: string[]) {
-  const uniqueDocuments = [...new Set(documents)];
+async function getGuardiansByReceivableLinks(receivables: OverdueReceivable[]) {
+  const customerExternalIds = [
+    ...new Set(
+      receivables
+        .map((receivable) => receivable.customerExternalId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const uniqueDocuments = [
+    ...new Set(
+      receivables
+        .map((receivable) => normalizeDocument(receivable.customerDocument))
+        .filter(Boolean),
+    ),
+  ];
 
-  if (uniqueDocuments.length === 0) {
+  if (customerExternalIds.length === 0 && uniqueDocuments.length === 0) {
     return new Map<string, GuardianMatch>();
   }
 
   const supabase = await createClient();
   const { data: guardians, error: guardiansError } = await supabase
     .from("guardians")
-    .select("id, full_name, document")
-    .not("document", "is", null);
+    .select("id, full_name, document, conta_azul_person_id");
 
   if (guardiansError) {
     console.error("Finance guardian matching load error:", guardiansError);
     return new Map<string, GuardianMatch>();
   }
 
-  const matchingGuardians = (guardians ?? []).filter((guardian) =>
-    uniqueDocuments.includes(normalizeDocument(guardian.document as string | null)),
+  const guardiansByContaAzulId = new Map(
+    (guardians ?? [])
+      .filter((guardian) =>
+        customerExternalIds.includes(
+          (guardian.conta_azul_person_id as string | null) ?? "",
+        ),
+      )
+      .map((guardian) => [
+        guardian.conta_azul_person_id as string,
+        guardian,
+      ]),
   );
+  const guardiansByDocument = new Map<string, typeof guardians>();
+
+  for (const guardian of guardians ?? []) {
+    const document = normalizeDocument(guardian.document as string | null);
+
+    if (!document || !uniqueDocuments.includes(document)) {
+      continue;
+    }
+
+    guardiansByDocument.set(document, [
+      ...(guardiansByDocument.get(document) ?? []),
+      guardian,
+    ]);
+  }
+
+  const matchingGuardians = [
+    ...new Map(
+      [
+        ...guardiansByContaAzulId.values(),
+        ...[...guardiansByDocument.values()].flat(),
+      ].map((guardian) => [guardian.id as string, guardian]),
+    ).values(),
+  ];
   const guardianIds = matchingGuardians.map((guardian) => guardian.id as string);
 
   console.info("Finance guardians matched by document:", {
     requestedDocuments: uniqueDocuments.length,
     matchedGuardians: matchingGuardians.length,
+    requestedContaAzulIds: customerExternalIds.length,
+    matchedByContaAzulId: guardiansByContaAzulId.size,
   });
 
   if (guardianIds.length === 0) {
@@ -455,21 +497,41 @@ async function getGuardiansByDocument(documents: string[]) {
     studentsByGuardianId.set(guardianId, [...currentStudents, studentName]);
   }
 
-  return new Map(
-    matchingGuardians.map((guardian) => {
-      const document = (guardian.document as string | null) ?? null;
+  const matchesByReceivableId = new Map<string, GuardianMatch>();
 
-      return [
-        normalizeDocument(document),
-        {
-          id: guardian.id as string,
-          fullName: guardian.full_name as string,
-          document,
-          students: studentsByGuardianId.get(guardian.id as string) ?? [],
-        },
-      ];
-    }),
-  );
+  for (const receivable of receivables) {
+    const linkedGuardian = receivable.customerExternalId
+      ? guardiansByContaAzulId.get(receivable.customerExternalId)
+      : null;
+
+    if (linkedGuardian) {
+      matchesByReceivableId.set(
+        receivable.externalId,
+        mapGuardianMatch(
+          linkedGuardian,
+          studentsByGuardianId,
+          "linked_by_conta_azul_id",
+        ),
+      );
+      continue;
+    }
+
+    const document = normalizeDocument(receivable.customerDocument);
+    const documentGuardians = document ? guardiansByDocument.get(document) ?? [] : [];
+
+    if (documentGuardians.length === 1) {
+      matchesByReceivableId.set(
+        receivable.externalId,
+        mapGuardianMatch(
+          documentGuardians[0],
+          studentsByGuardianId,
+          "matched_by_document",
+        ),
+      );
+    }
+  }
+
+  return matchesByReceivableId;
 }
 
 function filterReceivables(
@@ -591,6 +653,38 @@ function getCustomerDocumentLabel(receivable: OverdueReceivableWithMatch) {
   }
 
   return "Sem CPF/CNPJ no Conta Azul";
+}
+
+function getPortalGuardianLabel(receivable: OverdueReceivableWithMatch) {
+  if (!receivable.portalGuardian) {
+    return "Não vinculado";
+  }
+
+  if (receivable.portalGuardian.matchStatus === "matched_by_document") {
+    return `${receivable.portalGuardian.fullName} (Encontrado por CPF, vínculo pendente)`;
+  }
+
+  return receivable.portalGuardian.fullName;
+}
+
+function mapGuardianMatch(
+  guardian: {
+    id: unknown;
+    full_name: unknown;
+    document?: unknown;
+  },
+  studentsByGuardianId: Map<string, string[]>,
+  matchStatus: GuardianMatch["matchStatus"],
+): GuardianMatch {
+  const guardianId = guardian.id as string;
+
+  return {
+    id: guardianId,
+    fullName: guardian.full_name as string,
+    document: (guardian.document as string | null) ?? null,
+    students: studentsByGuardianId.get(guardianId) ?? [],
+    matchStatus,
+  };
 }
 
 function normalizeDocument(value: string | null | undefined) {
