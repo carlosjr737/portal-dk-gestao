@@ -32,8 +32,15 @@ export class ContaAzulProvider implements FinanceProvider {
     const receivables = await client.searchOverdueReceivables(
       buildContaAzulOverdueReceivablesFilters(params, receivableStatus),
     );
+    const customerIds = getUniqueCustomerIds(receivables);
+
+    console.info("Conta Azul receivable customer ids:", {
+      customerIds,
+      customerIdsCount: customerIds.length,
+    });
+
     const peopleById = await this.getPeopleByIds(
-      getUniqueCustomerIds(receivables),
+      customerIds,
       client,
     );
     const overdueReceivables: OverdueReceivable[] = [];
@@ -53,6 +60,7 @@ export class ContaAzulProvider implements FinanceProvider {
     console.info("Conta Azul overdue receivables loaded:", {
       status: receivableStatus,
       receivables: receivables.length,
+      mappedReceivables: overdueReceivables.length,
       enrichedWithDocument: overdueReceivables.filter((receivable) =>
         Boolean(normalizeDocument(receivable.customerDocument)),
       ).length,
@@ -106,9 +114,16 @@ export class ContaAzulProvider implements FinanceProvider {
     client: ContaAzulClient,
   ): Promise<Map<string, ContaAzulPerson>> {
     const peopleById = new Map<string, ContaAzulPerson>();
+    let fetchedPeopleCount = 0;
     const batchSize = 100;
 
     if (ids.length === 0) {
+      console.info("Conta Azul people enrichment loaded:", {
+        requestedIds: 0,
+        fetchedPeople: 0,
+        withDocument: 0,
+      });
+
       return peopleById;
     }
 
@@ -121,6 +136,8 @@ export class ContaAzulProvider implements FinanceProvider {
           maxPages: 1,
         });
 
+        fetchedPeopleCount += people.length;
+
         for (const person of people) {
           peopleById.set(person.id, person);
         }
@@ -130,6 +147,14 @@ export class ContaAzulProvider implements FinanceProvider {
         error: error instanceof Error ? error.message : error,
       });
     }
+
+    console.info("Conta Azul people enrichment loaded:", {
+      requestedIds: ids.length,
+      fetchedPeople: fetchedPeopleCount,
+      withDocument: [...peopleById.values()].filter((person) =>
+        Boolean(normalizeDocument(person.documento)),
+      ).length,
+    });
 
     return peopleById;
   }

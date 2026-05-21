@@ -273,7 +273,7 @@ export default async function InadimplenciaPage({
                     colSpan={9}
                     className="px-4 py-10 text-center text-sm text-muted-foreground"
                   >
-                    Nenhum título vencido encontrado.
+                    {getEmptyReceivablesMessage(data)}
                   </td>
                 </tr>
               )}
@@ -564,6 +564,17 @@ function buildData(
 
 function getContaAzulReceivableStatus() {
   return process.env.CONTA_AZUL_RECEIVABLE_STATUS || "ATRASADO";
+}
+
+function getEmptyReceivablesMessage(data: {
+  providerName: string;
+  contaAzulReceivableStatus: string | null;
+}) {
+  if (data.providerName === "conta_azul" && data.contaAzulReceivableStatus) {
+    return `Nenhum título encontrado para o status ${data.contaAzulReceivableStatus}.`;
+  }
+
+  return "Nenhum título vencido encontrado.";
 }
 
 function normalizeDocument(value: string | null | undefined) {

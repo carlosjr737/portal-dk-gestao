@@ -89,10 +89,25 @@ export class ContaAzulClient {
         tamanho_pagina: pageSize,
       });
       const pageItems = response.itens ?? response.items ?? [];
+      const totalItems = response.itens_totais ?? response.totalItems;
 
       items.push(...pageItems);
 
-      const totalItems = response.itens_totais ?? response.totalItems;
+      if (path.includes("/contas-a-receber/buscar")) {
+        console.info("Conta Azul receivables page loaded:", {
+          page,
+          returnedItems: pageItems.length,
+          totalItems,
+        });
+      }
+
+      if (path === "/v1/pessoas") {
+        console.info("Conta Azul people page loaded:", {
+          page,
+          returnedItems: pageItems.length,
+          totalItems,
+        });
+      }
 
       if (pageItems.length < pageSize) {
         break;
@@ -101,6 +116,12 @@ export class ContaAzulClient {
       if (typeof totalItems === "number" && items.length >= totalItems) {
         break;
       }
+    }
+
+    if (path.includes("/contas-a-receber/buscar")) {
+      console.info("Conta Azul receivables search completed:", {
+        returnedItems: items.length,
+      });
     }
 
     return items;
@@ -125,6 +146,8 @@ export class ContaAzulClient {
       }
     }
 
+    this.logRequest(url, query);
+
     const accessToken = await this.getAccessToken();
     const response = await fetch(url, {
       method: "GET",
@@ -135,6 +158,8 @@ export class ContaAzulClient {
       },
       cache: "no-store",
     });
+
+    this.logResponse(url, query, response.status);
 
     if (response.status === 401) {
       const responseText = await response.text();
@@ -220,6 +245,21 @@ export class ContaAzulClient {
         : {}),
     });
   }
+
+  private logRequest(url: URL, query: ContaAzulQueryParams) {
+    console.info("Conta Azul API request:", {
+      url: `${url.origin}${url.pathname}`,
+      queryParams: buildLogQueryParams(query),
+    });
+  }
+
+  private logResponse(url: URL, query: ContaAzulQueryParams, status: number) {
+    console.info("Conta Azul API response:", {
+      url: `${url.origin}${url.pathname}`,
+      queryParams: buildLogQueryParams(query),
+      status,
+    });
+  }
 }
 
 function getContaAzulConfig(): ContaAzulClientConfig {
@@ -286,6 +326,20 @@ function buildLogQueryParams(query: ContaAzulQueryParams) {
         value !== undefined &&
         value !== "" &&
         (!Array.isArray(value) || value.length > 0),
-    ),
+    ).map(([key, value]) => [key, sanitizeLogQueryValue(key, value)]),
   );
+}
+
+function sanitizeLogQueryValue(key: string, value: ContaAzulQueryValue) {
+  const normalizedKey = key.toLowerCase();
+
+  if (
+    normalizedKey.includes("token") ||
+    normalizedKey.includes("secret") ||
+    normalizedKey.includes("document")
+  ) {
+    return "[redacted]";
+  }
+
+  return value;
 }
