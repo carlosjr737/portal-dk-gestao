@@ -10,6 +10,13 @@ export async function GET() {
     const cookieStore = await cookies();
     const authorizationUrl = buildContaAzulAuthorizationUrl(state);
 
+    console.info("Conta Azul OAuth connect:", {
+      authUrl:
+        process.env.CONTA_AZUL_AUTH_URL || "https://auth.contaazul.com/login",
+      redirectUri: process.env.CONTA_AZUL_REDIRECT_URI,
+      hasClientId: Boolean(process.env.CONTA_AZUL_CLIENT_ID),
+    });
+
     cookieStore.set(stateCookieName, state, {
       httpOnly: true,
       sameSite: "lax",

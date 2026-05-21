@@ -94,7 +94,7 @@ export default async function InadimplenciaPage({
 
       {params?.connectionError ? (
         <div className="mt-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          Não foi possível concluir a conexão com a Conta Azul.
+          {getConnectionErrorMessage(params.connectionError)}
         </div>
       ) : null}
 
@@ -552,5 +552,24 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
     </div>
+  );
+}
+
+function getConnectionErrorMessage(error: string) {
+  const messages: Record<string, string> = {
+    token_exchange_400:
+      "Falha ao trocar código. Verifique redirect_uri e formato do body OAuth.",
+    token_exchange_401: "Client ID ou Client Secret inválidos.",
+    token_exchange_403:
+      "A Conta Azul recusou a troca do token. Verifique permissões e configuração do app.",
+    token_exchange_500:
+      "A Conta Azul retornou erro interno durante a troca do token.",
+    token_exchange_unknown: "Erro desconhecido na troca do token.",
+    token_storage: "Token recebido, mas não foi possível salvar a conexão.",
+    missing_code: "A Conta Azul não retornou o código de autorização.",
+  };
+
+  return (
+    messages[error] ?? "Não foi possível concluir a conexão com a Conta Azul."
   );
 }
