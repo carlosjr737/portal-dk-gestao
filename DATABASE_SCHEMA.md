@@ -14,6 +14,37 @@ Convencoes:
 
 ## Entidades Principais
 
+### integration_connections
+
+Armazena conexoes server-side com provedores externos, como a Conta Azul. Esta
+tabela contem tokens sensiveis e nao deve ser exposta para client components.
+
+| Campo | Tipo | Obrigatorio | Observacao |
+| --- | --- | --- | --- |
+| id | uuid | sim | PK |
+| provider | text | sim | Identificador unico do provedor, hoje `conta_azul` |
+| access_token | text | nao | Token de acesso OAuth, sensivel |
+| refresh_token | text | nao | Token de renovacao OAuth, sensivel |
+| expires_at | timestamptz | nao | Expiracao calculada a partir de `expires_in` |
+| status | text | sim | connected, expired, disconnected |
+| created_at | timestamptz | sim | Criacao |
+| updated_at | timestamptz | sim | Ultima atualizacao |
+
+Indices e constraints:
+
+- `provider` deve ser unico.
+- `idx_integration_connections_status` em `status`.
+- `provider` aceita `conta_azul`.
+- `status` aceita `connected`, `expired` ou `disconnected`.
+
+Seguranca:
+
+- RLS fica habilitado.
+- Em producao, manter a tabela protegida e acessar apenas server-side com
+  `SUPABASE_SERVICE_ROLE_KEY`.
+- Nao criar policies publicas para `anon`, pois `access_token` e
+  `refresh_token` sao segredos.
+
 ### students
 
 Representa alunos do DK Studio.
