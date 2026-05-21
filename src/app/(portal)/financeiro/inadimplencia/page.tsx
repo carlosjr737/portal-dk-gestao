@@ -316,6 +316,13 @@ async function getInadimplenciaData(filters: {
       fromDueDate: filters.fromDueDate || undefined,
       toDueDate: filters.toDueDate || undefined,
     });
+
+    if (isContaAzulProvider) {
+      console.info("Finance Conta Azul receivables returned:", {
+        totalReceivables: receivables.length,
+      });
+    }
+
     const guardiansByReceivable = await getGuardiansByReceivableLinks(receivables);
     const enrichedReceivables = receivables.map((receivable) => ({
       ...receivable,
@@ -411,6 +418,18 @@ async function getGuardiansByReceivableLinks(receivables: OverdueReceivable[]) {
     return new Map<string, GuardianMatch>();
   }
 
+  const guardiansWithContaAzulId = (guardians ?? []).filter((guardian) =>
+    Boolean((guardian.conta_azul_person_id as string | null) ?? ""),
+  );
+
+  console.info("Finance Conta Azul linked guardians loaded:", {
+    totalWithContaAzulPersonId: guardiansWithContaAzulId.length,
+    sampleContaAzulPersonIds: guardiansWithContaAzulId
+      .slice(0, 5)
+      .map((guardian) => guardian.conta_azul_person_id as string),
+    totalContaAzulReceivables: receivables.length,
+  });
+
   const guardiansByContaAzulId = new Map(
     (guardians ?? [])
       .filter((guardian) =>
@@ -503,32 +522,46 @@ async function getGuardiansByReceivableLinks(receivables: OverdueReceivable[]) {
     const linkedGuardian = receivable.customerExternalId
       ? guardiansByContaAzulId.get(receivable.customerExternalId)
       : null;
+    const document = normalizeDocument(receivable.customerDocument);
+    const attemptedDocumentFallback = !linkedGuardian && Boolean(document);
 
     if (linkedGuardian) {
-      matchesByReceivableId.set(
-        receivable.externalId,
-        mapGuardianMatch(
-          linkedGuardian,
-          studentsByGuardianId,
-          "linked_by_conta_azul_id",
-        ),
+      const guardianMatch = mapGuardianMatch(
+        linkedGuardian,
+        studentsByGuardianId,
+        "linked_by_conta_azul_id",
       );
+      matchesByReceivableId.set(receivable.externalId, guardianMatch);
+      logReceivableGuardianLinkDiagnostic(receivable, {
+        foundByContaAzulId: true,
+        attemptedDocumentFallback,
+        result: guardianMatch.matchStatus,
+      });
       continue;
     }
 
-    const document = normalizeDocument(receivable.customerDocument);
     const documentGuardians = document ? guardiansByDocument.get(document) ?? [] : [];
 
     if (documentGuardians.length === 1) {
-      matchesByReceivableId.set(
-        receivable.externalId,
-        mapGuardianMatch(
-          documentGuardians[0],
-          studentsByGuardianId,
-          "matched_by_document",
-        ),
+      const guardianMatch = mapGuardianMatch(
+        documentGuardians[0],
+        studentsByGuardianId,
+        "matched_by_document",
       );
+      matchesByReceivableId.set(receivable.externalId, guardianMatch);
+      logReceivableGuardianLinkDiagnostic(receivable, {
+        foundByContaAzulId: false,
+        attemptedDocumentFallback,
+        result: guardianMatch.matchStatus,
+      });
+      continue;
     }
+
+    logReceivableGuardianLinkDiagnostic(receivable, {
+      foundByContaAzulId: false,
+      attemptedDocumentFallback,
+      result: "not_linked",
+    });
   }
 
   return matchesByReceivableId;
@@ -685,6 +718,27 @@ function mapGuardianMatch(
     students: studentsByGuardianId.get(guardianId) ?? [],
     matchStatus,
   };
+}
+
+function logReceivableGuardianLinkDiagnostic(
+  receivable: OverdueReceivable,
+  diagnostic: {
+    foundByContaAzulId: boolean;
+    attemptedDocumentFallback: boolean;
+    result:
+      | GuardianMatch["matchStatus"]
+      | "not_linked";
+  },
+) {
+  console.info("Finance Conta Azul receivable guardian link:", {
+    externalId: receivable.externalId,
+    customerExternalId: receivable.customerExternalId ?? null,
+    customerName: receivable.customerName,
+    customerDocument: receivable.customerDocument ?? null,
+    foundGuardianByContaAzulPersonId: diagnostic.foundByContaAzulId,
+    attemptedDocumentFallback: diagnostic.attemptedDocumentFallback,
+    finalLinkResult: diagnostic.result,
+  });
 }
 
 function normalizeDocument(value: string | null | undefined) {
