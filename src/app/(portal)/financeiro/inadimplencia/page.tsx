@@ -240,7 +240,7 @@ export default async function InadimplenciaPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {receivable.customerDocument || "Documento não retornado"}
+                      {getCustomerDocumentLabel(receivable)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {receivable.portalGuardian?.fullName ?? "Não vinculado"}
@@ -575,6 +575,22 @@ function getEmptyReceivablesMessage(data: {
   }
 
   return "Nenhum título vencido encontrado.";
+}
+
+function getCustomerDocumentLabel(receivable: OverdueReceivableWithMatch) {
+  if (receivable.customerDocument) {
+    return receivable.customerDocument;
+  }
+
+  if (receivable.customerDocumentStatus === "missing_customer_id") {
+    return "Cliente sem ID";
+  }
+
+  if (receivable.customerDocumentStatus === "lookup_error") {
+    return "Erro ao buscar documento";
+  }
+
+  return "Sem CPF/CNPJ no Conta Azul";
 }
 
 function normalizeDocument(value: string | null | undefined) {

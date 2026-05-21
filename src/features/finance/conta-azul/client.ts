@@ -28,6 +28,7 @@ type SearchReceivablesParams = {
 type SearchPeopleParams = {
   ids?: string[];
   document?: string;
+  search?: string;
   onlyIndividuals?: boolean;
   pageSize?: number;
   maxPages?: number;
@@ -71,6 +72,10 @@ export class ContaAzulClient {
         maxPages: params.maxPages,
       },
     );
+  }
+
+  async getPersonById(id: string) {
+    return this.get<ContaAzulPerson>(`/v1/pessoas/${encodeURIComponent(id)}`, {});
   }
 
   private async getAllPages<T>(
@@ -314,6 +319,7 @@ function buildPeopleQueryParams(params: SearchPeopleParams = {}) {
   return {
     ids: params.ids?.join(","),
     documentos: params.document,
+    busca: params.search,
     tipo_perfil: "Cliente",
     tipo_pessoa: params.onlyIndividuals ? "FISICA" : undefined,
   };

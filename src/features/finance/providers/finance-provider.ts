@@ -14,6 +14,7 @@ export type OverdueReceivable = {
   customerExternalId?: string;
   customerName: string;
   customerDocument?: string;
+  customerDocumentStatus?: "found" | "missing" | "lookup_error" | "missing_customer_id";
   customerEmail?: string;
   description?: string;
   dueDate: string;

@@ -13,6 +13,11 @@ import type {
   ContaAzulReceivable,
 } from "@/features/finance/conta-azul/types";
 
+type PersonEnrichment = {
+  peopleById: Map<string, ContaAzulPerson>;
+  lookupErrorIds: Set<string>;
+};
+
 export class ContaAzulProvider implements FinanceProvider {
   private readonly client?: ContaAzulClient;
 
@@ -39,7 +44,8 @@ export class ContaAzulProvider implements FinanceProvider {
       customerIdsCount: customerIds.length,
     });
 
-    const peopleById = await this.getPeopleByIds(
+    const { peopleById, lookupErrorIds } = await this.enrichPeopleForReceivables(
+      receivables,
       customerIds,
       client,
     );
@@ -53,13 +59,19 @@ export class ContaAzulProvider implements FinanceProvider {
         : null;
 
       overdueReceivables.push(
-        mapContaAzulReceivableToOverdueReceivable(receivable, person),
+        mapContaAzulReceivableToOverdueReceivable(
+          receivable,
+          person,
+          getCustomerDocumentStatus(receivable, person, lookupErrorIds),
+        ),
       );
     }
 
     console.info("Conta Azul overdue receivables loaded:", {
       status: receivableStatus,
       receivables: receivables.length,
+      customerIds,
+      uniqueCustomerIds: customerIds.length,
       mappedReceivables: overdueReceivables.length,
       enrichedWithDocument: overdueReceivables.filter((receivable) =>
         Boolean(normalizeDocument(receivable.customerDocument)),
@@ -109,12 +121,17 @@ export class ContaAzulProvider implements FinanceProvider {
     return this.client ?? new ContaAzulClient();
   }
 
-  private async getPeopleByIds(
+  private async enrichPeopleForReceivables(
+    receivables: ContaAzulReceivable[],
     ids: string[],
     client: ContaAzulClient,
-  ): Promise<Map<string, ContaAzulPerson>> {
+  ): Promise<PersonEnrichment> {
     const peopleById = new Map<string, ContaAzulPerson>();
+    const lookupErrorIds = new Set<string>();
+    const namesById = buildCustomerNamesById(receivables);
     let fetchedPeopleCount = 0;
+    let detailFetchedPeopleCount = 0;
+    let textualFallbackPeopleCount = 0;
     const batchSize = 100;
 
     if (ids.length === 0) {
@@ -124,12 +141,21 @@ export class ContaAzulProvider implements FinanceProvider {
         withDocument: 0,
       });
 
-      return peopleById;
+      return { peopleById, lookupErrorIds };
     }
 
     try {
       for (let index = 0; index < ids.length; index += batchSize) {
         const batchIds = ids.slice(index, index + batchSize);
+        console.info("Conta Azul people ids request:", {
+          url: "/v1/pessoas",
+          queryParams: {
+            tipo_perfil: "Cliente",
+            ids: batchIds.join(","),
+            pagina: 1,
+            tamanho_pagina: 1000,
+          },
+        });
         const people = await client.searchPeople({
           ids: batchIds,
           pageSize: 1000,
@@ -146,17 +172,124 @@ export class ContaAzulProvider implements FinanceProvider {
       console.warn("Conta Azul people batch enrichment failed:", {
         error: error instanceof Error ? error.message : error,
       });
+      for (const id of ids) {
+        lookupErrorIds.add(id);
+      }
     }
+
+    detailFetchedPeopleCount = await this.enrichMissingPeopleWithDetails(
+      ids,
+      client,
+      peopleById,
+      lookupErrorIds,
+    );
+    textualFallbackPeopleCount = await this.enrichMissingPeopleWithSearch(
+      ids,
+      namesById,
+      client,
+      peopleById,
+      lookupErrorIds,
+    );
 
     console.info("Conta Azul people enrichment loaded:", {
       requestedIds: ids.length,
-      fetchedPeople: fetchedPeopleCount,
+      fetchedPeopleByIds: fetchedPeopleCount,
+      fetchedPeopleByDetails: detailFetchedPeopleCount,
+      fetchedPeopleByTextualFallback: textualFallbackPeopleCount,
       withDocument: [...peopleById.values()].filter((person) =>
         Boolean(normalizeDocument(person.documento)),
       ).length,
     });
 
-    return peopleById;
+    return { peopleById, lookupErrorIds };
+  }
+
+  private async enrichMissingPeopleWithDetails(
+    ids: string[],
+    client: ContaAzulClient,
+    peopleById: Map<string, ContaAzulPerson>,
+    lookupErrorIds: Set<string>,
+  ) {
+    let fetchedPeopleCount = 0;
+
+    for (const id of ids) {
+      const currentPerson = peopleById.get(id);
+
+      if (currentPerson && normalizeDocument(currentPerson.documento)) {
+        continue;
+      }
+
+      try {
+        const person = await client.getPersonById(id);
+        peopleById.set(id, person);
+        lookupErrorIds.delete(id);
+        fetchedPeopleCount += 1;
+      } catch (error) {
+        lookupErrorIds.add(id);
+        console.warn("Conta Azul person detail enrichment failed:", {
+          personId: id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
+
+    return fetchedPeopleCount;
+  }
+
+  private async enrichMissingPeopleWithSearch(
+    ids: string[],
+    namesById: Map<string, string>,
+    client: ContaAzulClient,
+    peopleById: Map<string, ContaAzulPerson>,
+    lookupErrorIds: Set<string>,
+  ) {
+    let fetchedPeopleCount = 0;
+
+    for (const id of ids) {
+      const currentPerson = peopleById.get(id);
+
+      if (currentPerson && normalizeDocument(currentPerson.documento)) {
+        continue;
+      }
+
+      const name = namesById.get(id);
+
+      if (!name) {
+        continue;
+      }
+
+      try {
+        const people = await client.searchPeople({
+          search: name,
+          pageSize: 10,
+          maxPages: 1,
+        });
+        fetchedPeopleCount += people.length;
+        const matchedPerson =
+          people.find((person) => person.id === id) ??
+          people.find((person) => normalizeText(person.nome) === normalizeText(name));
+
+        if (matchedPerson) {
+          peopleById.set(id, matchedPerson);
+          lookupErrorIds.delete(id);
+        }
+
+        console.info("Conta Azul people textual fallback loaded:", {
+          personId: id,
+          returnedPeople: people.length,
+          matched: Boolean(matchedPerson),
+          matchedWithDocument: Boolean(normalizeDocument(matchedPerson?.documento)),
+        });
+      } catch (error) {
+        lookupErrorIds.add(id);
+        console.warn("Conta Azul people textual fallback failed:", {
+          personId: id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
+
+    return fetchedPeopleCount;
   }
 
   // Future option: call GET /v1/pessoas/{id} when atrasos_recebimentos
@@ -170,12 +303,14 @@ export class ContaAzulProvider implements FinanceProvider {
 function mapContaAzulReceivableToOverdueReceivable(
   receivable: ContaAzulReceivable,
   person: ContaAzulPerson | null,
+  customerDocumentStatus: OverdueReceivable["customerDocumentStatus"],
 ): OverdueReceivable {
   return {
     externalId: receivable.id,
     customerExternalId: receivable.cliente?.id,
     customerName: receivable.cliente?.nome || person?.nome || "Cliente não informado",
     customerDocument: person?.documento,
+    customerDocumentStatus,
     customerEmail: person?.email,
     description: receivable.descricao,
     dueDate: receivable.data_vencimento,
@@ -186,6 +321,28 @@ function mapContaAzulReceivableToOverdueReceivable(
     status: receivable.status,
     source: "conta_azul",
   };
+}
+
+function getCustomerDocumentStatus(
+  receivable: ContaAzulReceivable,
+  person: ContaAzulPerson | null,
+  lookupErrorIds: Set<string>,
+): OverdueReceivable["customerDocumentStatus"] {
+  const customerId = receivable.cliente?.id;
+
+  if (!customerId) {
+    return "missing_customer_id";
+  }
+
+  if (lookupErrorIds.has(customerId)) {
+    return "lookup_error";
+  }
+
+  if (normalizeDocument(person?.documento)) {
+    return "found";
+  }
+
+  return "missing";
 }
 
 function buildContaAzulOverdueReceivablesFilters(
@@ -284,4 +441,19 @@ function getUniqueCustomerIds(receivables: ContaAzulReceivable[]) {
         .filter((id): id is string => Boolean(id)),
     ),
   ];
+}
+
+function buildCustomerNamesById(receivables: ContaAzulReceivable[]) {
+  const namesById = new Map<string, string>();
+
+  for (const receivable of receivables) {
+    const customerId = receivable.cliente?.id;
+    const customerName = receivable.cliente?.nome;
+
+    if (customerId && customerName && !namesById.has(customerId)) {
+      namesById.set(customerId, customerName);
+    }
+  }
+
+  return namesById;
 }
