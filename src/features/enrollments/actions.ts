@@ -8,6 +8,7 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
+import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
   errors?: Record<string, string[]>;
@@ -130,7 +131,7 @@ export async function createEnrollment(
   const { data, error } = await supabase
     .from("enrollments")
     .insert(payload)
-    .select("id, student_id, class_id")
+    .select("id, student_id, class_id, status, start_date")
     .single();
 
   if (error || !data) {
@@ -146,8 +147,19 @@ export async function createEnrollment(
     };
   }
 
+  if (data.status === "active") {
+    await ensureGrowthChurnEvent({
+      supabase,
+      enrollmentId: data.id as string,
+      eventType: "entrada",
+      eventDate: (data.start_date as string | null) ?? null,
+      source: "enrollment_created",
+    });
+  }
+
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
+  revalidatePath("/financeiro/growth-churn");
   revalidatePath(`/alunos/${data.student_id}`);
   revalidatePath(`/turmas/${data.class_id}`);
   redirect(
@@ -178,7 +190,7 @@ export async function cancelEnrollment(
   const supabase = await createClient();
   const { data: enrollment, error: loadError } = await supabase
     .from("enrollments")
-    .select("id, student_id, class_id, status")
+    .select("id, student_id, class_id, status, monthly_amount")
     .eq("id", parsed.data.enrollment_id)
     .maybeSingle();
 
@@ -252,9 +264,20 @@ export async function cancelEnrollment(
     };
   }
 
+  await ensureGrowthChurnEvent({
+    supabase,
+    enrollmentId: parsed.data.enrollment_id,
+    eventType: "saida",
+    eventDate: cancelledAt,
+    reasonName: parsed.data.cancellation_reason,
+    reasonNotes: parsed.data.cancellation_notes,
+    source: "enrollment_cancelled",
+  });
+
   revalidatePath("/turmas");
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
+  revalidatePath("/financeiro/growth-churn");
   revalidatePath("/alunos");
 
   if (studentId) {

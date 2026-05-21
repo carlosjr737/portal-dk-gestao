@@ -29,6 +29,12 @@ export default function FinanceiroPage() {
           >
             Vínculos Conta Azul
           </Link>
+          <Link
+            href="/financeiro/growth-churn"
+            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            Growth & Churn
+          </Link>
         </div>
       </section>
     </div>
