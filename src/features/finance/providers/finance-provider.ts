@@ -6,6 +6,7 @@ export type FinanceCustomer = {
   document?: string;
   email?: string;
   phone?: string;
+  source?: string;
 };
 
 export type OverdueReceivable = {
@@ -33,6 +34,7 @@ export type GetOverdueReceivablesParams = {
 export type GetCustomersParams = {
   document?: string;
   search?: string;
+  onlyIndividuals?: boolean;
 };
 
 export interface FinanceProvider {

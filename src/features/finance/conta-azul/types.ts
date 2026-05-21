@@ -33,8 +33,11 @@ export type ContaAzulPerson = {
   nome: string;
   documento?: string;
   email?: string;
+  tipo_pessoa?: string;
   ativo?: boolean;
   perfis?: string[];
+  atrasos_recebimentos?: number;
+  recebimentos_mes_atual?: number;
   endereco?: {
     logradouro?: string;
     numero?: string;

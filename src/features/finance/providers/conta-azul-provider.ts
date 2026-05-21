@@ -47,6 +47,13 @@ export class ContaAzulProvider implements FinanceProvider {
       );
     }
 
+    console.info("Conta Azul overdue receivables loaded:", {
+      receivables: receivables.length,
+      enrichedWithDocument: overdueReceivables.filter((receivable) =>
+        Boolean(normalizeDocument(receivable.customerDocument)),
+      ).length,
+    });
+
     return overdueReceivables.filter((receivable) =>
       params.customerDocument
         ? normalizeDocument(receivable.customerDocument) ===
@@ -57,29 +64,33 @@ export class ContaAzulProvider implements FinanceProvider {
 
   async getCustomerByDocument(_document: string): Promise<FinanceCustomer | null> {
     const document = normalizeDocument(_document);
-    const customers = await this.getCustomers({ document });
+    const { byDocument } = await this.buildContaAzulCustomerMaps({ document });
 
-    return (
-      customers.find(
-        (customer) => normalizeDocument(customer.document) === document,
-      ) ?? null
-    );
+    return byDocument.get(document) ?? null;
   }
 
   async getCustomers(params: GetCustomersParams = {}): Promise<FinanceCustomer[]> {
     const people = await this.getClient().searchPeople({
       document: params.document,
+      onlyIndividuals: params.onlyIndividuals,
+      pageSize: 1000,
+    });
+    const customers = people.map(mapContaAzulPersonToFinanceCustomer);
+
+    console.info("Conta Azul customers loaded:", {
+      customers: customers.length,
+      withDocument: customers.filter((customer) =>
+        Boolean(normalizeDocument(customer.document)),
+      ).length,
     });
 
-    return people
-      .map(mapContaAzulPersonToFinanceCustomer)
-      .filter((customer) =>
-        params.document
-          ? normalizeDocument(customer.document) === normalizeDocument(params.document)
-          : params.search
-            ? normalizeText(customer.name).includes(normalizeText(params.search))
-            : true,
-      );
+    return customers.filter((customer) =>
+      params.document
+        ? normalizeDocument(customer.document) === normalizeDocument(params.document)
+        : params.search
+          ? normalizeText(customer.name).includes(normalizeText(params.search))
+          : true,
+    );
   }
 
   private getClient() {
@@ -117,6 +128,13 @@ export class ContaAzulProvider implements FinanceProvider {
     }
 
     return peopleById;
+  }
+
+  // Future option: call GET /v1/pessoas/{id} when atrasos_recebimentos
+  // and recebimentos_mes_atual are needed per customer.
+  private async buildContaAzulCustomerMaps(params: GetCustomersParams = {}) {
+    const customers = await this.getCustomers(params);
+    return buildContaAzulCustomerMaps(customers);
   }
 }
 
@@ -166,7 +184,25 @@ function mapContaAzulPersonToFinanceCustomer(
     name: person.nome,
     document: person.documento,
     email: person.email,
+    source: "conta_azul",
   };
+}
+
+function buildContaAzulCustomerMaps(customers: FinanceCustomer[]) {
+  const byExternalId = new Map<string, FinanceCustomer>();
+  const byDocument = new Map<string, FinanceCustomer>();
+
+  for (const customer of customers) {
+    byExternalId.set(customer.externalId, customer);
+
+    const document = normalizeDocument(customer.document);
+
+    if (document) {
+      byDocument.set(document, customer);
+    }
+  }
+
+  return { byExternalId, byDocument };
 }
 
 function calculateDaysOverdue(dueDate: string) {
@@ -203,6 +239,7 @@ function normalizeText(value: string | undefined) {
 
 function isContaAzulOverdueReceivable(receivable: ContaAzulReceivable) {
   return (
+    receivable.status === "ATRASADO" ||
     receivable.status === "OVERDUE" ||
     receivable.status_traduzido === "ATRASADO"
   );

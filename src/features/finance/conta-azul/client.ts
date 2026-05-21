@@ -28,6 +28,7 @@ type SearchReceivablesParams = {
 type SearchPeopleParams = {
   ids?: string[];
   document?: string;
+  onlyIndividuals?: boolean;
   pageSize?: number;
   maxPages?: number;
 };
@@ -77,7 +78,7 @@ export class ContaAzulClient {
     query: ContaAzulQueryParams,
     options: { pageSize?: number; maxPages?: number } = {},
   ) {
-    const pageSize = options.pageSize ?? 100;
+    const pageSize = Math.min(options.pageSize ?? 100, 1000);
     const maxPages = options.maxPages ?? 100;
     const items: T[] = [];
 
@@ -272,6 +273,7 @@ function buildPeopleQueryParams(params: SearchPeopleParams = {}) {
     ids: params.ids?.join(","),
     documentos: params.document,
     tipo_perfil: "Cliente",
+    tipo_pessoa: params.onlyIndividuals ? "FISICA" : undefined,
   };
 }
 

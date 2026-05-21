@@ -234,7 +234,7 @@ export default async function InadimplenciaPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {receivable.customerDocument || "CPF não retornado"}
+                      {receivable.customerDocument || "Documento não retornado"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {receivable.portalGuardian?.fullName ?? "Não vinculado"}
@@ -318,6 +318,17 @@ async function getInadimplenciaData(filters: {
           null
         : null,
     }));
+
+    console.info("Finance overdue guardian matching:", {
+      overdueReceivables: receivables.length,
+      withCustomerDocument: receivables.filter((receivable) =>
+        Boolean(normalizeDocument(receivable.customerDocument)),
+      ).length,
+      linkedToGuardians: enrichedReceivables.filter(
+        (receivable) => receivable.portalGuardian,
+      ).length,
+    });
+
     const filteredReceivables = filterReceivables(enrichedReceivables, filters);
 
     return buildData(
@@ -385,6 +396,11 @@ async function getGuardiansByDocument(documents: string[]) {
     uniqueDocuments.includes(normalizeDocument(guardian.document as string | null)),
   );
   const guardianIds = matchingGuardians.map((guardian) => guardian.id as string);
+
+  console.info("Finance guardians matched by document:", {
+    requestedDocuments: uniqueDocuments.length,
+    matchedGuardians: matchingGuardians.length,
+  });
 
   if (guardianIds.length === 0) {
     return new Map<string, GuardianMatch>();
@@ -515,7 +531,7 @@ function buildData(
     receivables.map((receivable) =>
       receivable.customerDocument
         ? normalizeDocument(receivable.customerDocument)
-        : receivable.customerExternalId || receivable.customerName,
+        : receivable.customerExternalId || receivable.externalId,
     ),
   );
   const oldestDueDate = receivables
