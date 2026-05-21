@@ -13,8 +13,10 @@ const navigation = [
   { href: "/modalidades", label: "Modalidades" },
   { href: "/niveis", label: "Níveis" },
   { href: "/matriculas", label: "Matrículas" },
+  { href: "/chamada", label: "Chamada" },
   { href: "/importar-alunos", label: "Importar alunos" },
   { href: "/financeiro", label: "Financeiro" },
+  { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/configuracoes", label: "Configurações" },
 ];
 

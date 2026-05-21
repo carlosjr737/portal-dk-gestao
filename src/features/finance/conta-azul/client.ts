@@ -1,0 +1,221 @@
+import "server-only";
+
+import type {
+  ContaAzulPaginatedResponse,
+  ContaAzulPerson,
+  ContaAzulReceivable,
+} from "@/features/finance/conta-azul/types";
+import { refreshContaAzulAccessToken } from "@/features/finance/conta-azul/auth";
+import { getContaAzulTokens } from "@/features/finance/conta-azul/token-store";
+
+const DEFAULT_CONTA_AZUL_BASE_URL = "https://api-v2.contaazul.com";
+const accessTokenNotConfiguredMessage =
+  "CONTA_AZUL_ACCESS_TOKEN não configurado.";
+const reconnectMessage = "Conta Azul precisa ser reconectada.";
+
+type ContaAzulClientConfig = {
+  baseUrl?: string;
+  accessToken?: string;
+};
+
+type SearchReceivablesParams = {
+  fromDueDate?: string;
+  toDueDate?: string;
+};
+
+type SearchPeopleParams = {
+  ids?: string[];
+  document?: string;
+  pageSize?: number;
+  maxPages?: number;
+};
+
+export class ContaAzulApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+  ) {
+    super(message);
+    this.name = "ContaAzulApiError";
+  }
+}
+
+export class ContaAzulClient {
+  private readonly baseUrl: string;
+  private accessToken?: string;
+
+  constructor(config: ContaAzulClientConfig = getContaAzulConfig()) {
+    this.baseUrl = config.baseUrl ?? DEFAULT_CONTA_AZUL_BASE_URL;
+    this.accessToken = config.accessToken;
+  }
+
+  async searchOverdueReceivables(params: SearchReceivablesParams = {}) {
+    return this.getAllPages<ContaAzulReceivable>(
+      "/v1/financeiro/eventos-financeiros/contas-a-receber/buscar",
+      buildReceivablesQueryParams(params),
+    );
+  }
+
+  async searchPeople(params: SearchPeopleParams = {}) {
+    return this.getAllPages<ContaAzulPerson>(
+      "/v1/pessoas",
+      buildPeopleQueryParams(params),
+      {
+        pageSize: params.pageSize,
+        maxPages: params.maxPages,
+      },
+    );
+  }
+
+  private async getAllPages<T>(
+    path: string,
+    query: Record<string, string | number | undefined>,
+    options: { pageSize?: number; maxPages?: number } = {},
+  ) {
+    const pageSize = options.pageSize ?? 100;
+    const maxPages = options.maxPages ?? 100;
+    const items: T[] = [];
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const response = await this.get<ContaAzulPaginatedResponse<T>>(path, {
+        ...query,
+        pagina: page,
+        tamanho_pagina: pageSize,
+      });
+      const pageItems = response.itens ?? response.items ?? [];
+
+      items.push(...pageItems);
+
+      const totalItems = response.itens_totais ?? response.totalItems;
+
+      if (pageItems.length < pageSize) {
+        break;
+      }
+
+      if (typeof totalItems === "number" && items.length >= totalItems) {
+        break;
+      }
+    }
+
+    return items;
+  }
+
+  private async get<T>(
+    path: string,
+    query: Record<string, string | number | undefined>,
+    retryOnUnauthorized = true,
+  ): Promise<T> {
+    const url = new URL(path, this.baseUrl);
+
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== "") {
+        url.searchParams.append(key, String(value));
+      }
+    }
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (response.status === 401) {
+      if (!retryOnUnauthorized) {
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
+      this.accessToken = await refreshContaAzulAccessToken();
+      return this.get<T>(path, query, false);
+    }
+
+    if (!response.ok) {
+      throw new ContaAzulApiError(
+        await getErrorMessage(response),
+        response.status,
+      );
+    }
+
+    return (await response.json()) as T;
+  }
+
+  private async getAccessToken() {
+    if (this.accessToken) {
+      return this.accessToken;
+    }
+
+    let tokens = null;
+
+    try {
+      tokens = await getContaAzulTokens();
+    } catch (error) {
+      console.error(
+        "Conta Azul token-store access error:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    if (tokens?.accessToken && tokens.status === "connected") {
+      this.accessToken = tokens.accessToken;
+      return tokens.accessToken;
+    }
+
+    if (process.env.NODE_ENV === "development" && process.env.CONTA_AZUL_ACCESS_TOKEN) {
+      this.accessToken = process.env.CONTA_AZUL_ACCESS_TOKEN;
+      return this.accessToken;
+    }
+
+    throw new ContaAzulApiError(accessTokenNotConfiguredMessage);
+  }
+}
+
+function getContaAzulConfig(): ContaAzulClientConfig {
+  return {
+    baseUrl: process.env.CONTA_AZUL_BASE_URL || DEFAULT_CONTA_AZUL_BASE_URL,
+    accessToken: process.env.CONTA_AZUL_ACCESS_TOKEN,
+  };
+}
+
+async function getErrorMessage(response: Response) {
+  const fallback = `Erro na API Conta Azul (${response.status}).`;
+
+  try {
+    const body = (await response.json()) as { message?: string; erro?: string };
+    return body.message ?? body.erro ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getDefaultFromDueDate() {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 12);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildReceivablesQueryParams(params: SearchReceivablesParams = {}) {
+  return {
+    status: JSON.stringify(["ATRASADO"]),
+    data_vencimento_de: params.fromDueDate ?? getDefaultFromDueDate(),
+    data_vencimento_ate: params.toDueDate ?? getTodayDate(),
+    // Confirmado na documentação atual: pagina e tamanho_pagina.
+    // Status em array centralizado aqui. Alternativas comuns: status=ATRASADO ou status[]=ATRASADO.
+    // Se a Conta Azul alterar os nomes, ajustar apenas esta montagem.
+  };
+}
+
+function buildPeopleQueryParams(params: SearchPeopleParams = {}) {
+  return {
+    ids: params.ids?.join(","),
+    documentos: params.document,
+    tipo_perfil: "Cliente",
+  };
+}

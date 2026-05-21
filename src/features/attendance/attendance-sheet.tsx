@@ -1,0 +1,107 @@
+import type { AttendanceClassSheet } from "@/features/attendance/data";
+
+type AttendanceSheetProps = {
+  sheet: AttendanceClassSheet;
+  forcePageBreak?: boolean;
+};
+
+export function AttendanceSheet({
+  sheet,
+  forcePageBreak = false,
+}: AttendanceSheetProps) {
+  return (
+    <section
+      className={`bg-white text-black ${forcePageBreak ? "print-page" : ""}`}
+    >
+      <header className="border-b border-black pb-4">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <p className="text-lg font-bold">DK Studio</p>
+            <h1 className="mt-1 text-2xl font-bold">Lista de chamada</h1>
+          </div>
+          <div className="text-right text-sm">
+            <p>Data de impressão</p>
+            <p className="font-semibold">
+              {new Intl.DateTimeFormat("pt-BR").format(new Date())}
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+          <Info label="Turma" value={sheet.name} />
+          <Info label="Professor" value={sheet.teacherName} />
+          <Info label="Modalidade" value={sheet.modalityName} />
+          <Info label="Nível" value={sheet.levelName} />
+          <Info label="Horários" value={sheet.schedulesText} />
+          <Info
+            label="Total de alunos ativos"
+            value={String(sheet.activeStudentsCount)}
+          />
+        </dl>
+      </header>
+
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-white">
+              <th className="w-12 border border-black px-2 py-2 text-left font-bold">
+                Nº
+              </th>
+              <th className="border border-black px-2 py-2 text-left font-bold">
+                Nome do aluno
+              </th>
+              <th className="border border-black px-2 py-2 text-left font-bold">
+                Responsável financeiro
+              </th>
+              <th className="border border-black px-2 py-2 text-left font-bold">
+                Telefone do responsável
+              </th>
+              <th className="w-48 border border-black px-2 py-2 text-left font-bold">
+                Presença / Assinatura
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sheet.students.length > 0 ? (
+              sheet.students.map((student, index) => (
+                <tr key={student.enrollmentId}>
+                  <td className="border border-black px-2 py-3">
+                    {index + 1}
+                  </td>
+                  <td className="border border-black px-2 py-3">
+                    {student.studentName}
+                  </td>
+                  <td className="border border-black px-2 py-3">
+                    {student.financialGuardianName}
+                  </td>
+                  <td className="border border-black px-2 py-3">
+                    {student.financialGuardianPhone}
+                  </td>
+                  <td className="border border-black px-2 py-3">&nbsp;</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="border border-black px-2 py-6 text-center"
+                >
+                  Nenhum aluno ativo nesta turma.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-semibold">{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
