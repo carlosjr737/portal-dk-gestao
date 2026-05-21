@@ -58,7 +58,7 @@ export default async function InadimplenciaPage({
       <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <PageHeader
           title="Inadimplência"
-          description="Acompanhe títulos vencidos vindos do provedor financeiro configurado."
+          description="Acompanhe títulos financeiros vindos do provedor configurado."
         />
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -117,14 +117,20 @@ export default async function InadimplenciaPage({
         </div>
       ) : null}
 
+      <p className="mt-6 max-w-4xl text-sm text-muted-foreground">
+        Os dados financeiros são carregados diretamente do Conta Azul. O vínculo
+        com responsáveis do Portal DK será usado quando houver CPF/CNPJ
+        disponível no cadastro do cliente.
+      </p>
+
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total em atraso" value={formatMoney(data.totalOpenAmount)} />
+        <MetricCard label="Total em aberto" value={formatMoney(data.totalOpenAmount)} />
         <MetricCard
-          label="Títulos vencidos"
+          label="Títulos encontrados"
           value={String(data.receivables.length)}
         />
         <MetricCard
-          label="Clientes inadimplentes"
+          label="Clientes com títulos"
           value={String(data.overdueCustomersCount)}
         />
         <MetricCard
@@ -219,16 +225,13 @@ export default async function InadimplenciaPage({
             <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-semibold">Cliente Conta Azul</th>
-                <th className="px-4 py-3 font-semibold">CPF/CNPJ</th>
-                <th className="px-4 py-3 font-semibold">
-                  Responsável no Portal DK
-                </th>
-                <th className="px-4 py-3 font-semibold">Alunos vinculados</th>
                 <th className="px-4 py-3 font-semibold">Descrição</th>
                 <th className="px-4 py-3 font-semibold">Vencimento</th>
                 <th className="px-4 py-3 font-semibold">Dias em atraso</th>
                 <th className="px-4 py-3 font-semibold">Valor em aberto</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">CPF/CNPJ</th>
+                <th className="px-4 py-3 font-semibold">Vínculo Portal DK</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -239,17 +242,6 @@ export default async function InadimplenciaPage({
                       <div className="font-medium text-foreground">
                         {receivable.customerName}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {getCustomerDocumentLabel(receivable)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {getPortalGuardianLabel(receivable)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {receivable.portalGuardian?.students.length
-                        ? receivable.portalGuardian.students.join(", ")
-                        : "-"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {receivable.description || "-"}
@@ -265,6 +257,12 @@ export default async function InadimplenciaPage({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {receivable.status}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {getCustomerDocumentLabel(receivable)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {getPortalGuardianLabel(receivable)}
                     </td>
                   </tr>
                 ))
@@ -677,15 +675,7 @@ function getCustomerDocumentLabel(receivable: OverdueReceivableWithMatch) {
     return receivable.customerDocument;
   }
 
-  if (receivable.customerDocumentStatus === "missing_customer_id") {
-    return "Cliente sem ID";
-  }
-
-  if (receivable.customerDocumentStatus === "lookup_error") {
-    return "Erro ao buscar documento";
-  }
-
-  return "Sem CPF/CNPJ no Conta Azul";
+  return "Não informado no ambiente Conta Azul";
 }
 
 function getPortalGuardianLabel(receivable: OverdueReceivableWithMatch) {
