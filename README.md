@@ -83,3 +83,4 @@ O projeto possui helpers para criar clientes Supabase no browser e no servidor:
 - `src/lib/supabase/server.ts`
 
 As tabelas ainda nao foram criadas. Nao use chaves reais no codigo; mantenha credenciais apenas em `.env.local`.
+# portal-dk-gestao
