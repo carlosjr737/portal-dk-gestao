@@ -2,18 +2,12 @@ import type { AttendanceClassSheet } from "@/features/attendance/data";
 
 type AttendanceSheetProps = {
   sheet: AttendanceClassSheet;
-  forcePageBreak?: boolean;
 };
 
-export function AttendanceSheet({
-  sheet,
-  forcePageBreak = false,
-}: AttendanceSheetProps) {
+export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
   return (
-    <section
-      className={`bg-white text-black ${forcePageBreak ? "print-page" : ""}`}
-    >
-      <header className="border-b border-black pb-4">
+    <section className="print-class-page bg-white text-black">
+      <header className="attendance-print-header border-b border-black pb-4">
         <div className="flex items-start justify-between gap-6">
           <div>
             <p className="text-lg font-bold">DK Studio</p>
@@ -47,59 +41,59 @@ export function AttendanceSheet({
           Não há horários cadastrados para gerar os dias da chamada.
         </div>
       ) : (
-      <div className="mt-5 overflow-x-auto">
-        <table className="w-full table-fixed border-collapse text-[11px]">
-          <thead>
-            <tr className="bg-white">
-              <th className="w-8 border border-black px-1 py-2 text-left font-bold">
-                Nº
-              </th>
-              <th className="w-56 border border-black px-2 py-2 text-left font-bold">
-                Nome do aluno
-              </th>
-              {sheet.attendanceDates.map((date) => (
-                <th
-                  key={date}
-                  className="w-10 border border-black px-1 py-2 text-center font-bold"
-                >
-                  {date}
+        <div className="mt-5 overflow-x-auto">
+          <table className="attendance-print-table w-full table-fixed border-collapse text-[11px]">
+            <thead>
+              <tr className="bg-white">
+                <th className="attendance-number-cell w-8 border border-black px-1 py-2 text-left font-bold">
+                  Nº
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sheet.students.length > 0 ? (
-              sheet.students.map((student, index) => (
-                <tr key={student.enrollmentId}>
-                  <td className="border border-black px-1 py-2">
-                    {index + 1}
-                  </td>
-                  <td className="border border-black px-2 py-2">
-                    {student.studentName}
-                  </td>
-                  {sheet.attendanceDates.map((date) => (
-                    <td
-                      key={`${student.enrollmentId}-${date}`}
-                      className="border border-black px-1 py-2 text-center"
-                    >
-                      &nbsp;
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={sheet.attendanceDates.length + 2}
-                  className="border border-black px-2 py-6 text-center"
-                >
-                  Nenhum aluno ativo nesta turma.
-                </td>
+                <th className="attendance-student-cell w-56 border border-black px-2 py-2 text-left font-bold">
+                  Nome do aluno
+                </th>
+                {sheet.attendanceDates.map((date) => (
+                  <th
+                    key={date}
+                    className="attendance-date-cell w-10 border border-black px-1 py-2 text-center font-bold"
+                  >
+                    {date}
+                  </th>
+                ))}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {sheet.students.length > 0 ? (
+                sheet.students.map((student, index) => (
+                  <tr key={student.enrollmentId}>
+                    <td className="attendance-number-cell border border-black px-1 py-2">
+                      {index + 1}
+                    </td>
+                    <td className="attendance-student-cell border border-black px-2 py-2">
+                      {student.studentName}
+                    </td>
+                    {sheet.attendanceDates.map((date) => (
+                      <td
+                        key={`${student.enrollmentId}-${date}`}
+                        className="attendance-date-cell border border-black px-1 py-2 text-center"
+                      >
+                        &nbsp;
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={sheet.attendanceDates.length + 2}
+                    className="border border-black px-2 py-6 text-center"
+                  >
+                    Nenhum aluno ativo nesta turma.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

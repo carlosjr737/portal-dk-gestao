@@ -47,13 +47,7 @@ export default async function ImprimirTodasPage({
 
       <div className="space-y-10 print:space-y-0">
         {sheets.length > 0 ? (
-          sheets.map((sheet, index) => (
-            <AttendanceSheet
-              key={sheet.id}
-              sheet={sheet}
-              forcePageBreak={index < sheets.length - 1}
-            />
-          ))
+          sheets.map((sheet) => <AttendanceSheet key={sheet.id} sheet={sheet} />)
         ) : (
           <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
             Nenhuma turma ativa encontrada para impressão.
