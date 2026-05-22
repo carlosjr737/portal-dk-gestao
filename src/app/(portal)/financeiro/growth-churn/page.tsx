@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +45,10 @@ export default async function GrowthChurnPage({
   searchParams,
 }: GrowthChurnPageProps) {
   const params = await searchParams;
+  const defaultPeriod = getDefaultPeriod();
   const filters = {
-    from: params?.from?.trim() ?? "",
-    to: params?.to?.trim() ?? "",
+    from: params?.from?.trim() || defaultPeriod.from,
+    to: params?.to?.trim() || defaultPeriod.to,
     teacherId: params?.teacherId?.trim() ?? "",
     modalityId: params?.modalityId?.trim() ?? "",
     levelId: params?.levelId?.trim() ?? "",
@@ -133,6 +134,12 @@ export default async function GrowthChurnPage({
           </Link>
         </div>
       </form>
+
+      {data.errorMessage ? (
+        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {data.errorMessage}
+        </div>
+      ) : null}
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Entradas" value={String(data.metrics.entries)} />
@@ -260,7 +267,7 @@ export default async function GrowthChurnPage({
                       {formatMoney(event.monthly_amount)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.reasons.get(event.reason_id ?? "")?.name ?? "-"}
+                      {getEventReasonLabel(event, data.maps.reasons)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatSource(event.source)}
@@ -293,7 +300,19 @@ async function getGrowthChurnData(filters: {
   levelId: string;
   classId: string;
 }) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
+  const appliedFilters = {
+    from: filters.from,
+    to: filters.to,
+    teacherId: isActiveFilter(filters.teacherId) ? filters.teacherId : null,
+    modalityId: isActiveFilter(filters.modalityId) ? filters.modalityId : null,
+    levelId: isActiveFilter(filters.levelId) ? filters.levelId : null,
+    classId: isActiveFilter(filters.classId) ? filters.classId : null,
+  };
+
+  console.info("Growth churn filters received:", filters);
+  console.info("Growth churn filters applied:", appliedFilters);
+
   let eventsQuery = supabase
     .from("growth_churn_events")
     .select(
@@ -302,28 +321,28 @@ async function getGrowthChurnData(filters: {
     .order("event_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (filters.from) {
-    eventsQuery = eventsQuery.gte("event_date", filters.from);
+  if (appliedFilters.from) {
+    eventsQuery = eventsQuery.gte("event_date", appliedFilters.from);
   }
 
-  if (filters.to) {
-    eventsQuery = eventsQuery.lte("event_date", filters.to);
+  if (appliedFilters.to) {
+    eventsQuery = eventsQuery.lte("event_date", appliedFilters.to);
   }
 
-  if (filters.teacherId) {
-    eventsQuery = eventsQuery.eq("teacher_id", filters.teacherId);
+  if (appliedFilters.teacherId) {
+    eventsQuery = eventsQuery.eq("teacher_id", appliedFilters.teacherId);
   }
 
-  if (filters.modalityId) {
-    eventsQuery = eventsQuery.eq("modality_id", filters.modalityId);
+  if (appliedFilters.modalityId) {
+    eventsQuery = eventsQuery.eq("modality_id", appliedFilters.modalityId);
   }
 
-  if (filters.levelId) {
-    eventsQuery = eventsQuery.eq("level_id", filters.levelId);
+  if (appliedFilters.levelId) {
+    eventsQuery = eventsQuery.eq("level_id", appliedFilters.levelId);
   }
 
-  if (filters.classId) {
-    eventsQuery = eventsQuery.eq("class_id", filters.classId);
+  if (appliedFilters.classId) {
+    eventsQuery = eventsQuery.eq("class_id", appliedFilters.classId);
   }
 
   const [
@@ -392,6 +411,17 @@ async function getGrowthChurnData(filters: {
     ),
   };
 
+  const metrics = calculateMetrics(normalizedEvents);
+
+  console.info("Growth churn events loaded:", {
+    returnedEvents: normalizedEvents.length,
+    entries: metrics.entries,
+    exits: metrics.exits,
+    newRevenue: metrics.newRevenue,
+    lostRevenue: metrics.lostRevenue,
+    error: eventsError?.message ?? null,
+  });
+
   return {
     events: normalizedEvents,
     maps,
@@ -401,10 +431,13 @@ async function getGrowthChurnData(filters: {
       levels: [...maps.levels.values()],
       classes: [...maps.classes.values()],
     },
-    metrics: calculateMetrics(normalizedEvents),
+    metrics,
     churnByReason: buildChurnByReason(normalizedEvents, maps.reasons),
     byTeacher: buildGroupedRows(normalizedEvents, maps.teachers, "teacher_id"),
     byClass: buildGroupedRows(normalizedEvents, maps.classes, "class_id"),
+    errorMessage: eventsError
+      ? "Não foi possível carregar os eventos de Growth & Churn."
+      : null,
   };
 }
 
@@ -434,7 +467,7 @@ function buildChurnByReason(
   const rows = new Map<string, { reason: string; quantity: number; lostRevenue: number }>();
 
   for (const event of exits) {
-    const reason = reasonsById.get(event.reason_id ?? "")?.name ?? "Sem motivo";
+    const reason = getEventReasonLabel(event, reasonsById);
     const current = rows.get(reason) ?? {
       reason,
       quantity: 0,
@@ -514,6 +547,32 @@ function sumAmounts(events: GrowthChurnEvent[]) {
 
 function getAmount(event: GrowthChurnEvent) {
   return event.monthly_amount ?? 0;
+}
+
+function getEventReasonLabel(
+  event: GrowthChurnEvent,
+  reasonsById: Map<string, NamedRecord>,
+) {
+  return (
+    reasonsById.get(event.reason_id ?? "")?.name ??
+    event.reason_notes?.trim() ??
+    "Sem motivo informado"
+  );
+}
+
+function isActiveFilter(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return Boolean(normalized && normalized !== "Todos");
+}
+
+function getDefaultPeriod() {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return {
+    from: firstDay.toISOString().slice(0, 10),
+    to: today.toISOString().slice(0, 10),
+  };
 }
 
 function FilterInput({
