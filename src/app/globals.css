@@ -32,6 +32,11 @@ a {
 }
 
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
   .no-print,
   aside,
   header {

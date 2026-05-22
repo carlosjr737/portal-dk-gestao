@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import {
   getAttendanceClasses,
   getAttendanceFilterOptions,
+  normalizeAttendanceMonth,
   weekdayOptions,
   type AttendanceFilters,
 } from "@/features/attendance/data";
@@ -16,6 +17,8 @@ type ChamadaPageProps = {
     levelId?: string;
     weekday?: string;
     status?: string;
+    classId?: string;
+    month?: string;
   }>;
 };
 
@@ -43,7 +46,26 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
         </Link>
       </div>
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-6">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
+        <label className="block">
+          <span className="text-sm font-medium text-foreground">Mês/Ano</span>
+          <input
+            name="month"
+            type="month"
+            defaultValue={filters.month}
+            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+          />
+        </label>
+
+        <Select name="classId" label="Turma" defaultValue={filters.classId}>
+          <option value="">Todas</option>
+          {classes.map((danceClass) => (
+            <option key={danceClass.id} value={danceClass.id}>
+              {danceClass.name}
+            </option>
+          ))}
+        </Select>
+
         <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>
           <option value="">Todos</option>
           {filterOptions.teachers.map((teacher) => (
@@ -130,13 +152,13 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href={`/chamada/${danceClass.id}`}
+                    href={`/chamada/${danceClass.id}${buildMonthQueryString(filters)}`}
                     className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
                   >
                     Ver chamada
                   </Link>
                   <Link
-                    href={`/chamada/${danceClass.id}`}
+                    href={`/chamada/${danceClass.id}${buildMonthQueryString(filters)}`}
                     className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
                   >
                     Imprimir
@@ -195,8 +217,11 @@ function parseFilters(params?: {
   levelId?: string;
   weekday?: string;
   status?: string;
+  classId?: string;
+  month?: string;
 }): AttendanceFilters {
   return {
+    classId: params?.classId || undefined,
     teacherId: params?.teacherId || undefined,
     modalityId: params?.modalityId || undefined,
     levelId: params?.levelId || undefined,
@@ -204,6 +229,7 @@ function parseFilters(params?: {
       ? (params?.weekday as AttendanceFilters["weekday"])
       : undefined,
     status: params?.status === "planning" ? "planning" : "active",
+    month: normalizeAttendanceMonth(params?.month),
   };
 }
 
@@ -214,6 +240,17 @@ function buildQueryString(filters: AttendanceFilters) {
     if (value) {
       params.set(key, value);
     }
+  }
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+function buildMonthQueryString(filters: AttendanceFilters) {
+  const params = new URLSearchParams();
+
+  if (filters.month) {
+    params.set("month", filters.month);
   }
 
   const queryString = params.toString();

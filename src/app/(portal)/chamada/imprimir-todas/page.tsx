@@ -4,6 +4,7 @@ import {
   getAllAttendanceClassSheets,
   getAttendanceClasses,
   getAttendanceClassSheet,
+  normalizeAttendanceMonth,
   type AttendanceFilters,
   weekdayOptions,
 } from "@/features/attendance/data";
@@ -18,6 +19,8 @@ type ImprimirTodasPageProps = {
     levelId?: string;
     weekday?: string;
     status?: string;
+    classId?: string;
+    month?: string;
   }>;
 };
 
@@ -28,7 +31,7 @@ export default async function ImprimirTodasPage({
   const filters = parseFilters(params);
   const sheets = hasFilters(filters)
     ? await getFilteredSheets(filters)
-    : await getAllAttendanceClassSheets();
+    : await getAllAttendanceClassSheets(filters.month);
 
   return (
     <div className="bg-white">
@@ -64,7 +67,7 @@ export default async function ImprimirTodasPage({
 async function getFilteredSheets(filters: AttendanceFilters) {
   const classes = await getAttendanceClasses(filters);
   const sheets = await Promise.all(
-    classes.map((danceClass) => getAttendanceClassSheet(danceClass.id)),
+    classes.map((danceClass) => getAttendanceClassSheet(danceClass.id, filters.month)),
   );
 
   return sheets.filter((sheet): sheet is NonNullable<typeof sheet> =>
@@ -78,8 +81,11 @@ function parseFilters(params?: {
   levelId?: string;
   weekday?: string;
   status?: string;
+  classId?: string;
+  month?: string;
 }): AttendanceFilters {
   return {
+    classId: params?.classId || undefined,
     teacherId: params?.teacherId || undefined,
     modalityId: params?.modalityId || undefined,
     levelId: params?.levelId || undefined,
@@ -87,12 +93,14 @@ function parseFilters(params?: {
       ? (params?.weekday as AttendanceFilters["weekday"])
       : undefined,
     status: params?.status === "planning" ? "planning" : "active",
+    month: normalizeAttendanceMonth(params?.month),
   };
 }
 
 function hasFilters(filters: AttendanceFilters) {
   return Boolean(
     filters.teacherId ||
+      filters.classId ||
       filters.modalityId ||
       filters.levelId ||
       filters.weekday ||

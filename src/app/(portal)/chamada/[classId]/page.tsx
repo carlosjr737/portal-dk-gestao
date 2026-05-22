@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { AttendanceSheet } from "@/features/attendance/attendance-sheet";
-import { getAttendanceClassSheet } from "@/features/attendance/data";
+import {
+  getAttendanceClassSheet,
+  normalizeAttendanceMonth,
+} from "@/features/attendance/data";
 import { PrintButton } from "@/features/print/print-button";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +12,19 @@ type ChamadaTurmaPageProps = {
   params: Promise<{
     classId: string;
   }>;
+  searchParams?: Promise<{
+    month?: string;
+  }>;
 };
 
 export default async function ChamadaTurmaPage({
   params,
+  searchParams,
 }: ChamadaTurmaPageProps) {
   const { classId } = await params;
-  const sheet = await getAttendanceClassSheet(classId);
+  const query = await searchParams;
+  const month = normalizeAttendanceMonth(query?.month);
+  const sheet = await getAttendanceClassSheet(classId, month);
 
   if (!sheet) {
     return (

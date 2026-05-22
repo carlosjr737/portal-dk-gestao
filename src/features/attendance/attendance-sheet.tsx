@@ -33,57 +33,64 @@ export function AttendanceSheet({
           <Info label="Modalidade" value={sheet.modalityName} />
           <Info label="Nível" value={sheet.levelName} />
           <Info label="Horários" value={sheet.schedulesText} />
+          <Info label="Mês/Ano da chamada" value={sheet.monthLabel} />
           <Info
             label="Total de alunos ativos"
             value={String(sheet.activeStudentsCount)}
           />
         </dl>
+        <p className="mt-3 text-xs">P = Presença | F = Falta</p>
       </header>
 
+      {sheet.attendanceDates.length === 0 ? (
+        <div className="mt-5 border border-black px-3 py-6 text-center text-sm">
+          Não há horários cadastrados para gerar os dias da chamada.
+        </div>
+      ) : (
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full table-fixed border-collapse text-[11px]">
           <thead>
             <tr className="bg-white">
-              <th className="w-12 border border-black px-2 py-2 text-left font-bold">
+              <th className="w-8 border border-black px-1 py-2 text-left font-bold">
                 Nº
               </th>
-              <th className="border border-black px-2 py-2 text-left font-bold">
+              <th className="w-56 border border-black px-2 py-2 text-left font-bold">
                 Nome do aluno
               </th>
-              <th className="border border-black px-2 py-2 text-left font-bold">
-                Responsável financeiro
-              </th>
-              <th className="border border-black px-2 py-2 text-left font-bold">
-                Telefone do responsável
-              </th>
-              <th className="w-48 border border-black px-2 py-2 text-left font-bold">
-                Presença / Assinatura
-              </th>
+              {sheet.attendanceDates.map((date) => (
+                <th
+                  key={date}
+                  className="w-10 border border-black px-1 py-2 text-center font-bold"
+                >
+                  {date}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {sheet.students.length > 0 ? (
               sheet.students.map((student, index) => (
                 <tr key={student.enrollmentId}>
-                  <td className="border border-black px-2 py-3">
+                  <td className="border border-black px-1 py-2">
                     {index + 1}
                   </td>
-                  <td className="border border-black px-2 py-3">
+                  <td className="border border-black px-2 py-2">
                     {student.studentName}
                   </td>
-                  <td className="border border-black px-2 py-3">
-                    {student.financialGuardianName}
-                  </td>
-                  <td className="border border-black px-2 py-3">
-                    {student.financialGuardianPhone}
-                  </td>
-                  <td className="border border-black px-2 py-3">&nbsp;</td>
+                  {sheet.attendanceDates.map((date) => (
+                    <td
+                      key={`${student.enrollmentId}-${date}`}
+                      className="border border-black px-1 py-2 text-center"
+                    >
+                      &nbsp;
+                    </td>
+                  ))}
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={sheet.attendanceDates.length + 2}
                   className="border border-black px-2 py-6 text-center"
                 >
                   Nenhum aluno ativo nesta turma.
@@ -93,6 +100,7 @@ export function AttendanceSheet({
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 }

@@ -11,11 +11,13 @@ import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 
 export type AttendanceFilters = {
+  classId?: string;
   teacherId?: string;
   modalityId?: string;
   levelId?: string;
   weekday?: ClassScheduleWeekday;
   status?: Extract<ClassStatus, "active" | "planning">;
+  month?: string;
 };
 
 export type AttendanceFilterOptions = {
@@ -39,24 +41,12 @@ export type AttendanceClassSummary = {
 export type AttendanceStudent = {
   enrollmentId: string;
   studentName: string;
-  financialGuardianName: string;
-  financialGuardianPhone: string;
 };
 
 export type AttendanceClassSheet = AttendanceClassSummary & {
   students: AttendanceStudent[];
-};
-
-type GuardianRow = {
-  id: string;
-  full_name: string;
-  phone: string | null;
-};
-
-type StudentGuardianRow = {
-  student_id: string;
-  guardian_id: string;
-  is_financial_responsible: boolean | null;
+  attendanceDates: string[];
+  monthLabel: string;
 };
 
 export async function getAttendanceFilterOptions(): Promise<AttendanceFilterOptions> {
@@ -122,6 +112,10 @@ export async function getAttendanceClasses(
 
     if (filters.teacherId) {
       classesQuery = classesQuery.eq("teacher_id", filters.teacherId);
+    }
+
+    if (filters.classId) {
+      classesQuery = classesQuery.eq("id", filters.classId);
     }
 
     if (filters.modalityId) {
@@ -225,6 +219,7 @@ export async function getAttendanceClasses(
 
 export async function getAttendanceClassSheet(
   classId: string,
+  month = getCurrentMonthValue(),
 ): Promise<AttendanceClassSheet | null> {
   const classes = await getAttendanceClasses({ status: "active" });
   const danceClass = classes.find((item) => item.id === classId);
@@ -236,10 +231,14 @@ export async function getAttendanceClassSheet(
   return {
     ...danceClass,
     students: await getAttendanceStudents(classId),
+    attendanceDates: getAttendanceDatesForMonth(danceClass.schedules, month),
+    monthLabel: formatMonthLabel(month),
   };
 }
 
-export async function getAllAttendanceClassSheets(): Promise<
+export async function getAllAttendanceClassSheets(
+  month = getCurrentMonthValue(),
+): Promise<
   AttendanceClassSheet[]
 > {
   const classes = await getAttendanceClasses({ status: "active" });
@@ -247,6 +246,8 @@ export async function getAllAttendanceClassSheets(): Promise<
     classes.map(async (danceClass) => ({
       ...danceClass,
       students: await getAttendanceStudents(danceClass.id),
+      attendanceDates: getAttendanceDatesForMonth(danceClass.schedules, month),
+      monthLabel: formatMonthLabel(month),
     })),
   );
 
@@ -258,7 +259,7 @@ async function getAttendanceStudents(classId: string): Promise<AttendanceStudent
     const supabase = await createClient();
     const { data: enrollments, error: enrollmentsError } = await supabase
       .from("enrollments")
-      .select("id, student_id, financial_guardian_id")
+      .select("id, student_id")
       .eq("class_id", classId)
       .eq("status", "active");
 
@@ -274,57 +275,13 @@ async function getAttendanceStudents(classId: string): Promise<AttendanceStudent
           .filter((id): id is string => Boolean(id)),
       ),
     ];
-    const enrollmentGuardianIds = [
-      ...new Set(
-        (enrollments ?? [])
-          .map((enrollment) => enrollment.financial_guardian_id as string | null)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    ];
-
-    const [
-      { data: students, error: studentsError },
-      { data: financialLinks, error: linksError },
-    ] = await Promise.all([
+    const { data: students, error: studentsError } =
       studentIds.length > 0
-        ? supabase.from("students").select("id, full_name").in("id", studentIds)
-        : Promise.resolve({ data: [], error: null }),
-      studentIds.length > 0
-        ? supabase
-            .from("student_guardians")
-            .select("student_id, guardian_id, is_financial_responsible")
-            .in("student_id", studentIds)
-            .eq("is_financial_responsible", true)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+        ? await supabase.from("students").select("id, full_name").in("id", studentIds)
+        : { data: [], error: null };
 
     if (studentsError) {
       console.error("Attendance students load error:", studentsError);
-    }
-
-    if (linksError) {
-      console.error("Attendance financial links load error:", linksError);
-    }
-
-    const fallbackGuardianIds = [
-      ...new Set(
-        ((financialLinks ?? []) as StudentGuardianRow[])
-          .map((link) => link.guardian_id)
-          .filter(Boolean),
-      ),
-    ];
-    const guardianIds = [...new Set([...enrollmentGuardianIds, ...fallbackGuardianIds])];
-
-    const { data: guardians, error: guardiansError } =
-      guardianIds.length > 0
-        ? await supabase
-            .from("guardians")
-            .select("id, full_name, phone")
-            .in("id", guardianIds)
-        : { data: [], error: null };
-
-    if (guardiansError) {
-      console.error("Attendance guardians load error:", guardiansError);
     }
 
     const studentsById = new Map(
@@ -333,34 +290,16 @@ async function getAttendanceStudents(classId: string): Promise<AttendanceStudent
         student.full_name as string,
       ]),
     );
-    const guardiansById = new Map(
-      ((guardians ?? []) as GuardianRow[]).map((guardian) => [
-        guardian.id,
-        guardian,
-      ]),
-    );
-    const fallbackGuardianByStudentId = new Map(
-      ((financialLinks ?? []) as StudentGuardianRow[]).map((link) => [
-        link.student_id,
-        link.guardian_id,
-      ]),
-    );
 
     return (enrollments ?? [])
       .map((enrollment) => {
         const studentId = enrollment.student_id as string | null;
-        const guardianId =
-          (enrollment.financial_guardian_id as string | null) ??
-          (studentId ? fallbackGuardianByStudentId.get(studentId) ?? null : null);
-        const guardian = guardianId ? guardiansById.get(guardianId) : null;
 
         return {
           enrollmentId: enrollment.id as string,
           studentName: studentId
             ? studentsById.get(studentId) ?? "Aluno não encontrado"
             : "Aluno não encontrado",
-          financialGuardianName: guardian?.full_name ?? "Não informado",
-          financialGuardianPhone: guardian?.phone ?? "-",
         };
       })
       .sort((a, b) => a.studentName.localeCompare(b.studentName, "pt-BR"));
@@ -412,3 +351,58 @@ function toAttendanceClassSummary({
 }
 
 export const weekdayOptions = classScheduleWeekdayOptions;
+
+export function getCurrentMonthValue() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function normalizeAttendanceMonth(value: string | undefined) {
+  return value && /^\d{4}-\d{2}$/.test(value) ? value : getCurrentMonthValue();
+}
+
+function getAttendanceDatesForMonth(schedules: ClassSchedule[], month: string) {
+  const [yearText, monthText] = normalizeAttendanceMonth(month).split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const weekdays = new Set(schedules.map((schedule) => schedule.weekday));
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  const dates: string[] = [];
+
+  for (let day = 1; day <= lastDay; day += 1) {
+    const date = new Date(year, monthIndex, day);
+    const weekday = jsWeekdayToClassWeekday(date.getDay());
+
+    if (weekdays.has(weekday)) {
+      dates.push(
+        `${String(day).padStart(2, "0")}/${String(monthIndex + 1).padStart(2, "0")}`,
+      );
+    }
+  }
+
+  return dates;
+}
+
+function jsWeekdayToClassWeekday(day: number): ClassScheduleWeekday {
+  const weekdays: ClassScheduleWeekday[] = [
+    "domingo",
+    "segunda",
+    "terca",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sabado",
+  ];
+
+  return weekdays[day];
+}
+
+function formatMonthLabel(month: string) {
+  const [year, monthNumber] = normalizeAttendanceMonth(month).split("-");
+  const date = new Date(Number(year), Number(monthNumber) - 1, 1);
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
