@@ -55,6 +55,7 @@ export default async function GrowthChurnPage({
     classId: params?.classId?.trim() ?? "",
   };
   const data = await getGrowthChurnData(filters);
+  const activeQuickFilter = getActiveQuickFilter(filters);
 
   return (
     <div>
@@ -81,6 +82,28 @@ export default async function GrowthChurnPage({
       </div>
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 lg:grid-cols-6">
+        <div className="flex flex-wrap gap-2 lg:col-span-6">
+          <QuickFilterLink
+            label="Este mês"
+            href={buildGrowthChurnHref(getDefaultPeriod())}
+            active={activeQuickFilter === "thisMonth"}
+          />
+          <QuickFilterLink
+            label="Mês passado"
+            href={buildGrowthChurnHref(getPreviousMonthPeriod())}
+            active={activeQuickFilter === "previousMonth"}
+          />
+          <QuickFilterLink
+            label="Este ano"
+            href={buildGrowthChurnHref(getCurrentYearPeriod())}
+            active={activeQuickFilter === "thisYear"}
+          />
+          <QuickFilterLink
+            label="Limpar"
+            href="/financeiro/growth-churn"
+            active={false}
+          />
+        </div>
         <FilterInput label="Período inicial" name="from" type="date" value={filters.from} />
         <FilterInput label="Período final" name="to" type="date" value={filters.to} />
         <FilterSelect
@@ -143,7 +166,7 @@ export default async function GrowthChurnPage({
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Entradas" value={String(data.metrics.entries)} />
-        <MetricCard label="Saídas" value={String(data.metrics.exits)} />
+        <MetricCard label="Cancelamentos" value={String(data.metrics.exits)} />
         <MetricCard
           label="Saldo líquido de alunos"
           value={String(data.metrics.netStudents)}
@@ -167,9 +190,15 @@ export default async function GrowthChurnPage({
         />
       </section>
 
+      <p className="mt-4 text-sm text-muted-foreground">
+        No período selecionado, houve {data.metrics.entries} entradas e{" "}
+        {data.metrics.exits} cancelamentos, com saldo financeiro de{" "}
+        {formatMoney(data.metrics.netRevenue)}.
+      </p>
+
       <AnalyticTable
-        title="Churn por motivo"
-        headers={["Motivo", "Quantidade", "Receita perdida", "% das saídas"]}
+        title="Cancelamentos por motivo"
+        headers={["Motivo", "Quantidade", "Receita perdida", "% dos cancelamentos"]}
         rows={data.churnByReason.map((row) => [
           row.reason,
           String(row.quantity),
@@ -183,7 +212,7 @@ export default async function GrowthChurnPage({
         headers={[
           "Professor",
           "Entradas",
-          "Saídas",
+          "Cancelamentos",
           "Saldo",
           "Receita nova",
           "Receita perdida",
@@ -205,7 +234,7 @@ export default async function GrowthChurnPage({
         headers={[
           "Turma",
           "Entradas",
-          "Saídas",
+          "Cancelamentos",
           "Saldo",
           "Receita nova",
           "Receita perdida",
@@ -549,6 +578,29 @@ function getAmount(event: GrowthChurnEvent) {
   return event.monthly_amount ?? 0;
 }
 
+function QuickFilterLink({
+  label,
+  href,
+  active,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        active
+          ? "inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          : "inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted"
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
 function getEventReasonLabel(
   event: GrowthChurnEvent,
   reasonsById: Map<string, NamedRecord>,
@@ -573,6 +625,75 @@ function getDefaultPeriod() {
     from: firstDay.toISOString().slice(0, 10),
     to: today.toISOString().slice(0, 10),
   };
+}
+
+function getPreviousMonthPeriod() {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+
+  return {
+    from: firstDay.toISOString().slice(0, 10),
+    to: lastDay.toISOString().slice(0, 10),
+  };
+}
+
+function getCurrentYearPeriod() {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), 0, 1);
+
+  return {
+    from: firstDay.toISOString().slice(0, 10),
+    to: today.toISOString().slice(0, 10),
+  };
+}
+
+function getActiveQuickFilter(filters: {
+  from: string;
+  to: string;
+  teacherId: string;
+  modalityId: string;
+  levelId: string;
+  classId: string;
+}) {
+  if (
+    filters.teacherId ||
+    filters.modalityId ||
+    filters.levelId ||
+    filters.classId
+  ) {
+    return "custom";
+  }
+
+  if (matchesPeriod(filters, getDefaultPeriod())) {
+    return "thisMonth";
+  }
+
+  if (matchesPeriod(filters, getPreviousMonthPeriod())) {
+    return "previousMonth";
+  }
+
+  if (matchesPeriod(filters, getCurrentYearPeriod())) {
+    return "thisYear";
+  }
+
+  return "custom";
+}
+
+function matchesPeriod(
+  filters: { from: string; to: string },
+  period: { from: string; to: string },
+) {
+  return filters.from === period.from && filters.to === period.to;
+}
+
+function buildGrowthChurnHref(period: { from: string; to: string }) {
+  const params = new URLSearchParams({
+    from: period.from,
+    to: period.to,
+  });
+
+  return `/financeiro/growth-churn?${params.toString()}`;
 }
 
 function FilterInput({
