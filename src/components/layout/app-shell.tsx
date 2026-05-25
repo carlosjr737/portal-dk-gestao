@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
+import { LogoutButton } from "@/features/auth/logout-button";
+import { roleLabels, type UserProfile } from "@/features/auth/permissions";
 
 type AppShellProps = {
   children: React.ReactNode;
+  profile: UserProfile;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, profile }: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -15,6 +18,7 @@ export function AppShell({ children }: AppShellProps) {
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        role={profile.role}
       />
 
       {isSidebarOpen ? (
@@ -47,8 +51,16 @@ export function AppShell({ children }: AppShellProps) {
               </div>
             </div>
 
-            <div className="rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              Ambiente interno
+            <div className="flex items-center gap-3">
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-semibold text-foreground">
+                  {profile.name ?? profile.email ?? "Usuário"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {roleLabels[profile.role]}
+                </p>
+              </div>
+              <LogoutButton />
             </div>
           </div>
         </header>

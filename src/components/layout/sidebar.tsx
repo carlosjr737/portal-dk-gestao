@@ -2,31 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  getNavigationForRole,
+  type UserRole,
+} from "@/features/auth/permissions";
 import { cn } from "@/lib/utils";
-
-const navigation = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/alunos", label: "Alunos" },
-  { href: "/responsaveis", label: "Responsáveis" },
-  { href: "/turmas", label: "Turmas" },
-  { href: "/professores", label: "Professores" },
-  { href: "/modalidades", label: "Modalidades" },
-  { href: "/niveis", label: "Níveis" },
-  { href: "/matriculas", label: "Matrículas" },
-  { href: "/chamada", label: "Chamada" },
-  { href: "/importar-alunos", label: "Importar alunos" },
-  { href: "/financeiro", label: "Financeiro" },
-  { href: "/financeiro/inadimplencia", label: "Inadimplência" },
-  { href: "/configuracoes", label: "Configurações" },
-];
 
 type SidebarProps = {
   isOpen: boolean;
   onClose: () => void;
+  role: UserRole;
 };
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
   const pathname = usePathname();
+  const navigation = getNavigationForRole(role);
 
   return (
     <aside

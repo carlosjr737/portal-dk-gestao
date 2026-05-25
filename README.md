@@ -82,5 +82,31 @@ O projeto possui helpers para criar clientes Supabase no browser e no servidor:
 - `src/lib/supabase/client.ts`
 - `src/lib/supabase/server.ts`
 
-As tabelas ainda nao foram criadas. Nao use chaves reais no codigo; mantenha credenciais apenas em `.env.local`.
+Nao use chaves reais no codigo; mantenha credenciais apenas em `.env.local`.
+
+## Primeiro admin
+
+O Portal DK usa Supabase Auth com e-mail e senha. Para criar o primeiro acesso
+administrativo:
+
+1. Crie o usuario no Supabase Auth.
+2. Copie o `id` do usuario criado.
+3. Insira ou atualize o perfil em `public.profiles`:
+
+```sql
+insert into public.profiles (id, name, email, role, active)
+values (
+  'ID_DO_AUTH_USER',
+  'Administrador',
+  'admin@dkstudio.com',
+  'admin',
+  true
+)
+on conflict (id) do update set
+  name = excluded.name,
+  email = excluded.email,
+  role = excluded.role,
+  active = excluded.active,
+  updated_at = now();
+```
 # portal-dk-gestao
