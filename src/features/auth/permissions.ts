@@ -30,6 +30,7 @@ export const navigationItems = [
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
   { href: "/financeiro/vinculos-conta-azul", label: "Vínculos Conta Azul" },
   { href: "/configuracoes", label: "Configurações" },
+  { href: "/configuracoes/usuarios", label: "Usuários" },
 ] as const;
 
 const roleRoutePrefixes: Record<UserRole, string[]> = {
