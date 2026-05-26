@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   getNavigationForRole,
   type UserRole,
@@ -17,22 +18,27 @@ type SidebarProps = {
 const navigationGroups = [
   {
     title: "Principal",
+    accordion: false,
     items: ["/dashboard"],
   },
   {
     title: "Gestão acadêmica",
+    accordion: true,
     items: ["/alunos", "/responsaveis", "/matriculas", "/importar-alunos"],
   },
   {
     title: "Turmas e aulas",
+    accordion: true,
     items: ["/turmas", "/chamada", "/professores", "/modalidades", "/niveis"],
   },
   {
     title: "Operação",
+    accordion: true,
     items: ["/calendario"],
   },
   {
     title: "Financeiro",
+    accordion: true,
     items: [
       "/financeiro",
       "/financeiro/inadimplencia",
@@ -42,6 +48,7 @@ const navigationGroups = [
   },
   {
     title: "Sistema",
+    accordion: true,
     items: ["/configuracoes/usuarios", "/configuracoes"],
   },
 ] as const;
@@ -49,9 +56,36 @@ const navigationGroups = [
 export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
   const pathname = usePathname();
   const navigation = getNavigationForRole(role);
-  const navigationByHref = new Map(
-    navigation.map((item) => [item.href, item]),
+  const navigationByHref = useMemo(
+    () => new Map(navigation.map((item) => [item.href, item])),
+    [navigation],
   );
+  const visibleGroups = useMemo(
+    () =>
+      navigationGroups
+        .map((group) => ({
+          ...group,
+          visibleItems: group.items
+            .map((href) => navigationByHref.get(href))
+            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+        }))
+        .filter((group) => group.visibleItems.length > 0),
+    [navigationByHref],
+  );
+  const activeHref = getActiveHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.visibleItems.map((item) => item.href)),
+  );
+  const activeGroupTitle = visibleGroups.find((group) =>
+    group.visibleItems.some((item) => item.href === activeHref),
+  )?.title;
+  const [openGroup, setOpenGroup] = useState<string | null>(
+    activeGroupTitle ?? null,
+  );
+
+  useEffect(() => {
+    setOpenGroup(activeGroupTitle ?? null);
+  }, [activeGroupTitle]);
 
   return (
     <aside
@@ -77,38 +111,70 @@ export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-5">
-          {navigationGroups.map((group) => {
-            const visibleItems = group.items
-              .map((href) => navigationByHref.get(href))
-              .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-            if (visibleItems.length === 0) {
-              return null;
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+          {visibleGroups.map((group) => {
+            if (!group.accordion) {
+              return group.visibleItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={cn(
+                    "rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                    activeHref === item.href
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ));
             }
 
+            const isOpenGroup = openGroup === group.title;
+            const hasActiveItem = group.title === activeGroupTitle;
+
             return (
-              <div key={group.title} className="mt-5 first:mt-0">
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.title}
-                </p>
-                <div className="mt-2 flex flex-col gap-1">
-                  {visibleItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className={cn(
-                        "rounded-md px-3 py-2.5 text-sm font-medium transition",
-                        pathname === item.href
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
+              <div key={group.title} className="mt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenGroup((current) =>
+                      current === group.title ? null : group.title,
+                    )
+                  }
+                  className={cn(
+                    "flex h-10 w-full items-center justify-between rounded-lg px-3 text-left text-[13px] font-semibold uppercase tracking-wide transition",
+                    hasActiveItem || isOpenGroup
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <span>{group.title}</span>
+                  <span className="text-xs" aria-hidden="true">
+                    {isOpenGroup ? "▾" : "▸"}
+                  </span>
+                </button>
+
+                {isOpenGroup ? (
+                  <div className="mt-1 flex flex-col gap-0.5 pl-3">
+                    {group.visibleItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className={cn(
+                          "rounded-lg px-3 py-2 text-sm font-medium transition",
+                          activeHref === item.href
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -123,4 +189,16 @@ export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
       </div>
     </aside>
   );
+}
+
+function getActiveHref(pathname: string, hrefs: string[]) {
+  const exactMatch = hrefs.find((href) => pathname === href);
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  return hrefs
+    .filter((href) => pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
 }
