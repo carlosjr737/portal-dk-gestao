@@ -5,7 +5,7 @@ import {
   type ClassStatus,
 } from "@/features/classes/schemas";
 import type { ClassSchedule, DanceClass } from "@/features/classes/types";
-import { formatClassSchedules } from "@/features/classes/formatters";
+import { formatScheduleTime } from "@/features/classes/formatters";
 import type { CatalogOption } from "@/features/class-catalog/types";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
@@ -33,9 +33,16 @@ export type AttendanceClassSummary = {
   teacherName: string;
   modalityName: string;
   levelName: string;
-  schedules: ClassSchedule[];
+  schedules: AttendanceSchedule[];
   schedulesText: string;
   activeStudentsCount: number;
+};
+
+type AttendanceSchedule = {
+  weekday: ClassScheduleWeekday;
+  start_time: string;
+  end_time: string;
+  room: string | null;
 };
 
 export type AttendanceStudent = {
@@ -221,19 +228,111 @@ export async function getAttendanceClassSheet(
   classId: string,
   month = getCurrentMonthValue(),
 ): Promise<AttendanceClassSheet | null> {
-  const classes = await getAttendanceClasses({ status: "active" });
-  const danceClass = classes.find((item) => item.id === classId);
+  try {
+    const supabase = await createClient();
+    console.log("[attendance-sheet] classId recebido:", classId);
 
-  if (!danceClass) {
+    const [
+      { data: danceClass, error: classError },
+      { data: schedules, error: schedulesError },
+      { data: teachers, error: teachersError },
+      { data: modalities, error: modalitiesError },
+      { data: levels, error: levelsError },
+    ] = await Promise.all([
+      supabase
+        .from("classes")
+        .select(
+          "id, name, category, modality_id, level_id, teacher_id, instructor_name, schedule_description, capacity, status, notes, created_at, updated_at",
+        )
+        .eq("id", classId)
+        .eq("status", "active")
+        .maybeSingle(),
+      supabase
+        .from("class_schedules")
+        .select("weekday, start_time, end_time, room")
+        .eq("class_id", classId),
+      supabase
+        .from("staff_members")
+        .select("id, full_name, artistic_name")
+        .eq("role", "professor"),
+      supabase.from("modalities").select("id, name"),
+      supabase.from("levels").select("id, name"),
+    ]);
+
+    const firstError =
+      classError ?? schedulesError ?? teachersError ?? modalitiesError ?? levelsError;
+
+    if (firstError) {
+      console.error("Attendance class sheet load error:", firstError);
+      return null;
+    }
+
+    if (!danceClass) {
+      return null;
+    }
+
+    const classSchedules = (schedules ?? []) as AttendanceSchedule[];
+    const teachersById = new Map(
+      ((teachers ?? []) as TeacherOption[]).map((teacher) => [
+        teacher.id,
+        teacher,
+      ]),
+    );
+    const modalitiesById = new Map(
+      ((modalities ?? []) as CatalogOption[]).map((modality) => [
+        modality.id,
+        modality,
+      ]),
+    );
+    const levelsById = new Map(
+      ((levels ?? []) as CatalogOption[]).map((level) => [level.id, level]),
+    );
+    const classData = danceClass as DanceClass;
+    const students = await getAttendanceStudents(classId);
+    const attendanceDates = getAttendanceDatesForMonth(classSchedules, month);
+
+    console.log(
+      "[attendance-sheet] quantidade de schedules encontrados:",
+      classSchedules.length,
+    );
+    console.log(
+      "[attendance-sheet] primeiro schedule retornado:",
+      classSchedules[0] ?? null,
+    );
+    console.log(
+      "[attendance-sheet] weekdays mapeados:",
+      mapSchedulesToJsWeekdays(classSchedules),
+    );
+    console.log(
+      "[attendance-sheet] datas geradas para o mês:",
+      attendanceDates,
+    );
+    console.log(
+      "[attendance-sheet] quantidade de alunos ativos:",
+      students.length,
+    );
+
+    return {
+      ...toAttendanceClassSummary({
+        danceClass: classData,
+        schedules: classSchedules,
+        activeStudentsCount: students.length,
+        teacher: classData.teacher_id
+          ? teachersById.get(classData.teacher_id) ?? null
+          : null,
+        modality: classData.modality_id
+          ? modalitiesById.get(classData.modality_id) ?? null
+          : null,
+        level: classData.level_id ? levelsById.get(classData.level_id) ?? null : null,
+      }),
+      students,
+      attendanceDates,
+      monthLabel: formatMonthLabel(month),
+    };
+  } catch (error) {
+    console.error("Attendance class sheet load error:", error);
     return null;
   }
-
-  return {
-    ...danceClass,
-    students: await getAttendanceStudents(classId),
-    attendanceDates: getAttendanceDatesForMonth(danceClass.schedules, month),
-    monthLabel: formatMonthLabel(month),
-  };
 }
 
 export async function getAllAttendanceClassSheets(
@@ -320,6 +419,37 @@ function groupSchedules(schedules: ClassSchedule[]) {
   return schedulesByClass;
 }
 
+function formatAttendanceSchedules(schedules: AttendanceSchedule[]) {
+  if (schedules.length === 0) {
+    return "-";
+  }
+
+  const weekdayLabels = new Map(
+    classScheduleWeekdayOptions.map((option) => [option.value, option.label]),
+  );
+  const weekdayOrder = new Map(
+    classScheduleWeekdayOptions.map((option, index) => [option.value, index]),
+  );
+
+  return [...schedules]
+    .sort((a, b) => {
+      const weekdayDiff =
+        (weekdayOrder.get(a.weekday) ?? 0) - (weekdayOrder.get(b.weekday) ?? 0);
+
+      if (weekdayDiff !== 0) {
+        return weekdayDiff;
+      }
+
+      return a.start_time.localeCompare(b.start_time);
+    })
+    .map((schedule) => {
+      const weekday = weekdayLabels.get(schedule.weekday) ?? schedule.weekday;
+
+      return `${weekday} ${formatScheduleTime(schedule.start_time)}-${formatScheduleTime(schedule.end_time)}`;
+    })
+    .join(" | ");
+}
+
 function toAttendanceClassSummary({
   danceClass,
   schedules,
@@ -329,7 +459,7 @@ function toAttendanceClassSummary({
   level,
 }: {
   danceClass: DanceClass;
-  schedules: ClassSchedule[];
+  schedules: AttendanceSchedule[];
   activeStudentsCount: number;
   teacher: TeacherOption | null;
   modality: CatalogOption | null;
@@ -345,7 +475,7 @@ function toAttendanceClassSummary({
     modalityName: modality?.name ?? danceClass.category ?? "Não informado",
     levelName: level?.name ?? "Não informado",
     schedules,
-    schedulesText: formatClassSchedules(schedules),
+    schedulesText: formatAttendanceSchedules(schedules),
     activeStudentsCount,
   };
 }
@@ -361,19 +491,20 @@ export function normalizeAttendanceMonth(value: string | undefined) {
   return value && /^\d{4}-\d{2}$/.test(value) ? value : getCurrentMonthValue();
 }
 
-function getAttendanceDatesForMonth(schedules: ClassSchedule[], month: string) {
+function getAttendanceDatesForMonth(schedules: AttendanceSchedule[], month: string) {
   const [yearText, monthText] = normalizeAttendanceMonth(month).split("-");
   const year = Number(yearText);
   const monthIndex = Number(monthText) - 1;
-  const weekdays = new Set(schedules.map((schedule) => schedule.weekday));
+  const weekdays = new Set(
+    schedules.map((schedule) => classWeekdayToJsWeekday(schedule.weekday)),
+  );
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
   const dates: string[] = [];
 
   for (let day = 1; day <= lastDay; day += 1) {
     const date = new Date(year, monthIndex, day);
-    const weekday = jsWeekdayToClassWeekday(date.getDay());
 
-    if (weekdays.has(weekday)) {
+    if (weekdays.has(date.getDay())) {
       dates.push(
         `${String(day).padStart(2, "0")}/${String(monthIndex + 1).padStart(2, "0")}`,
       );
@@ -383,18 +514,29 @@ function getAttendanceDatesForMonth(schedules: ClassSchedule[], month: string) {
   return dates;
 }
 
-function jsWeekdayToClassWeekday(day: number): ClassScheduleWeekday {
-  const weekdays: ClassScheduleWeekday[] = [
-    "domingo",
-    "segunda",
-    "terca",
-    "quarta",
-    "quinta",
-    "sexta",
-    "sabado",
-  ];
+function mapSchedulesToJsWeekdays(schedules: AttendanceSchedule[]) {
+  return Array.from(
+    new Map(
+      schedules.map((schedule) => [
+        schedule.weekday,
+        classWeekdayToJsWeekday(schedule.weekday),
+      ]),
+    ),
+  ).map(([weekday, jsWeekday]) => ({ weekday, jsWeekday }));
+}
 
-  return weekdays[day];
+function classWeekdayToJsWeekday(weekday: ClassScheduleWeekday) {
+  const weekdays: Record<ClassScheduleWeekday, number> = {
+    domingo: 0,
+    segunda: 1,
+    terca: 2,
+    quarta: 3,
+    quinta: 4,
+    sexta: 5,
+    sabado: 6,
+  };
+
+  return weekdays[weekday];
 }
 
 function formatMonthLabel(month: string) {
