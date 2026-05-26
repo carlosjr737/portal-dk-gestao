@@ -24,6 +24,9 @@ export type CalendarEvent = {
   teacher_id: string | null;
   modality_id: string | null;
   level_id: string | null;
+  google_calendar_event_id: string | null;
+  google_calendar_id: string | null;
+  sync_source: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

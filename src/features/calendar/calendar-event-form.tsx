@@ -6,7 +6,10 @@ import {
   calendarEventTypes,
   type CalendarEventFormData,
 } from "@/features/calendar/schemas";
-import type { CalendarEventFormOptions } from "@/features/calendar/types";
+import type {
+  CalendarEventFormOptions,
+  CalendarEventType,
+} from "@/features/calendar/types";
 
 type CalendarEventFormProps = {
   action: (
@@ -29,6 +32,7 @@ export function CalendarEventForm({
   compact,
 }: CalendarEventFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [allDay, setAllDay] = useState(defaultValues?.all_day ?? true);
   const [affectsClasses, setAffectsClasses] = useState(
     defaultValues?.affects_classes ?? false,
@@ -41,6 +45,19 @@ export function CalendarEventForm({
     <form
       action={formAction}
       className={compact ? "space-y-3" : "mt-5 space-y-4"}
+      onSubmit={(event) => {
+        const formData = new FormData(event.currentTarget);
+        const startDate = String(formData.get("start_date") ?? "");
+        const endDate = String(formData.get("end_date") ?? "");
+
+        if (startDate && endDate && endDate < startDate) {
+          event.preventDefault();
+          setDateError("A data final não pode ser menor que a inicial.");
+          return;
+        }
+
+        setDateError(null);
+      }}
     >
       {state.message ? (
         <div className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground">
@@ -56,12 +73,21 @@ export function CalendarEventForm({
           error={state.errors?.title?.[0]}
           required
         />
-        <SelectField
+        <EventTypeField
           label="Tipo"
           name="event_type"
           defaultValue={defaultValues?.event_type ?? "evento"}
           options={calendarEventTypes}
           error={state.errors?.event_type?.[0]}
+          onTypeChange={(eventType) => {
+            if (
+              eventType === "feriado" ||
+              eventType === "recesso" ||
+              eventType === "aula_suspensa"
+            ) {
+              setAffectsClasses(true);
+            }
+          }}
         />
         <Field
           label="Data inicial"
@@ -76,7 +102,7 @@ export function CalendarEventForm({
           name="end_date"
           type="date"
           defaultValue={defaultValues?.end_date ?? defaultValues?.start_date ?? ""}
-          error={state.errors?.end_date?.[0]}
+          error={dateError ?? state.errors?.end_date?.[0]}
           required
         />
 
@@ -208,6 +234,40 @@ export function CalendarEventForm({
         {isPending ? "Salvando..." : submitLabel}
       </button>
     </form>
+  );
+}
+
+type EventTypeFieldProps = SelectFieldProps & {
+  onTypeChange: (eventType: CalendarEventType) => void;
+};
+
+function EventTypeField({
+  label,
+  name,
+  defaultValue,
+  options,
+  error,
+  onTypeChange,
+}: EventTypeFieldProps) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        onChange={(event) => onTypeChange(event.target.value as CalendarEventType)}
+        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+      >
+        {options.map((option) => (
+          <option key={`${name}-${option.value}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error ? (
+        <span className="mt-1 block text-xs text-red-600">{error}</span>
+      ) : null}
+    </label>
   );
 }
 
