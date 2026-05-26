@@ -33,7 +33,12 @@ export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
             value={String(sheet.activeStudentsCount)}
           />
         </dl>
-        <p className="mt-3 text-xs">P = Presença | F = Falta</p>
+        <p className="mt-3 text-xs">
+          P = Presença | F = Falta
+          {(sheet.suspendedAttendanceDates?.length ?? 0) > 0
+            ? " | * Aula suspensa por evento/feriado"
+            : ""}
+        </p>
       </header>
 
       {sheet.attendanceDates.length === 0 ? (
@@ -57,6 +62,7 @@ export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
                     className="attendance-date-cell w-10 border border-black px-1 py-2 text-center font-bold"
                   >
                     {date}
+                    {sheet.suspendedAttendanceDates?.includes(date) ? "*" : ""}
                   </th>
                 ))}
               </tr>

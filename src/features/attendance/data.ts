@@ -53,6 +53,7 @@ export type AttendanceStudent = {
 export type AttendanceClassSheet = AttendanceClassSummary & {
   students: AttendanceStudent[];
   attendanceDates: string[];
+  suspendedAttendanceDates?: string[];
   monthLabel: string;
 };
 

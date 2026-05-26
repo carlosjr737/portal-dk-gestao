@@ -107,6 +107,18 @@ type ChamadaClass = {
   status: ClassStatus;
 };
 
+type ChamadaCalendarEvent = {
+  event_type: string;
+  start_date: string;
+  end_date: string;
+  affects_classes: boolean;
+  affects_all_classes: boolean;
+  class_id: string | null;
+  teacher_id: string | null;
+  modality_id: string | null;
+  level_id: string | null;
+};
+
 type ChamadaSheetResult = {
   sheet: AttendanceClassSheet | null;
   schedulesError: unknown;
@@ -121,6 +133,7 @@ async function getChamadaSheet(
   const [
     { data: danceClass, error: classError },
     { data: schedules, error: schedulesError },
+    { data: calendarEvents, error: calendarEventsError },
     { data: teachers, error: teachersError },
     { data: modalities, error: modalitiesError },
     { data: levels, error: levelsError },
@@ -138,6 +151,14 @@ async function getChamadaSheet(
       .order("weekday", { ascending: true })
       .order("start_time", { ascending: true }),
     supabase
+      .from("calendar_events")
+      .select(
+        "event_type, start_date, end_date, affects_classes, affects_all_classes, class_id, teacher_id, modality_id, level_id",
+      )
+      .eq("affects_classes", true)
+      .lte("start_date", getMonthEndDate(month))
+      .gte("end_date", getMonthStartDate(month)),
+    supabase
       .from("staff_members")
       .select("id, full_name, artistic_name")
       .eq("role", "professor"),
@@ -154,7 +175,12 @@ async function getChamadaSheet(
     return { sheet: null, schedulesError };
   }
 
-  const firstError = classError ?? teachersError ?? modalitiesError ?? levelsError;
+  const firstError =
+    classError ??
+    calendarEventsError ??
+    teachersError ??
+    modalitiesError ??
+    levelsError;
 
   if (firstError) {
     console.error("[chamada] sheet load error", firstError);
@@ -169,6 +195,12 @@ async function getChamadaSheet(
   const classSchedules = (schedules ?? []) as ChamadaSchedule[];
   const students = await getActiveStudents(classId);
   const attendanceDates = getAttendanceDatesForMonth(classSchedules, month);
+  const suspendedAttendanceDates = getSuspendedAttendanceDates({
+    attendanceDates,
+    events: (calendarEvents ?? []) as ChamadaCalendarEvent[],
+    danceClass: classData,
+    month,
+  });
 
   const teachersById = new Map(
     ((teachers ?? []) as TeacherOption[]).map((teacher) => [
@@ -211,6 +243,7 @@ async function getChamadaSheet(
       activeStudentsCount: students.length,
       students,
       attendanceDates,
+      suspendedAttendanceDates,
       monthLabel: formatMonthLabel(month),
     },
     schedulesError: null,
@@ -303,6 +336,36 @@ function getAttendanceDatesForMonth(schedules: ChamadaSchedule[], month: string)
   return dates;
 }
 
+function getSuspendedAttendanceDates({
+  attendanceDates,
+  events,
+  danceClass,
+  month,
+}: {
+  attendanceDates: string[];
+  events: ChamadaCalendarEvent[];
+  danceClass: ChamadaClass;
+  month: string;
+}) {
+  const affectingEvents = events.filter(
+    (event) =>
+      event.affects_classes &&
+      (event.affects_all_classes ||
+        event.class_id === danceClass.id ||
+        event.teacher_id === danceClass.teacher_id ||
+        event.modality_id === danceClass.modality_id ||
+        event.level_id === danceClass.level_id),
+  );
+
+  return attendanceDates.filter((date) => {
+    const isoDate = displayDateToIsoDate(date, month);
+
+    return affectingEvents.some(
+      (event) => event.start_date <= isoDate && event.end_date >= isoDate,
+    );
+  });
+}
+
 function sortSchedules(schedules: ChamadaSchedule[]) {
   return [...schedules].sort((a, b) => {
     const weekdayDiff =
@@ -314,6 +377,28 @@ function sortSchedules(schedules: ChamadaSchedule[]) {
 
     return a.start_time.localeCompare(b.start_time);
   });
+}
+
+function getMonthStartDate(month: string) {
+  const [yearText, monthText] = normalizeAttendanceMonth(month).split("-");
+
+  return `${yearText}-${monthText}-01`;
+}
+
+function getMonthEndDate(month: string) {
+  const [yearText, monthText] = normalizeAttendanceMonth(month).split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+
+  return `${yearText}-${monthText}-${String(lastDay).padStart(2, "0")}`;
+}
+
+function displayDateToIsoDate(date: string, month: string) {
+  const [yearText] = normalizeAttendanceMonth(month).split("-");
+  const [day, monthText] = date.split("/");
+
+  return `${yearText}-${monthText}-${day}`;
 }
 
 function formatTime(value: string) {
