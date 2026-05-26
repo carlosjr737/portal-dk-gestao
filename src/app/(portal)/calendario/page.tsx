@@ -1,8 +1,11 @@
 import {
   createCalendarEvent,
+  changeGoogleCalendar,
   deleteCalendarEvent,
   getCalendarFormOptions,
+  getGoogleCalendarStatus,
   listCalendarEvents,
+  syncGoogleCalendarMonth,
   updateCalendarEvent,
   type CalendarFilters,
 } from "@/features/calendar/actions";
@@ -36,9 +39,10 @@ export default async function CalendarioPage({
   const profile = user ? await getProfileByUserId(user.id) : null;
   const canManage = profile?.role === "admin" || profile?.role === "equipe";
   const canDelete = profile?.role === "admin";
-  const [events, options] = await Promise.all([
+  const [events, options, googleCalendarStatus] = await Promise.all([
     listCalendarEvents(filters),
     getCalendarFormOptions(),
+    getGoogleCalendarStatus(),
   ]);
 
   return (
@@ -54,6 +58,9 @@ export default async function CalendarioPage({
       createAction={createCalendarEvent}
       updateAction={updateCalendarEvent}
       deleteAction={deleteCalendarEvent}
+      googleCalendarStatus={googleCalendarStatus}
+      changeGoogleCalendarAction={changeGoogleCalendar}
+      syncGoogleCalendarAction={syncGoogleCalendarMonth}
     />
   );
 }

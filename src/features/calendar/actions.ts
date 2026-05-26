@@ -13,10 +13,29 @@ import type {
   CalendarEventType,
   CalendarSelectOption,
 } from "@/features/calendar/types";
+import {
+  createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+  getActiveGoogleCalendarConnection,
+  importGoogleCalendarEvents,
+  listGoogleCalendars,
+  updateGoogleCalendarEvent,
+  updateGoogleCalendarSelection,
+  type GoogleCalendarConnection,
+  type GoogleCalendarOption,
+} from "@/features/calendar/google-calendar";
 
 export type CalendarActionState = {
   errors?: Record<string, string[]>;
   message?: string;
+};
+
+export type GoogleCalendarStatus = {
+  connected: boolean;
+  googleEmail: string | null;
+  calendarId: string | null;
+  lastSyncedAt: string | null;
+  calendars: GoogleCalendarOption[];
 };
 
 function formDataToObject(formData: FormData) {
@@ -191,6 +210,55 @@ export async function getCalendarFormOptions(): Promise<CalendarEventFormOptions
   };
 }
 
+export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
+  const permission = await getCalendarPermission();
+
+  if (!permission.canView) {
+    return {
+      connected: false,
+      googleEmail: null,
+      calendarId: null,
+      lastSyncedAt: null,
+      calendars: [],
+    };
+  }
+
+  const connection = await getActiveGoogleCalendarConnection(permission.userId);
+
+  if (!connection) {
+    return {
+      connected: false,
+      googleEmail: null,
+      calendarId: null,
+      lastSyncedAt: null,
+      calendars: [],
+    };
+  }
+
+  try {
+    return {
+      connected: true,
+      googleEmail: connection.google_email,
+      calendarId: connection.calendar_id ?? "primary",
+      lastSyncedAt: connection.last_synced_at,
+      calendars: await listGoogleCalendars(connection),
+    };
+  } catch (error) {
+    console.error(
+      "Google Calendar status load error:",
+      error instanceof Error ? error.message : error,
+    );
+
+    return {
+      connected: true,
+      googleEmail: connection.google_email,
+      calendarId: connection.calendar_id ?? "primary",
+      lastSyncedAt: connection.last_synced_at,
+      calendars: [],
+    };
+  }
+}
+
 export async function createCalendarEvent(
   _previousState: CalendarActionState,
   formData: FormData,
@@ -211,20 +279,157 @@ export async function createCalendarEvent(
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("calendar_events").insert({
-    ...parsed.data,
-    created_by: permission.userId,
-  });
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .insert({
+      ...parsed.data,
+      created_by: permission.userId,
+      sync_source: "portal",
+    })
+    .select(
+      "id, title, description, event_type, start_date, end_date, start_time, end_time, all_day, affects_classes, affects_all_classes, class_id, teacher_id, modality_id, level_id, google_calendar_event_id, google_calendar_id, sync_source, created_by, created_at, updated_at",
+    )
+    .single();
 
-  if (error) {
+  if (error || !data) {
     console.error("Calendar event insert error:", error);
     return { message: "Não foi possível cadastrar o evento." };
   }
+
+  await syncCreatedEventToGoogle(data as CalendarEvent, permission.userId);
 
   revalidatePath("/calendario");
   revalidatePath("/chamada");
 
   return { message: "Evento cadastrado com sucesso." };
+}
+
+async function syncCreatedEventToGoogle(event: CalendarEvent, userId: string | null) {
+  try {
+    const connection = await getActiveGoogleCalendarConnection(userId);
+
+    if (!connection) {
+      return;
+    }
+
+    const googleEventId = await createGoogleCalendarEvent(event, connection);
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({
+        google_calendar_event_id: googleEventId,
+        google_calendar_id: connection.calendar_id ?? "primary",
+      })
+      .eq("id", event.id);
+
+    if (error) {
+      console.error("Calendar event Google id update error:", error.message);
+    }
+  } catch (error) {
+    console.error(
+      "Google Calendar event create sync error:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+async function syncUpdatedEventToGoogle(event: CalendarEvent, userId: string | null) {
+  try {
+    const connection = await getActiveGoogleCalendarConnection(userId);
+
+    if (!connection || !event.google_calendar_event_id) {
+      return;
+    }
+
+    await updateGoogleCalendarEvent(event, connection);
+  } catch (error) {
+    console.error(
+      "Google Calendar event update sync error:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+async function syncDeletedEventToGoogle(
+  event: CalendarEvent,
+  connection: GoogleCalendarConnection | null,
+) {
+  try {
+    if (!connection || !event.google_calendar_event_id) {
+      return;
+    }
+
+    await deleteGoogleCalendarEvent(event, connection);
+  } catch (error) {
+    console.error(
+      "Google Calendar event delete sync error:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+async function selectCalendarEvent(eventId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .select(
+      "id, title, description, event_type, start_date, end_date, start_time, end_time, all_day, affects_classes, affects_all_classes, class_id, teacher_id, modality_id, level_id, google_calendar_event_id, google_calendar_id, sync_source, created_by, created_at, updated_at",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Calendar event load error:", error.message);
+    return null;
+  }
+
+  return (data ?? null) as CalendarEvent | null;
+}
+
+export async function changeGoogleCalendar(formData: FormData) {
+  const permission = await assertCanManageCalendar();
+
+  if (!permission.allowed) {
+    return;
+  }
+
+  const calendarId = String(formData.get("calendar_id") ?? "primary");
+
+  try {
+    await updateGoogleCalendarSelection(permission.userId, calendarId);
+    revalidatePath("/calendario");
+  } catch (error) {
+    console.error(
+      "Google Calendar selection action error:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+export async function syncGoogleCalendarMonth(formData: FormData) {
+  const permission = await assertCanManageCalendar();
+
+  if (!permission.allowed) {
+    return;
+  }
+
+  const month = String(formData.get("month") ?? getCurrentMonthValue());
+
+  try {
+    const connection = await getActiveGoogleCalendarConnection(permission.userId);
+
+    if (!connection) {
+      return;
+    }
+
+    await importGoogleCalendarEvents({ month, connection });
+    revalidatePath("/calendario");
+  } catch (error) {
+    console.error(
+      "Google Calendar import action error:",
+      error instanceof Error ? error.message : error,
+    );
+  }
 }
 
 export async function updateCalendarEvent(
@@ -248,15 +453,21 @@ export async function updateCalendarEvent(
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("calendar_events")
     .update(parsed.data)
-    .eq("id", eventId);
+    .eq("id", eventId)
+    .select(
+      "id, title, description, event_type, start_date, end_date, start_time, end_time, all_day, affects_classes, affects_all_classes, class_id, teacher_id, modality_id, level_id, google_calendar_event_id, google_calendar_id, sync_source, created_by, created_at, updated_at",
+    )
+    .single();
 
-  if (error) {
+  if (error || !data) {
     console.error("Calendar event update error:", error);
     return { message: "Não foi possível atualizar o evento." };
   }
+
+  await syncUpdatedEventToGoogle(data as CalendarEvent, permission.userId);
 
   revalidatePath("/calendario");
   revalidatePath("/chamada");
@@ -275,6 +486,13 @@ export async function deleteCalendarEvent(formData: FormData) {
 
   if (!eventId) {
     return;
+  }
+
+  const event = await selectCalendarEvent(eventId);
+  const connection = await getActiveGoogleCalendarConnection(permission.userId);
+
+  if (event) {
+    await syncDeletedEventToGoogle(event, connection);
   }
 
   const supabase = createAdminClient();
@@ -307,4 +525,9 @@ function getMonthRange(month: string) {
 
 function formatDateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getCurrentMonthValue() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 }

@@ -5,9 +5,12 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import type {
   createCalendarEvent,
+  changeGoogleCalendar,
   deleteCalendarEvent,
+  syncGoogleCalendarMonth,
   updateCalendarEvent,
 } from "@/features/calendar/actions";
+import type { GoogleCalendarStatus } from "@/features/calendar/actions";
 import { CalendarEventForm } from "@/features/calendar/calendar-event-form";
 import { DeleteCalendarEventButton } from "@/features/calendar/delete-calendar-event-button";
 import {
@@ -33,6 +36,9 @@ type CalendarViewProps = {
   createAction: typeof createCalendarEvent;
   updateAction: typeof updateCalendarEvent;
   deleteAction: typeof deleteCalendarEvent;
+  googleCalendarStatus: GoogleCalendarStatus;
+  changeGoogleCalendarAction: typeof changeGoogleCalendar;
+  syncGoogleCalendarAction: typeof syncGoogleCalendarMonth;
 };
 
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -63,6 +69,9 @@ export function CalendarView({
   createAction,
   updateAction,
   deleteAction,
+  googleCalendarStatus,
+  changeGoogleCalendarAction,
+  syncGoogleCalendarAction,
 }: CalendarViewProps) {
   const [modal, setModal] = useState<
     | { mode: "create" }
@@ -112,25 +121,78 @@ export function CalendarView({
           value={String(stats.suspendedClasses)}
         />
         <div className="rounded-md border border-border bg-white p-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
                 Google Agenda
               </p>
               <p className="mt-2 text-base font-semibold text-foreground">
-                Não conectado
+                {googleCalendarStatus.connected ? "Conectado" : "Não conectado"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Integração com Google Agenda será configurada na próxima etapa.
+                {googleCalendarStatus.connected
+                  ? `${googleCalendarStatus.googleEmail ?? "Conta Google"} | Agenda: ${googleCalendarStatus.calendarId ?? "primary"}`
+                  : "Conecte uma conta Google para sincronizar eventos."}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Última sincronização:{" "}
+                {googleCalendarStatus.lastSyncedAt
+                  ? formatDateTime(googleCalendarStatus.lastSyncedAt)
+                  : "-"}
               </p>
             </div>
-            <button
-              type="button"
-              disabled
-              className="h-9 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground opacity-70"
-            >
-              Conectar Google Agenda
-            </button>
+            {googleCalendarStatus.connected ? (
+              <div className="space-y-2">
+                {googleCalendarStatus.calendars.length > 0 ? (
+                  <form action={changeGoogleCalendarAction} className="flex gap-2">
+                    <select
+                      name="calendar_id"
+                      defaultValue={googleCalendarStatus.calendarId ?? "primary"}
+                      className="h-9 min-w-0 flex-1 rounded-md border border-border bg-white px-2 text-xs text-foreground outline-none transition focus:border-primary"
+                    >
+                      {googleCalendarStatus.calendars.map((calendar) => (
+                        <option key={calendar.id} value={calendar.id}>
+                          {calendar.summary}
+                          {calendar.primary ? " (principal)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="h-9 rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Salvar
+                    </button>
+                  </form>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <form action={syncGoogleCalendarAction}>
+                    <input type="hidden" name="month" value={month} />
+                    <button
+                      type="submit"
+                      className="h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+                    >
+                      Sincronizar Google Agenda
+                    </button>
+                  </form>
+                  <form action="/api/integrations/google-calendar/disconnect" method="post">
+                    <button
+                      type="submit"
+                      className="h-9 rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Desconectar
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href="/api/integrations/google-calendar/connect"
+                className="inline-flex h-9 w-fit items-center justify-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+              >
+                Conectar Google Agenda
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -680,6 +742,13 @@ function formatDate(value: string) {
 
 function formatDateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function formatEventChip(event: CalendarEvent) {
