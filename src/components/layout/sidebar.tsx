@@ -14,9 +14,44 @@ type SidebarProps = {
   role: UserRole;
 };
 
+const navigationGroups = [
+  {
+    title: "Principal",
+    items: ["/dashboard"],
+  },
+  {
+    title: "Gestão acadêmica",
+    items: ["/alunos", "/responsaveis", "/matriculas", "/importar-alunos"],
+  },
+  {
+    title: "Turmas e aulas",
+    items: ["/turmas", "/chamada", "/professores", "/modalidades", "/niveis"],
+  },
+  {
+    title: "Operação",
+    items: ["/calendario"],
+  },
+  {
+    title: "Financeiro",
+    items: [
+      "/financeiro",
+      "/financeiro/inadimplencia",
+      "/financeiro/growth-churn",
+      "/financeiro/vinculos-conta-azul",
+    ],
+  },
+  {
+    title: "Sistema",
+    items: ["/configuracoes/usuarios", "/configuracoes"],
+  },
+] as const;
+
 export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
   const pathname = usePathname();
   const navigation = getNavigationForRole(role);
+  const navigationByHref = new Map(
+    navigation.map((item) => [item.href, item]),
+  );
 
   return (
     <aside
@@ -42,22 +77,41 @@ export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-5">
-          {navigation.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className={cn(
-                "rounded-md px-3 py-2.5 text-sm font-medium transition",
-                pathname === item.href
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-5">
+          {navigationGroups.map((group) => {
+            const visibleItems = group.items
+              .map((href) => navigationByHref.get(href))
+              .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+            if (visibleItems.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={group.title} className="mt-5 first:mt-0">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.title}
+                </p>
+                <div className="mt-2 flex flex-col gap-1">
+                  {visibleItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        "rounded-md px-3 py-2.5 text-sm font-medium transition",
+                        pathname === item.href
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="border-t border-border px-5 py-4">
