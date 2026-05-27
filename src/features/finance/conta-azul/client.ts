@@ -750,6 +750,7 @@ function buildCreateReceivablePayload(
           conta_financeira: input.financialAccountId,
           detalhe_valor: {
             valor_bruto: input.amount,
+            valor_liquido: input.amount,
           },
         },
       ],

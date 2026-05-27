@@ -331,6 +331,7 @@ export async function createContaAzulReceivableForEnrollment(
                 conta_financeira: settings.conta_azul_financial_account_id,
                 detalhe_valor: {
                   valor_bruto: amount,
+                  valor_liquido: amount,
                 },
               },
             ],

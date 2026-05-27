@@ -59,6 +59,7 @@ export type ContaAzulCreateReceivablePayload = {
       conta_financeira: string;
       detalhe_valor: {
         valor_bruto: number;
+        valor_liquido: number;
       };
     }>;
   };
