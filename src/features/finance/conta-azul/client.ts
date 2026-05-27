@@ -46,6 +46,7 @@ type SearchPeopleParams = {
 
 type ContaAzulApiErrorDetails = {
   stage?: string;
+  method?: string;
   endpoint?: string;
   status?: number;
   body?: unknown;
@@ -215,10 +216,14 @@ export class ContaAzulClient {
     return this.post<
       ContaAzulCreateReceivablePayload,
       ContaAzulCreateReceivableResponse
-    >("/v1/financeiro/contas-a-receber", buildCreateReceivablePayload(input), {
-      debugLabel: "createReceivable",
-      stage: "create_receivable",
-    });
+    >(
+      "/v1/financeiro/eventos-financeiros/contas-a-receber",
+      buildCreateReceivablePayload(input),
+      {
+        debugLabel: "createReceivable",
+        stage: "create_receivable_event",
+      },
+    );
   }
 
   private async getAllPages<T>(
@@ -400,6 +405,7 @@ export class ContaAzulClient {
       if (!retryOnUnauthorized) {
         throw new ContaAzulApiError(reconnectMessage, response.status, {
           stage: options.stage,
+          method: "POST",
           endpoint: path,
           status: response.status,
           body: sanitizeLogBody(responseBody),
@@ -410,6 +416,7 @@ export class ContaAzulClient {
       if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
         throw new ContaAzulApiError(reconnectMessage, response.status, {
           stage: options.stage,
+          method: "POST",
           endpoint: path,
           status: response.status,
           body: sanitizeLogBody(responseBody),
@@ -431,6 +438,7 @@ export class ContaAzulClient {
 
       throw new ContaAzulApiError(errorMessage, response.status, {
         stage: options.stage,
+        method: "POST",
         endpoint: path,
         status: response.status,
         body: sanitizeLogBody(responseBody),
@@ -721,9 +729,10 @@ function buildCreateReceivablePayload(
   input: ContaAzulCreateReceivableInput,
 ): ContaAzulCreateReceivablePayload {
   return {
-    id_cliente: input.customerId,
+    contato: input.customerId,
     valor: input.amount,
     descricao: input.description,
+    observacao: input.observation,
     data_competencia: input.competenceDate,
     conta_financeira: input.financialAccountId,
     rateio: [
@@ -737,6 +746,7 @@ function buildCreateReceivablePayload(
         {
           descricao: "Parcela Única",
           data_vencimento: input.dueDate,
+          nota: "Gerado via Portal DK Gestão",
           conta_financeira: input.financialAccountId,
           detalhe_valor: {
             valor_bruto: input.amount,

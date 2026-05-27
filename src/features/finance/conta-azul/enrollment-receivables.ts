@@ -10,9 +10,15 @@ import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azu
 const CONTA_AZUL_PROVIDER = "conta_azul";
 
 type EnrollmentReceivableResult = {
-  status: "skipped" | "receivable_created" | "failed" | "already_created";
+  status:
+    | "skipped"
+    | "processing"
+    | "receivable_created"
+    | "failed"
+    | "already_created";
   message?: string;
   providerReceivableId?: string;
+  providerProtocolId?: string;
 };
 
 type CreateContaAzulReceivableOptions = {
@@ -44,6 +50,7 @@ type NamedRecord = {
   id: string;
   full_name?: string | null;
   name?: string | null;
+  teacher_name?: string | null;
 };
 
 type GuardianDebugRecord = {
@@ -58,11 +65,13 @@ type RecordPayload = {
   guardian_id: string | null;
   provider: typeof CONTA_AZUL_PROVIDER;
   provider_customer_id?: string | null;
+  provider_protocol_id?: string | null;
   provider_receivable_id?: string | null;
+  external_reference?: string | null;
   provider_payload?: unknown;
   amount?: number | null;
   due_date?: string | null;
-  status: "skipped" | "receivable_created" | "failed";
+  status: "skipped" | "processing" | "receivable_created" | "failed";
   error_message?: string | null;
 };
 
@@ -89,7 +98,7 @@ export async function createContaAzulReceivableForEnrollment(
   }
 
   try {
-    const existingReceivable = await getExistingCreatedReceivable(
+    const existingReceivable = await getExistingReceivableOrProcessing(
       supabase,
       enrollmentId,
     );
@@ -98,7 +107,12 @@ export async function createContaAzulReceivableForEnrollment(
     if (existingReceivable) {
       return {
         status: "already_created",
-        providerReceivableId: existingReceivable.provider_receivable_id as string,
+        message:
+          "Já existe uma cobrança em processamento ou criada para esta matrícula.",
+        providerReceivableId:
+          (existingReceivable.provider_receivable_id as string | null) ?? undefined,
+        providerProtocolId:
+          (existingReceivable.provider_protocol_id as string | null) ?? undefined,
       };
     }
 
@@ -258,17 +272,31 @@ export async function createContaAzulReceivableForEnrollment(
     console.info("[CA RECEIVABLE] amount", amount);
     console.info("[CA RECEIVABLE] dueDate", dueDate);
     const competenceDate = enrollment.start_date ?? toDateString(new Date());
-    const description = buildDescription(student, danceClass);
-    console.info("[CA RECEIVABLE] endpoint", "/v1/financeiro/contas-a-receber");
+    const description = buildDescription(student);
+    const observation = buildObservation(danceClass);
+    const externalReference = `DK-ENROLLMENT-${enrollment.id}`;
+    const endpoint = "/v1/financeiro/eventos-financeiros/contas-a-receber";
+    console.info("[CA RECEIVABLE] endpoint", endpoint);
     const response = await new ContaAzulClient().createReceivable({
       customerId,
       amount,
       description,
+      observation,
       competenceDate,
       dueDate,
       financialAccountId: settings.conta_azul_financial_account_id,
       revenueCategoryId: settings.conta_azul_revenue_category_id,
     });
+    const protocolId = getProtocolId(response);
+
+    if (!protocolId) {
+      throw new Error(
+        "create_receivable_event failed: resposta sem protocolId.",
+      );
+    }
+
+    console.info("[CA RECEIVABLE] protocolId", protocolId);
+    console.info("[CA RECEIVABLE] responseStatus", response.status ?? null);
 
     await saveFinancialRecord(supabase, {
       enrollment_id: enrollment.id,
@@ -276,23 +304,54 @@ export async function createContaAzulReceivableForEnrollment(
       guardian_id: enrollment.financial_guardian_id,
       provider: CONTA_AZUL_PROVIDER,
       provider_customer_id: customerId,
-      provider_receivable_id: response.id,
-      provider_payload: response,
+      provider_protocol_id: protocolId,
+      provider_receivable_id: null,
+      external_reference: externalReference,
+      provider_payload: {
+        ...response,
+        sanitized_payload: {
+          contato: customerId,
+          valor: amount,
+          descricao: description,
+          observacao: observation,
+          data_competencia: competenceDate,
+          conta_financeira: settings.conta_azul_financial_account_id,
+          rateio: [
+            {
+              id_categoria: settings.conta_azul_revenue_category_id,
+              valor: amount,
+            },
+          ],
+          condicao_pagamento: {
+            parcelas: [
+              {
+                descricao: "Parcela Única",
+                data_vencimento: dueDate,
+                nota: "Gerado via Portal DK Gestão",
+                conta_financeira: settings.conta_azul_financial_account_id,
+                detalhe_valor: {
+                  valor_bruto: amount,
+                },
+              },
+            ],
+          },
+        },
+      },
       amount,
       due_date: dueDate,
-      status: "receivable_created",
+      status: "processing",
       error_message: null,
     });
 
-    console.info("Conta Azul enrollment receivable created:", {
+    console.info("Conta Azul enrollment receivable event created:", {
       enrollmentId: enrollment.id,
-      status: "receivable_created",
-      providerReceivableId: response.id,
+      status: "processing",
+      providerProtocolId: protocolId,
     });
 
     return {
-      status: "receivable_created",
-      providerReceivableId: response.id,
+      status: "processing",
+      providerProtocolId: protocolId,
     };
   } catch (error) {
     failurePayload = buildFailurePayload(error);
@@ -329,17 +388,17 @@ export async function createContaAzulReceivableForEnrollment(
   }
 }
 
-async function getExistingCreatedReceivable(
+async function getExistingReceivableOrProcessing(
   supabase: ReturnType<typeof createAdminClient>,
   enrollmentId: string,
 ) {
   const { data, error } = await supabase
     .from("enrollment_financial_records")
-    .select("id, provider_receivable_id")
+    .select("id, provider_protocol_id, provider_receivable_id, status")
     .eq("enrollment_id", enrollmentId)
     .eq("provider", CONTA_AZUL_PROVIDER)
-    .eq("status", "receivable_created")
-    .not("provider_receivable_id", "is", null)
+    .in("status", ["processing", "receivable_created"])
+    .or("provider_protocol_id.not.is.null,provider_receivable_id.not.is.null")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -438,7 +497,7 @@ async function getClass(
 
   const { data, error } = await supabase
     .from("classes")
-    .select("id, name")
+    .select("id, name, teacher_id, instructor_name")
     .eq("id", classId)
     .maybeSingle();
 
@@ -446,7 +505,42 @@ async function getClass(
     throw new Error(error.message);
   }
 
-  return (data as NamedRecord | null) ?? null;
+  const danceClass = data as
+    | (NamedRecord & {
+        teacher_id?: string | null;
+        instructor_name?: string | null;
+      })
+    | null;
+
+  if (!danceClass) {
+    return null;
+  }
+
+  if (!danceClass?.teacher_id) {
+    return {
+      ...danceClass,
+      teacher_name: danceClass?.instructor_name ?? null,
+    };
+  }
+
+  const { data: teacher, error: teacherError } = await supabase
+    .from("staff_members")
+    .select("id, full_name, artistic_name")
+    .eq("id", danceClass.teacher_id)
+    .maybeSingle();
+
+  if (teacherError) {
+    throw new Error(teacherError.message);
+  }
+
+  return {
+    ...danceClass,
+    teacher_name:
+      ((teacher?.artistic_name as string | null) ??
+        (teacher?.full_name as string | null)) ??
+      danceClass.instructor_name ??
+      null,
+  };
 }
 
 async function getGuardianDebug(
@@ -520,10 +614,21 @@ function toDateString(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildDescription(student: NamedRecord | null, danceClass: NamedRecord | null) {
-  return `Mensalidade DK Studio - ${student?.full_name ?? "Aluno"} - ${
-    danceClass?.name ?? "Turma"
-  }`;
+function buildDescription(student: NamedRecord | null) {
+  return `Mensalidade DK Studio - ${student?.full_name ?? "Aluno"}`;
+}
+
+function buildObservation(danceClass: NamedRecord | null) {
+  const className = danceClass?.name ?? "Turma";
+  const teacherName = danceClass?.teacher_name ?? "Professor não informado";
+
+  return `Matrícula ${className} - ${teacherName}`;
+}
+
+function getProtocolId(response: { protocolId?: unknown }) {
+  return typeof response.protocolId === "string" && response.protocolId.length > 0
+    ? response.protocolId
+    : null;
 }
 
 async function saveFailure(
@@ -606,6 +711,7 @@ function buildFailurePayload(error: unknown) {
     return {
       stage: error.details.stage ?? "conta_azul_request",
       endpoint: error.details.endpoint ?? null,
+      method: error.details.method ?? null,
       status: error.details.status ?? error.status ?? null,
       body: error.details.body ?? null,
       payload: error.details.payload ? "sanitized" : null,
@@ -633,5 +739,5 @@ function inferFailureStage(error: unknown) {
       : "customer_lookup";
   }
 
-  return "create_receivable";
+  return "create_receivable_event";
 }

@@ -26,8 +26,10 @@ type MatriculasPageProps = {
 };
 
 const receivableMessages: Record<string, string> = {
+  processing: "Cobrança enviada ao Conta Azul e está em processamento.",
   created: "Conta a receber criada no Conta Azul.",
-  "already-created": "Esta matrícula já possui conta a receber no Conta Azul.",
+  "already-created":
+    "Já existe uma cobrança em processamento ou criada para esta matrícula.",
   failed: "Não foi possível criar conta a receber no Conta Azul.",
   unauthorized: "Acesso não autorizado.",
 };
@@ -72,7 +74,9 @@ export default async function MatriculasPage({
       {params?.receivable ? (
         <div
           className={`mt-4 rounded-md border px-4 py-3 text-sm ${
-            params.receivable === "created" || params.receivable === "already-created"
+            params.receivable === "created" ||
+            params.receivable === "processing" ||
+            params.receivable === "already-created"
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
               : "border-amber-200 bg-amber-50 text-amber-800"
           }`}
@@ -159,9 +163,14 @@ export default async function MatriculasPage({
                     {canGenerateReceivable ? (
                       <td className="px-4 py-3">
                         {enrollment.externalFinancialRecord?.status ===
-                        "receivable_created" ? (
+                          "receivable_created" ||
+                        enrollment.externalFinancialRecord?.status ===
+                          "processing" ? (
                           <span className="text-xs text-muted-foreground">
-                            Gerada
+                            {enrollment.externalFinancialRecord.status ===
+                            "processing"
+                              ? "Processando"
+                              : "Gerada"}
                           </span>
                         ) : (
                           <form
@@ -241,7 +250,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       supabase
         .from("enrollment_financial_records")
         .select(
-          "id, enrollment_id, status, provider_receivable_id, amount, due_date, error_message, created_at",
+          "id, enrollment_id, status, provider_protocol_id, provider_receivable_id, amount, due_date, error_message, created_at",
         )
         .eq("provider", "conta_azul")
         .order("created_at", { ascending: false }),
@@ -308,6 +317,8 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       if (!financialRecordsByEnrollmentId.has(enrollmentId)) {
         financialRecordsByEnrollmentId.set(enrollmentId, {
           status: record.status as string,
+          provider_protocol_id:
+            (record.provider_protocol_id as string | null) ?? null,
           provider_receivable_id:
             (record.provider_receivable_id as string | null) ?? null,
           amount:
@@ -374,7 +385,9 @@ function ExternalFinancialStatus({
 
   const statusLabel =
     record.status === "receivable_created"
-      ? "Criada"
+      ? "Gerada"
+      : record.status === "processing"
+        ? "Processando"
       : record.status === "failed"
         ? "Falhou"
         : record.status === "skipped"
@@ -384,9 +397,9 @@ function ExternalFinancialStatus({
   return (
     <div className="space-y-1 text-sm">
       <div className="font-medium text-foreground">{statusLabel}</div>
-      {record.provider_receivable_id ? (
+      {record.provider_receivable_id || record.provider_protocol_id ? (
         <div className="font-mono text-xs text-muted-foreground">
-          {record.provider_receivable_id}
+          {record.provider_receivable_id ?? record.provider_protocol_id}
         </div>
       ) : null}
       <div className="text-xs text-muted-foreground">

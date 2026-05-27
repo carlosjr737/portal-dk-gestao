@@ -58,6 +58,7 @@ export type EnrollmentListRow = {
   } | null;
   externalFinancialRecord: {
     status: string;
+    provider_protocol_id: string | null;
     provider_receivable_id: string | null;
     amount: number | null;
     due_date: string | null;

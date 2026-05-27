@@ -29,6 +29,10 @@ export async function createManualContaAzulReceivableForEnrollmentAction(
 
   revalidatePath("/matriculas");
 
+  if (result.status === "processing") {
+    redirect("/matriculas?receivable=processing");
+  }
+
   if (result.status === "receivable_created") {
     redirect("/matriculas?receivable=created");
   }

@@ -33,6 +33,7 @@ export type ContaAzulCreateReceivableInput = {
   customerId: string;
   amount: number;
   description: string;
+  observation: string;
   competenceDate: string;
   dueDate: string;
   financialAccountId: string;
@@ -40,9 +41,10 @@ export type ContaAzulCreateReceivableInput = {
 };
 
 export type ContaAzulCreateReceivablePayload = {
-  id_cliente: string;
+  contato: string;
   valor: number;
   descricao: string;
+  observacao: string;
   data_competencia: string;
   conta_financeira: string;
   rateio: Array<{
@@ -53,6 +55,7 @@ export type ContaAzulCreateReceivablePayload = {
     parcelas: Array<{
       descricao: string;
       data_vencimento: string;
+      nota: string;
       conta_financeira: string;
       detalhe_valor: {
         valor_bruto: number;
@@ -62,12 +65,9 @@ export type ContaAzulCreateReceivablePayload = {
 };
 
 export type ContaAzulCreateReceivableResponse = {
-  id: string;
+  protocolId: string;
   status?: string;
-  descricao?: string;
-  valor?: number;
-  data_competencia?: string;
-  id_cliente?: string;
+  createdAt?: string;
   [key: string]: unknown;
 };
 
