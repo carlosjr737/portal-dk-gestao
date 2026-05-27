@@ -8,7 +8,7 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
-import { createContaAzulReceivableForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
+import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -157,17 +157,17 @@ export async function createEnrollment(
     });
   }
 
-  const receivableResult = await createContaAzulReceivableForEnrollment(
+  const contractResult = await createContaAzulContractForEnrollment(
     data.id as string,
   ).catch((error) => {
-    console.error("Enrollment Conta Azul receivable integration error:", {
+    console.error("Enrollment Conta Azul contract integration error:", {
       enrollmentId: data.id,
       message: error instanceof Error ? error.message : error,
     });
 
     return {
       status: "failed" as const,
-      message: "Matrícula criada, mas a cobrança no Conta Azul não foi gerada.",
+      message: "Matrícula criada, mas o contrato no Conta Azul não foi gerado.",
     };
   });
 
@@ -181,8 +181,8 @@ export async function createEnrollment(
 
   if (!parsed.data.financial_guardian_id) {
     redirectParams.set("created", "without-financial-guardian");
-  } else if (receivableResult.status === "failed") {
-    redirectParams.set("created", "conta-azul-receivable-failed");
+  } else if (contractResult.status === "failed") {
+    redirectParams.set("created", "conta-azul-contract-failed");
   }
 
   const redirectQuery = redirectParams.toString();

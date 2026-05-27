@@ -1,6 +1,9 @@
 import "server-only";
 
 import type {
+  ContaAzulCreateContractInput,
+  ContaAzulCreateContractPayload,
+  ContaAzulCreateContractResponse,
   ContaAzulCreatePersonInput,
   ContaAzulCreatePersonPayload,
   ContaAzulCreateReceivableInput,
@@ -250,6 +253,20 @@ export class ContaAzulClient {
     );
   }
 
+  async createContract(input: ContaAzulCreateContractInput) {
+    return this.post<
+      ContaAzulCreateContractPayload,
+      ContaAzulCreateContractResponse
+    >("/v1/contratos", buildCreateContractPayload(input), {
+      debugLabel: "createContract",
+      stage: "create_contract",
+    });
+  }
+
+  async getNextContractNumber() {
+    return this.get<number>("/v1/contratos/proximo-numero", {});
+  }
+
   private async getAllPages<T>(
     path: string,
     query: ContaAzulQueryParams,
@@ -384,7 +401,7 @@ export class ContaAzulClient {
     path: string,
     payload: TPayload,
     options: {
-      debugLabel?: "createReceivable";
+      debugLabel?: "createReceivable" | "createContract";
       stage?: string;
     } = {},
     retryOnUnauthorized = true,
@@ -398,6 +415,11 @@ export class ContaAzulClient {
       console.log("[CA RECEIVABLE] full URL", url.toString());
       console.log("[CA RECEIVABLE] endpoint", path);
       console.log("[CA RECEIVABLE] payloadSanitized", sanitizedPayload);
+    }
+    if (options.debugLabel === "createContract") {
+      console.log("[CA CONTRACT] method", "POST");
+      console.log("[CA CONTRACT] endpoint", path);
+      console.log("[CA CONTRACT] payloadSanitized", sanitizedPayload);
     }
 
     const accessToken = await this.getAccessToken();
@@ -419,6 +441,13 @@ export class ContaAzulClient {
       console.log("[CA RECEIVABLE] responseStatus", response.status);
       console.log(
         "[CA RECEIVABLE] responseBodySanitized",
+        sanitizeLogBody(responseBody),
+      );
+    }
+    if (options.debugLabel === "createContract") {
+      console.log("[CA CONTRACT] responseStatus", response.status);
+      console.log(
+        "[CA CONTRACT] responseBodySanitized",
         sanitizeLogBody(responseBody),
       );
     }
@@ -786,6 +815,40 @@ function buildCreateReceivablePayload(
         },
       ],
     },
+  };
+}
+
+function buildCreateContractPayload(
+  input: ContaAzulCreateContractInput,
+): ContaAzulCreateContractPayload {
+  return {
+    id_cliente: input.customerId,
+    data_emissao: input.issueDate,
+    id_categoria: input.revenueCategoryId,
+    observacoes: input.observations,
+    observacoes_pagamento: "Contrato recorrente gerado via Portal DK Gestão.",
+    termos: {
+      tipo_frequencia: "MENSAL",
+      tipo_expiracao: input.endDate ? "DATA" : "NUNCA",
+      data_inicio: input.startDate,
+      ...(input.endDate ? { data_fim: input.endDate } : {}),
+      intervalo_frequencia: 1,
+      dia_emissao_venda: input.dueDay,
+      numero: input.contractNumber,
+    },
+    condicao_pagamento: {
+      id_conta_financeira: input.financialAccountId,
+      dia_vencimento: input.dueDay,
+      primeira_data_vencimento: input.firstDueDate,
+    },
+    itens: [
+      {
+        id: input.itemId,
+        quantidade: 1,
+        descricao: input.description,
+        valor: input.amount,
+      },
+    ],
   };
 }
 

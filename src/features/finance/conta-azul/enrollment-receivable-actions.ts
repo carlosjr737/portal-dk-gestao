@@ -6,9 +6,9 @@ import {
   getAuthenticatedUser,
   getProfileByUserId,
 } from "@/features/auth/session";
-import { createContaAzulReceivableForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
+import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
 
-export async function createManualContaAzulReceivableForEnrollmentAction(
+export async function createManualContaAzulContractForEnrollmentAction(
   formData: FormData,
 ) {
   const enrollmentId = String(formData.get("enrollmentId") ?? "");
@@ -16,30 +16,24 @@ export async function createManualContaAzulReceivableForEnrollmentAction(
   const profile = user ? await getProfileByUserId(user.id) : null;
 
   if (!profile?.active || profile.role !== "admin") {
-    redirect("/matriculas?receivable=unauthorized");
+    redirect("/matriculas?contract=unauthorized");
   }
 
   if (!enrollmentId) {
-    redirect("/matriculas?receivable=failed");
+    redirect("/matriculas?contract=failed");
   }
 
-  const result = await createContaAzulReceivableForEnrollment(enrollmentId, {
-    mode: "manual",
-  });
+  const result = await createContaAzulContractForEnrollment(enrollmentId);
 
   revalidatePath("/matriculas");
 
-  if (result.status === "processing") {
-    redirect("/matriculas?receivable=processing");
-  }
-
-  if (result.status === "receivable_created") {
-    redirect("/matriculas?receivable=created");
+  if (result.status === "contract_created") {
+    redirect("/matriculas?contract=created");
   }
 
   if (result.status === "already_created") {
-    redirect("/matriculas?receivable=already-created");
+    redirect("/matriculas?contract=already-created");
   }
 
-  redirect("/matriculas?receivable=failed");
+  redirect("/matriculas?contract=failed");
 }

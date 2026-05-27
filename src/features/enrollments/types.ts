@@ -60,6 +60,7 @@ export type EnrollmentListRow = {
     status: string;
     provider_protocol_id: string | null;
     provider_receivable_id: string | null;
+    provider_contract_id: string | null;
     amount: number | null;
     due_date: string | null;
     error_message: string | null;

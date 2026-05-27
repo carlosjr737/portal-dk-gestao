@@ -15,15 +15,17 @@ type EnrollmentReceivableResult = {
     | "skipped"
     | "processing"
     | "receivable_created"
+    | "contract_created"
     | "failed"
     | "already_created";
   message?: string;
   providerReceivableId?: string;
   providerProtocolId?: string;
+  providerContractId?: string;
 };
 
 type CreateContaAzulReceivableOptions = {
-  mode?: "automatic" | "manual";
+  mode?: "automatic" | "manual" | "contract";
 };
 
 type FinanceProviderSettings = {
@@ -44,6 +46,7 @@ type EnrollmentSnapshot = {
   monthly_amount: number | string | null;
   status: string | null;
   start_date: string | null;
+  end_date: string | null;
   created_at: string | null;
 };
 
@@ -68,13 +71,277 @@ type RecordPayload = {
   provider_customer_id?: string | null;
   provider_protocol_id?: string | null;
   provider_receivable_id?: string | null;
+  provider_contract_id?: string | null;
   external_reference?: string | null;
   provider_payload?: unknown;
+  contract_payload?: unknown;
   amount?: number | null;
   due_date?: string | null;
-  status: "skipped" | "processing" | "receivable_created" | "failed";
+  contract_started_at?: string | null;
+  contract_ends_at?: string | null;
+  status:
+    | "skipped"
+    | "processing"
+    | "receivable_created"
+    | "contract_created"
+    | "failed";
   error_message?: string | null;
 };
+
+export async function createContaAzulContractForEnrollment(
+  enrollmentId: string,
+): Promise<EnrollmentReceivableResult> {
+  let supabase: ReturnType<typeof createAdminClient>;
+  let failureStudentId: string | null = null;
+  let failureGuardianId: string | null = null;
+  let failureCustomerId: string | null = null;
+  let failureAmount: number | null = null;
+  let failureDueDate: string | null = null;
+  let failureContractPayload: unknown = null;
+
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    return {
+      status: "failed",
+      message: getErrorMessage(error),
+    };
+  }
+
+  try {
+    const existingContract = await getExistingContract(supabase, enrollmentId);
+    console.info("[CA CONTRACT] enrollmentId", enrollmentId);
+
+    if (existingContract) {
+      return {
+        status: "already_created",
+        message: "Esta matrícula já possui contrato no Conta Azul.",
+        providerContractId:
+          (existingContract.provider_contract_id as string | null) ?? undefined,
+      };
+    }
+
+    const enrollment = await getEnrollmentSnapshot(supabase, enrollmentId);
+
+    if (!enrollment) {
+      return {
+        status: "failed",
+        message: "Matrícula não encontrada.",
+      };
+    }
+
+    failureStudentId = enrollment.student_id;
+    failureGuardianId = enrollment.financial_guardian_id;
+
+    const settings = await getContaAzulSettings(supabase);
+    const skippedMessage = getSkippedSettingsMessage(settings, "contract");
+
+    if (skippedMessage) {
+      await saveFinancialRecord(supabase, {
+        enrollment_id: enrollment.id,
+        student_id: enrollment.student_id,
+        guardian_id: enrollment.financial_guardian_id,
+        provider: CONTA_AZUL_PROVIDER,
+        contract_payload: buildPreValidationPayload(skippedMessage),
+        status: "skipped",
+        error_message: skippedMessage,
+      });
+
+      return {
+        status: "skipped",
+        message: skippedMessage,
+      };
+    }
+
+    if (!settings) {
+      return {
+        status: "skipped",
+        message: "Configuração financeira Conta Azul não encontrada.",
+      };
+    }
+
+    if (!settings.conta_azul_financial_account_id) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Conta financeira Conta Azul não configurada.",
+      );
+    }
+
+    if (!settings.conta_azul_revenue_category_id) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Categoria de receita Conta Azul não configurada.",
+      );
+    }
+
+    if (!settings.default_due_day) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Dia padrão de vencimento não configurado.",
+      );
+    }
+
+    if (enrollment.status !== "active") {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Matrícula não ativa; contrato Conta Azul não gerado.",
+      );
+    }
+
+    if (!enrollment.financial_guardian_id) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Matrícula sem responsável financeiro.",
+      );
+    }
+
+    const guardianDebug = await getGuardianDebug(
+      supabase,
+      enrollment.financial_guardian_id,
+    );
+
+    if (!guardianDebug?.document) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Responsável financeiro sem CPF.",
+      );
+    }
+
+    const amount = normalizeAmount(enrollment.monthly_amount);
+
+    if (!amount || amount <= 0) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "Valor mensal ausente ou inválido para criar contrato.",
+        amount,
+      );
+    }
+
+    const contractItemId = getContaAzulContractItemId();
+
+    if (!contractItemId) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "CONTA_AZUL_CONTRACT_ITEM_ID não configurado.",
+        amount,
+      );
+    }
+
+    const [student, danceClass] = await Promise.all([
+      getStudent(supabase, enrollment.student_id),
+      getClass(supabase, enrollment.class_id),
+    ]);
+    const customerId = await ensureContaAzulCustomerForGuardian(
+      enrollment.financial_guardian_id,
+    );
+    failureCustomerId = customerId;
+    failureAmount = amount;
+
+    const startDate = enrollment.start_date ?? toDateString(new Date());
+    const firstDueDate = calculateFirstDueDate(startDate, settings.default_due_day);
+    failureDueDate = firstDueDate;
+    const contractNumber = await new ContaAzulClient().getNextContractNumber();
+    const description = buildContractDescription(student, danceClass);
+    const observations = buildObservation(danceClass);
+    const client = new ContaAzulClient();
+    const response = await client.createContract({
+      customerId,
+      contractNumber,
+      issueDate: toDateString(new Date()),
+      startDate,
+      endDate: enrollment.end_date,
+      firstDueDate,
+      dueDay: settings.default_due_day,
+      description,
+      observations,
+      amount,
+      financialAccountId: settings.conta_azul_financial_account_id,
+      revenueCategoryId: settings.conta_azul_revenue_category_id,
+      itemId: contractItemId,
+    });
+    const responseDiagnostics = getContaAzulResponseDiagnostics(response);
+    const contractPayload = buildContaAzulRequestPayload(responseDiagnostics);
+    failureContractPayload = contractPayload;
+    const contractId = getContractId(response);
+
+    if (!contractId) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "create_contract failed: resposta sem id do contrato.",
+        amount,
+        customerId,
+        firstDueDate,
+        contractPayload,
+      );
+    }
+
+    console.log("[CA CONTRACT] response status", responseDiagnostics?.status ?? null);
+    console.log("[CA CONTRACT] detected contract", contractId);
+
+    await saveFinancialRecord(supabase, {
+      enrollment_id: enrollment.id,
+      student_id: enrollment.student_id,
+      guardian_id: enrollment.financial_guardian_id,
+      provider: CONTA_AZUL_PROVIDER,
+      provider_customer_id: customerId,
+      provider_contract_id: contractId,
+      contract_payload: contractPayload,
+      amount,
+      due_date: firstDueDate,
+      contract_started_at: startDate,
+      contract_ends_at: enrollment.end_date,
+      status: "contract_created",
+      error_message: null,
+    });
+
+    return {
+      status: "contract_created",
+      providerContractId: contractId,
+    };
+  } catch (error) {
+    failureContractPayload = buildFailurePayload(error);
+    console.error("Conta Azul enrollment contract failed:", {
+      enrollmentId,
+      status: "failed",
+      message: getErrorMessage(error),
+      payload: failureContractPayload,
+    });
+
+    try {
+      return await saveFailure(
+        supabase,
+        enrollmentId,
+        failureStudentId,
+        failureGuardianId,
+        getErrorMessage(error),
+        failureAmount,
+        failureCustomerId,
+        failureDueDate,
+        null,
+        failureContractPayload,
+      );
+    } catch (recordError) {
+      console.error("Conta Azul enrollment contract failure record failed:", {
+        enrollmentId,
+        message: getErrorMessage(recordError),
+      });
+
+      return {
+        status: "failed",
+        message: getErrorMessage(error),
+      };
+    }
+  }
+}
 
 export async function createContaAzulReceivableForEnrollment(
   enrollmentId: string,
@@ -413,6 +680,28 @@ async function getExistingReceivableOrProcessing(
   return data;
 }
 
+async function getExistingContract(
+  supabase: ReturnType<typeof createAdminClient>,
+  enrollmentId: string,
+) {
+  const { data, error } = await supabase
+    .from("enrollment_financial_records")
+    .select("id, provider_contract_id, status")
+    .eq("enrollment_id", enrollmentId)
+    .eq("provider", CONTA_AZUL_PROVIDER)
+    .eq("status", "contract_created")
+    .not("provider_contract_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 async function getContaAzulSettings(
   supabase: ReturnType<typeof createAdminClient>,
 ): Promise<FinanceProviderSettings | null> {
@@ -443,7 +732,11 @@ function getSkippedSettingsMessage(
     return "Configuração financeira Conta Azul inativa.";
   }
 
-  if (mode !== "manual" && !settings.auto_create_receivable_on_enrollment) {
+  if (
+    mode !== "manual" &&
+    mode !== "contract" &&
+    !settings.auto_create_receivable_on_enrollment
+  ) {
     return "Criação automática de conta a receber desativada.";
   }
 
@@ -457,7 +750,7 @@ async function getEnrollmentSnapshot(
   const { data, error } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, created_at",
+      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, end_date, created_at",
     )
     .eq("id", enrollmentId)
     .maybeSingle();
@@ -605,6 +898,28 @@ function calculateDueDate(defaultDueDay: number | null) {
   return toDateString(dueDate);
 }
 
+function calculateFirstDueDate(startDate: string, defaultDueDay: number) {
+  const [year, month] = startDate.split("-").map(Number);
+  const start = new Date(year, month - 1, 1);
+  let dueDate = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    clampDay(start.getFullYear(), start.getMonth(), defaultDueDay),
+  );
+  const enrollmentStart = new Date(`${startDate}T00:00:00`);
+
+  if (dueDate < enrollmentStart) {
+    const nextMonth = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    dueDate = new Date(
+      nextMonth.getFullYear(),
+      nextMonth.getMonth(),
+      clampDay(nextMonth.getFullYear(), nextMonth.getMonth(), defaultDueDay),
+    );
+  }
+
+  return toDateString(dueDate);
+}
+
 function clampDay(year: number, month: number, day: number) {
   return Math.min(day, new Date(year, month + 1, 0).getDate());
 }
@@ -619,6 +934,15 @@ function toDateString(date: Date) {
 
 function buildDescription(student: NamedRecord | null) {
   return `Mensalidade DK Studio - ${student?.full_name ?? "Aluno"}`;
+}
+
+function buildContractDescription(
+  student: NamedRecord | null,
+  danceClass: NamedRecord | null,
+) {
+  return `Contrato DK Studio - ${student?.full_name ?? "Aluno"} - ${
+    danceClass?.name ?? "Turma"
+  }`;
 }
 
 function buildObservation(danceClass: NamedRecord | null) {
@@ -664,6 +988,40 @@ function getProtocolId(response: unknown) {
   ]);
 }
 
+function getContractId(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  const body = response as {
+    id?: unknown;
+    contractId?: unknown;
+    contract_id?: unknown;
+    data?: {
+      id?: unknown;
+      contractId?: unknown;
+      contract_id?: unknown;
+    };
+    result?: {
+      id?: unknown;
+      contractId?: unknown;
+      contract_id?: unknown;
+    };
+  };
+
+  return firstStringValue([
+    body.id,
+    body.contractId,
+    body.contract_id,
+    body.data?.id,
+    body.data?.contractId,
+    body.data?.contract_id,
+    body.result?.id,
+    body.result?.contractId,
+    body.result?.contract_id,
+  ]);
+}
+
 function firstStringValue(values: unknown[]) {
   for (const value of values) {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -700,6 +1058,10 @@ function buildPreValidationPayload(reason: string) {
   };
 }
 
+function getContaAzulContractItemId() {
+  return process.env.CONTA_AZUL_CONTRACT_ITEM_ID?.trim() || null;
+}
+
 async function saveFailure(
   supabase: ReturnType<typeof createAdminClient>,
   enrollmentId: string,
@@ -710,6 +1072,7 @@ async function saveFailure(
   providerCustomerId: string | null = null,
   dueDate: string | null = null,
   providerPayload: unknown = buildPreValidationPayload(message),
+  contractPayload: unknown = null,
 ): Promise<EnrollmentReceivableResult> {
   await saveFinancialRecord(supabase, {
     enrollment_id: enrollmentId,
@@ -720,6 +1083,7 @@ async function saveFailure(
     amount,
     due_date: dueDate,
     provider_payload: providerPayload,
+    contract_payload: contractPayload,
     status: "failed",
     error_message: message,
   });
@@ -728,6 +1092,29 @@ async function saveFailure(
     status: "failed",
     message,
   };
+}
+
+async function saveContractFailure(
+  supabase: ReturnType<typeof createAdminClient>,
+  enrollment: EnrollmentSnapshot,
+  message: string,
+  amount: number | null = null,
+  providerCustomerId: string | null = null,
+  dueDate: string | null = null,
+  contractPayload: unknown = buildPreValidationPayload(message),
+) {
+  return saveFailure(
+    supabase,
+    enrollment.id,
+    enrollment.student_id,
+    enrollment.financial_guardian_id,
+    message,
+    amount,
+    providerCustomerId,
+    dueDate,
+    null,
+    contractPayload,
+  );
 }
 
 async function saveFinancialRecord(

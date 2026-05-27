@@ -40,6 +40,57 @@ export type ContaAzulCreateReceivableInput = {
   revenueCategoryId: string;
 };
 
+export type ContaAzulCreateContractInput = {
+  customerId: string;
+  contractNumber: number;
+  issueDate: string;
+  startDate: string;
+  endDate: string | null;
+  firstDueDate: string;
+  dueDay: number;
+  description: string;
+  observations: string;
+  amount: number;
+  financialAccountId: string;
+  revenueCategoryId: string;
+  itemId: string;
+};
+
+export type ContaAzulCreateContractPayload = {
+  id_cliente: string;
+  data_emissao: string;
+  id_categoria: string;
+  observacoes: string;
+  observacoes_pagamento: string;
+  termos: {
+    tipo_frequencia: "MENSAL";
+    tipo_expiracao: "DATA" | "NUNCA";
+    data_inicio: string;
+    data_fim?: string;
+    intervalo_frequencia: number;
+    dia_emissao_venda: number;
+    numero: number;
+  };
+  condicao_pagamento: {
+    id_conta_financeira: string;
+    dia_vencimento: number;
+    primeira_data_vencimento: string;
+  };
+  itens: Array<{
+    id: string;
+    quantidade: number;
+    descricao: string;
+    valor: number;
+  }>;
+};
+
+export type ContaAzulCreateContractResponse = {
+  id?: string;
+  id_legado?: number;
+  id_venda?: string;
+  [key: string]: unknown;
+};
+
 export type ContaAzulCreateReceivablePayload = {
   contato: string;
   valor: number;
