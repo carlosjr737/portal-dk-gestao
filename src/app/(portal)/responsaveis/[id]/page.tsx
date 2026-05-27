@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  getAuthenticatedUser,
+  getProfileByUserId,
+} from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { ensureContaAzulGuardianLinkAction } from "@/features/finance/conta-azul/guardian-link-actions";
+import { ContaAzulGuardianLinkForm } from "@/features/finance/conta-azul/guardian-link-form";
 import {
   linkGuardianToStudent,
 } from "@/features/guardians/actions";
@@ -28,10 +34,11 @@ export default async function ResponsavelDetalhePage({
   params,
 }: ResponsavelDetalhePageProps) {
   const { id } = await params;
-  const [guardian, students, linkedStudents] = await Promise.all([
+  const [guardian, students, linkedStudents, profile] = await Promise.all([
     getGuardian(id),
     getStudentOptions(),
     getLinkedStudents(id),
+    getCurrentProfile(),
   ]);
 
   if (!guardian) {
@@ -39,6 +46,11 @@ export default async function ResponsavelDetalhePage({
   }
 
   const linkAction = linkGuardianToStudent.bind(null, guardian.id);
+  const contaAzulLinkAction = ensureContaAzulGuardianLinkAction.bind(
+    null,
+    guardian.id,
+  );
+  const canManageContaAzulLink = profile?.active && profile.role === "admin";
 
   return (
     <div>
@@ -74,6 +86,43 @@ export default async function ResponsavelDetalhePage({
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(guardian.notes)}
         </p>
+      </section>
+
+      <section className="mt-6 rounded-md border border-border bg-white p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Conta Azul
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vínculo financeiro do responsável com cliente/pessoa no Conta Azul.
+            </p>
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  ID Conta Azul
+                </span>
+                <span className="mt-1 block font-medium text-foreground">
+                  {formatText(guardian.conta_azul_person_id)}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Última sincronização
+                </span>
+                <span className="mt-1 block font-medium text-foreground">
+                  {formatDateTime(guardian.conta_azul_last_sync_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+          {canManageContaAzulLink ? (
+            <ContaAzulGuardianLinkForm
+              action={contaAzulLinkAction}
+              hasContaAzulLink={Boolean(guardian.conta_azul_person_id)}
+            />
+          ) : null}
+        </div>
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_420px]">
@@ -139,12 +188,24 @@ export default async function ResponsavelDetalhePage({
   );
 }
 
+async function getCurrentProfile() {
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    return null;
+  }
+
+  return getProfileByUserId(user.id);
+}
+
 async function getGuardian(id: string): Promise<Guardian | null> {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("guardians")
-      .select("id, full_name, document, phone, email, notes, created_at, updated_at")
+      .select(
+        "id, full_name, document, phone, email, notes, conta_azul_person_id, conta_azul_last_sync_at, created_at, updated_at",
+      )
       .eq("id", id)
       .maybeSingle();
 

@@ -8,6 +8,8 @@ export type Guardian = {
   phone: string | null;
   email: string | null;
   notes: string | null;
+  conta_azul_person_id: string | null;
+  conta_azul_last_sync_at: string | null;
   created_at: string;
   updated_at: string;
 };

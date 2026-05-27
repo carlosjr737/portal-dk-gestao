@@ -123,7 +123,7 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
   const supabase = await createClient();
   const { data: guardian, error } = await supabase
     .from("guardians")
-    .select("id, document, conta_azul_person_id")
+    .select("id, full_name, document, phone, email, conta_azul_person_id")
     .eq("id", guardianId)
     .single();
 
@@ -148,9 +148,13 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
     }
   }
 
-  // TODO: criar cliente na Conta Azul via POST /v1/pessoas quando o endpoint
-  // de criação estiver confirmado para a conta do Portal DK.
-  return null;
+  // TODO: criar cliente na Conta Azul via POST /v1/pessoas quando o endpoint,
+  // o contrato de payload e os campos obrigatorios estiverem confirmados para
+  // a conta do Portal DK. Dados disponiveis aqui para montar o futuro payload:
+  // full_name, document, phone e email.
+  throw new Error(
+    "Cliente não encontrado no Conta Azul e criação automática ainda não configurada.",
+  );
 }
 
 export function normalizeDocument(value: string | null | undefined) {
