@@ -84,6 +84,17 @@ export type ContaAzulRevenueCategory = {
   tipo: string;
 };
 
+export type ContaAzulEndpointDiagnostic = {
+  label: string;
+  endpoint: string;
+  status: number | null;
+  ok: boolean;
+  message: string;
+  itemCount: number;
+  used: boolean;
+  fallback: boolean;
+};
+
 export type ContaAzulPerson = {
   id: string;
   nome: string;

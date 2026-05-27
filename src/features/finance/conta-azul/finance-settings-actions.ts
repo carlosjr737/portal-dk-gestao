@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ContaAzulClient } from "@/features/finance/conta-azul/client";
 import type {
+  ContaAzulEndpointDiagnostic,
   ContaAzulFinancialAccount,
   ContaAzulRevenueCategory,
 } from "@/features/finance/conta-azul/types";
@@ -43,6 +44,7 @@ export async function getFinanceSettingsPageData() {
     financialAccounts: accountsResult.items,
     revenueCategories: categoriesResult.items,
     loadError: accountsResult.error || categoriesResult.error,
+    diagnostics: [...accountsResult.diagnostics, ...categoriesResult.diagnostics],
   };
 }
 
@@ -112,6 +114,22 @@ export async function saveFinanceProviderSettingsAction(
   const selectedCategory =
     categoriesResult.items.find((category) => category.id === revenueCategoryId) ??
     null;
+
+  if (autoCreateReceivable && (!selectedAccount || !selectedCategory)) {
+    return {
+      success: false,
+      message: missingAutoCreateConfig,
+      errors: {
+        conta_azul_financial_account_id: !selectedAccount
+          ? [missingAutoCreateConfig]
+          : [],
+        conta_azul_revenue_category_id: !selectedCategory
+          ? [missingAutoCreateConfig]
+          : [],
+      },
+    };
+  }
+
   const supabase = createAdminClient();
   const { error } = await supabase.from("finance_provider_settings").upsert(
     {
@@ -166,43 +184,95 @@ async function getFinanceProviderSettings(): Promise<FinanceProviderSettings | n
 async function loadContaAzulFinancialAccounts(): Promise<{
   items: ContaAzulFinancialAccount[];
   error: boolean;
+  diagnostics: ContaAzulEndpointDiagnostic[];
 }> {
+  let result;
+
   try {
-    return {
-      items: await new ContaAzulClient().listFinancialAccounts(),
-      error: false,
-    };
+    result = await new ContaAzulClient().listFinancialAccountsWithDiagnostics();
   } catch (error) {
-    console.error("Conta Azul financial accounts load error:", {
-      message: error instanceof Error ? error.message : error,
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
+
+    console.error("Conta Azul financial accounts diagnostic failed:", {
+      message,
     });
 
     return {
       items: [],
       error: true,
+      diagnostics: [
+        {
+          label: "listFinancialAccounts",
+          endpoint: "/v1/financeiro/contas-financeiras?apenas_ativo=true",
+          status: null,
+          ok: false,
+          message,
+          itemCount: 0,
+          used: false,
+          fallback: false,
+        },
+      ],
     };
   }
+
+  if (result.items.length === 0) {
+    console.error("Conta Azul financial accounts load error:", {
+      diagnostics: result.diagnostics,
+    });
+  }
+
+  return {
+    items: result.items,
+    error: result.items.length === 0,
+    diagnostics: result.diagnostics,
+  };
 }
 
 async function loadContaAzulRevenueCategories(): Promise<{
   items: ContaAzulRevenueCategory[];
   error: boolean;
+  diagnostics: ContaAzulEndpointDiagnostic[];
 }> {
+  let result;
+
   try {
-    return {
-      items: await new ContaAzulClient().listRevenueCategories(),
-      error: false,
-    };
+    result = await new ContaAzulClient().listRevenueCategoriesWithDiagnostics();
   } catch (error) {
-    console.error("Conta Azul revenue categories load error:", {
-      message: error instanceof Error ? error.message : error,
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
+
+    console.error("Conta Azul revenue categories diagnostic failed:", {
+      message,
     });
 
     return {
       items: [],
       error: true,
+      diagnostics: [
+        {
+          label: "listRevenueCategories",
+          endpoint: "/v1/financeiro/categorias?tipo=RECEITA&apenas_filhos=true",
+          status: null,
+          ok: false,
+          message,
+          itemCount: 0,
+          used: false,
+          fallback: false,
+        },
+      ],
     };
   }
+
+  if (result.items.length === 0) {
+    console.error("Conta Azul revenue categories load error:", {
+      diagnostics: result.diagnostics,
+    });
+  }
+
+  return {
+    items: result.items,
+    error: result.items.length === 0,
+    diagnostics: result.diagnostics,
+  };
 }
 
 function getOptionalString(value: FormDataEntryValue | null) {

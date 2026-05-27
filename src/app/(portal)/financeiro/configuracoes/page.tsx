@@ -27,10 +27,76 @@ export default async function ConfiguracoesFinanceirasPage() {
       </div>
 
       {data.loadError ? (
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Não foi possível carregar contas/categorias do Conta Azul. Verifique
-          conexão, token e permissões.
-        </div>
+        <section className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">
+            Não foi possível carregar contas/categorias do Conta Azul. Verifique
+            conexão, token e permissões.
+          </p>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {data.diagnostics.map((diagnostic) => (
+              <div
+                key={`${diagnostic.label}-${diagnostic.endpoint}`}
+                className="rounded-md border border-amber-200 bg-white p-3 text-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium text-foreground">
+                    {diagnostic.label === "listFinancialAccounts"
+                      ? "Contas financeiras"
+                      : "Categorias"}
+                    {diagnostic.fallback ? " (fallback)" : ""}
+                  </p>
+                  <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
+                    {diagnostic.used ? "Usado" : "Tentativa"}
+                  </span>
+                </div>
+                <dl className="mt-3 space-y-2 text-muted-foreground">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide">
+                      Endpoint
+                    </dt>
+                    <dd className="mt-0.5 break-all font-mono text-xs">
+                      {diagnostic.endpoint}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide">
+                        Status
+                      </dt>
+                      <dd className="mt-0.5 text-foreground">
+                        {diagnostic.status ?? "-"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide">
+                        Itens
+                      </dt>
+                      <dd className="mt-0.5 text-foreground">
+                        {diagnostic.itemCount}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide">
+                        OK
+                      </dt>
+                      <dd className="mt-0.5 text-foreground">
+                        {diagnostic.ok ? "Sim" : "Não"}
+                      </dd>
+                    </div>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide">
+                      Erro
+                    </dt>
+                    <dd className="mt-0.5 text-foreground">
+                      {diagnostic.message}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       <section className="mt-6 rounded-md border border-border bg-white p-5">

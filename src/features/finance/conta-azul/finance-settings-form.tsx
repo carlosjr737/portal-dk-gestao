@@ -42,7 +42,10 @@ export function FinanceSettingsForm({
     settings?.conta_azul_revenue_category_id ?? "",
   );
   const canEnableAutomaticReceivable =
-    selectedFinancialAccountId.length > 0 && selectedRevenueCategoryId.length > 0;
+    financialAccounts.length > 0 &&
+    revenueCategories.length > 0 &&
+    selectedFinancialAccountId.length > 0 &&
+    selectedRevenueCategoryId.length > 0;
 
   return (
     <form action={formAction} className="space-y-5">

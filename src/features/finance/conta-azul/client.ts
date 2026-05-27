@@ -4,6 +4,7 @@ import type {
   ContaAzulCreateReceivableInput,
   ContaAzulCreateReceivablePayload,
   ContaAzulCreateReceivableResponse,
+  ContaAzulEndpointDiagnostic,
   ContaAzulFinancialAccount,
   ContaAzulPaginatedResponse,
   ContaAzulPerson,
@@ -51,6 +52,9 @@ export class ContaAzulApiError extends Error {
 
 type ContaAzulQueryValue = string | number | string[] | undefined;
 type ContaAzulQueryParams = Record<string, ContaAzulQueryValue>;
+type ContaAzulDebugResponse = ContaAzulEndpointDiagnostic & {
+  body: unknown;
+};
 
 export class ContaAzulClient {
   private readonly baseUrl: string;
@@ -84,47 +88,100 @@ export class ContaAzulClient {
   }
 
   async listFinancialAccounts() {
-    const body = await this.getJsonWithDebug(
+    return (await this.listFinancialAccountsWithDiagnostics()).items;
+  }
+
+  async listFinancialAccountsWithDiagnostics() {
+    const primary = await this.getJsonWithDebug(
       "/v1/financeiro/contas-financeiras",
       { apenas_ativo: "true" },
       "listFinancialAccounts",
+      false,
     );
+    const primaryItems = normalizeFinancialAccounts(primary.body);
+    primary.itemCount = primaryItems.length;
 
-    return normalizeFinancialAccounts(body);
+    if (primary.ok) {
+      primary.used = true;
+
+      return {
+        items: primaryItems,
+        diagnostics: [toPublicDiagnostic(primary)],
+      };
+    }
+
+    const fallback = await this.getJsonWithDebug(
+      "/v1/financeiro/contas-financeiras",
+      {},
+      "listFinancialAccounts",
+      true,
+    );
+    const fallbackItems = normalizeFinancialAccounts(fallback.body);
+    fallback.itemCount = fallbackItems.length;
+    fallback.used = fallback.ok;
+
+    if (fallback.ok) {
+      console.log("[CA DEBUG] listFinancialAccounts fallback used", {
+        endpoint: fallback.endpoint,
+        itemCount: fallback.itemCount,
+      });
+    }
+
+    return {
+      items: fallback.ok ? fallbackItems : [],
+      diagnostics: [toPublicDiagnostic(primary), toPublicDiagnostic(fallback)],
+    };
   }
 
   async listRevenueCategories() {
-    try {
-      const body = await this.getJsonWithDebug(
-        "/v1/financeiro/categorias",
-        {
-          tipo: "RECEITA",
-          apenas_filhos: "true",
-        },
-        "listRevenueCategories",
-      );
+    return (await this.listRevenueCategoriesWithDiagnostics()).items;
+  }
 
-      return normalizeRevenueCategories(body);
-    } catch (error) {
-      console.warn("Conta Azul revenue categories primary query failed:", {
-        endpoint: "/v1/financeiro/categorias",
-        queryParams: {
-          tipo: "RECEITA",
-          apenas_filhos: "true",
-        },
-        message: error instanceof Error ? error.message : error,
-      });
+  async listRevenueCategoriesWithDiagnostics() {
+    const primary = await this.getJsonWithDebug(
+      "/v1/financeiro/categorias",
+      {
+        tipo: "RECEITA",
+        apenas_filhos: "true",
+      },
+      "listRevenueCategories",
+      false,
+    );
+    const primaryItems = normalizeRevenueCategories(primary.body);
+    primary.itemCount = primaryItems.length;
 
-      const fallbackBody = await this.getJsonWithDebug(
-        "/v1/financeiro/categorias",
-        {
-          tipo: "RECEITA",
-        },
-        "listRevenueCategories",
-      );
+    if (primary.ok) {
+      primary.used = true;
 
-      return normalizeRevenueCategories(fallbackBody);
+      return {
+        items: primaryItems,
+        diagnostics: [toPublicDiagnostic(primary)],
+      };
     }
+
+    const fallback = await this.getJsonWithDebug(
+      "/v1/financeiro/categorias",
+      {
+        tipo: "RECEITA",
+      },
+      "listRevenueCategories",
+      true,
+    );
+    const fallbackItems = normalizeRevenueCategories(fallback.body);
+    fallback.itemCount = fallbackItems.length;
+    fallback.used = fallback.ok;
+
+    if (fallback.ok) {
+      console.log("[CA DEBUG] listRevenueCategories fallback used", {
+        endpoint: fallback.endpoint,
+        itemCount: fallback.itemCount,
+      });
+    }
+
+    return {
+      items: fallback.ok ? fallbackItems : [],
+      diagnostics: [toPublicDiagnostic(primary), toPublicDiagnostic(fallback)],
+    };
   }
 
   async createReceivable(input: ContaAzulCreateReceivableInput) {
@@ -316,8 +373,9 @@ export class ContaAzulClient {
     path: string,
     query: ContaAzulQueryParams,
     logLabel: "listFinancialAccounts" | "listRevenueCategories",
+    fallback: boolean,
     retryOnUnauthorized = true,
-  ): Promise<unknown> {
+  ): Promise<ContaAzulDebugResponse> {
     const url = new URL(path, this.baseUrl);
 
     for (const [key, value] of Object.entries(query)) {
@@ -333,12 +391,33 @@ export class ContaAzulClient {
     }
 
     this.logRequest(url, query);
-    console.log(`[conta-azul] ${logLabel} endpoint`, {
-      url: `${url.origin}${url.pathname}`,
-      queryParams: buildLogQueryParams(query),
-    });
+    console.log("[CA DEBUG] baseUrl", this.baseUrl);
+    console.log("[CA DEBUG] endpoint", buildEndpointLogValue(url));
 
-    const accessToken = await this.getAccessToken();
+    let accessToken: string;
+
+    try {
+      accessToken = await this.getAccessToken();
+    } catch (error) {
+      const message = getUnknownErrorMessage(error);
+
+      console.log("[CA DEBUG] status", null);
+      console.log("[CA DEBUG] ok", false);
+      console.log("[CA DEBUG] body", { message });
+
+      return {
+        label: logLabel,
+        endpoint: buildEndpointLogValue(url),
+        status: null,
+        ok: false,
+        message,
+        itemCount: 0,
+        used: false,
+        fallback,
+        body: { message },
+      };
+    }
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -352,14 +431,25 @@ export class ContaAzulClient {
     const body = parseResponseBody(responseText);
 
     this.logResponse(url, query, response.status);
-    console.log(`[conta-azul] ${logLabel} status`, response.status);
-    console.log(`[conta-azul] ${logLabel} body`, sanitizeLogBody(body));
+    console.log("[CA DEBUG] status", response.status);
+    console.log("[CA DEBUG] ok", response.ok);
+    console.log("[CA DEBUG] body", sanitizeLogBody(body));
 
     if (response.status === 401) {
       this.logFailedRequest(url, query, response.status, responseText, reconnectMessage);
 
       if (!retryOnUnauthorized) {
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        return {
+          label: logLabel,
+          endpoint: buildEndpointLogValue(url),
+          status: response.status,
+          ok: false,
+          message: reconnectMessage,
+          itemCount: 0,
+          used: false,
+          fallback,
+          body,
+        };
       }
 
       try {
@@ -369,10 +459,20 @@ export class ContaAzulClient {
           "Conta Azul token refresh failed after unauthorized response:",
           error instanceof Error ? error.message : error,
         );
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        return {
+          label: logLabel,
+          endpoint: buildEndpointLogValue(url),
+          status: response.status,
+          ok: false,
+          message: reconnectMessage,
+          itemCount: 0,
+          used: false,
+          fallback,
+          body,
+        };
       }
 
-      return this.getJsonWithDebug(path, query, logLabel, false);
+      return this.getJsonWithDebug(path, query, logLabel, fallback, false);
     }
 
     if (!response.ok) {
@@ -380,10 +480,30 @@ export class ContaAzulClient {
 
       this.logFailedRequest(url, query, response.status, responseText, message);
 
-      throw new ContaAzulApiError(message, response.status);
+      return {
+        label: logLabel,
+        endpoint: buildEndpointLogValue(url),
+        status: response.status,
+        ok: false,
+        message,
+        itemCount: 0,
+        used: false,
+        fallback,
+        body,
+      };
     }
 
-    return body;
+    return {
+      label: logLabel,
+      endpoint: buildEndpointLogValue(url),
+      status: response.status,
+      ok: true,
+      message: "OK",
+      itemCount: 0,
+      used: false,
+      fallback,
+      body,
+    };
   }
 
   private async getAccessToken() {
@@ -543,7 +663,7 @@ function buildCreateReceivablePayload(
 }
 
 function normalizeFinancialAccounts(body: unknown): ContaAzulFinancialAccount[] {
-  return getBodyItems(body, ["itens", "items", "data"])
+  return getBodyItems(body, ["itens", "items", "data", "content"])
     .map((item) => {
       if (!isRecord(item) || !item.id || !item.nome) {
         return null;
@@ -560,7 +680,7 @@ function normalizeFinancialAccounts(body: unknown): ContaAzulFinancialAccount[] 
 }
 
 function normalizeRevenueCategories(body: unknown): ContaAzulRevenueCategory[] {
-  return getBodyItems(body, ["items", "itens", "data"])
+  return getBodyItems(body, ["items", "itens", "data", "content"])
     .map((item) => {
       if (!isRecord(item) || !item.id || !item.nome) {
         return null;
@@ -622,6 +742,29 @@ function sanitizeLogBody(value: unknown): unknown {
       shouldRedactKey(key) ? "[redacted]" : sanitizeLogBody(item),
     ]),
   );
+}
+
+function toPublicDiagnostic(
+  diagnostic: ContaAzulDebugResponse,
+): ContaAzulEndpointDiagnostic {
+  return {
+    label: diagnostic.label,
+    endpoint: diagnostic.endpoint,
+    status: diagnostic.status,
+    ok: diagnostic.ok,
+    message: diagnostic.message,
+    itemCount: diagnostic.itemCount,
+    used: diagnostic.used,
+    fallback: diagnostic.fallback,
+  };
+}
+
+function buildEndpointLogValue(url: URL) {
+  return `${url.pathname}${url.search}`;
+}
+
+function getUnknownErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Erro desconhecido.";
 }
 
 function buildLogQueryParams(query: ContaAzulQueryParams) {
