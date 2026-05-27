@@ -69,6 +69,30 @@ type ContaAzulQueryParams = Record<string, ContaAzulQueryValue>;
 type ContaAzulDebugResponse = ContaAzulEndpointDiagnostic & {
   body: unknown;
 };
+const contaAzulResponseDiagnosticsSymbol = Symbol(
+  "contaAzulResponseDiagnostics",
+);
+
+export type ContaAzulResponseDiagnostics = {
+  stage?: string;
+  endpoint: string;
+  method: "POST";
+  status: number;
+  body: unknown;
+  sanitizedPayload: unknown;
+};
+
+export function getContaAzulResponseDiagnostics(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  return (
+    (response as { [contaAzulResponseDiagnosticsSymbol]?: ContaAzulResponseDiagnostics })[
+      contaAzulResponseDiagnosticsSymbol
+    ] ?? null
+  );
+}
 
 export class ContaAzulClient {
   private readonly baseUrl: string;
@@ -446,7 +470,14 @@ export class ContaAzulClient {
       });
     }
 
-    return responseBody as TResponse;
+    return attachResponseDiagnostics(responseBody as TResponse, {
+      stage: options.stage,
+      endpoint: path,
+      method: "POST",
+      status: response.status,
+      body: sanitizeLogBody(responseBody),
+      sanitizedPayload,
+    });
   }
 
   private async getJsonWithDebug(
@@ -775,6 +806,20 @@ function buildCreatePersonPayload(
       },
     ],
   };
+}
+
+function attachResponseDiagnostics<TResponse>(
+  response: TResponse,
+  diagnostics: ContaAzulResponseDiagnostics,
+) {
+  if (response && typeof response === "object") {
+    Object.defineProperty(response, contaAzulResponseDiagnosticsSymbol, {
+      value: diagnostics,
+      enumerable: false,
+    });
+  }
+
+  return response;
 }
 
 function normalizeFinancialAccounts(body: unknown): ContaAzulFinancialAccount[] {

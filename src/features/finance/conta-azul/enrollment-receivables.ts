@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   ContaAzulApiError,
   ContaAzulClient,
+  getContaAzulResponseDiagnostics,
 } from "@/features/finance/conta-azul/client";
 import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azul/guardian-links";
 
@@ -145,6 +146,7 @@ export async function createContaAzulReceivableForEnrollment(
         student_id: enrollment.student_id,
         guardian_id: enrollment.financial_guardian_id,
         provider: CONTA_AZUL_PROVIDER,
+        provider_payload: buildPreValidationPayload(skippedMessage),
         status: "skipped",
         error_message: skippedMessage,
       });
@@ -169,6 +171,10 @@ export async function createContaAzulReceivableForEnrollment(
         enrollment.student_id,
         enrollment.financial_guardian_id,
         "Conta financeira Conta Azul não configurada.",
+        null,
+        null,
+        null,
+        buildPreValidationPayload("Conta financeira Conta Azul não configurada."),
       );
     }
 
@@ -179,6 +185,10 @@ export async function createContaAzulReceivableForEnrollment(
         enrollment.student_id,
         enrollment.financial_guardian_id,
         "Categoria de receita Conta Azul não configurada.",
+        null,
+        null,
+        null,
+        buildPreValidationPayload("Categoria de receita Conta Azul não configurada."),
       );
     }
 
@@ -189,6 +199,10 @@ export async function createContaAzulReceivableForEnrollment(
         enrollment.student_id,
         enrollment.financial_guardian_id,
         "Dia padrão de vencimento não configurado.",
+        null,
+        null,
+        null,
+        buildPreValidationPayload("Dia padrão de vencimento não configurado."),
       );
     }
 
@@ -203,6 +217,7 @@ export async function createContaAzulReceivableForEnrollment(
         student_id: enrollment.student_id,
         guardian_id: enrollment.financial_guardian_id,
         provider: CONTA_AZUL_PROVIDER,
+        provider_payload: buildPreValidationPayload(message),
         status: "skipped",
         error_message: message,
       });
@@ -221,6 +236,7 @@ export async function createContaAzulReceivableForEnrollment(
         student_id: enrollment.student_id,
         guardian_id: null,
         provider: CONTA_AZUL_PROVIDER,
+        provider_payload: buildPreValidationPayload(message),
         status: "skipped",
         error_message: message,
       });
@@ -254,6 +270,11 @@ export async function createContaAzulReceivableForEnrollment(
         enrollment.financial_guardian_id,
         "Valor mensal ausente ou inválido para criar conta a receber.",
         amount,
+        null,
+        null,
+        buildPreValidationPayload(
+          "Valor mensal ausente ou inválido para criar conta a receber.",
+        ),
       );
     }
 
@@ -288,10 +309,21 @@ export async function createContaAzulReceivableForEnrollment(
       revenueCategoryId: settings.conta_azul_revenue_category_id,
     });
     const protocolId = getProtocolId(response);
+    const responsePayload = buildContaAzulRequestPayload(
+      getContaAzulResponseDiagnostics(response),
+    );
 
     if (!protocolId) {
-      throw new Error(
+      return await saveFailure(
+        supabase,
+        enrollment.id,
+        enrollment.student_id,
+        enrollment.financial_guardian_id,
         "create_receivable_event failed: resposta sem protocolId.",
+        amount,
+        customerId,
+        dueDate,
+        responsePayload,
       );
     }
 
@@ -307,37 +339,7 @@ export async function createContaAzulReceivableForEnrollment(
       provider_protocol_id: protocolId,
       provider_receivable_id: null,
       external_reference: externalReference,
-      provider_payload: {
-        ...response,
-        sanitized_payload: {
-          contato: customerId,
-          valor: amount,
-          descricao: description,
-          observacao: observation,
-          data_competencia: competenceDate,
-          conta_financeira: settings.conta_azul_financial_account_id,
-          rateio: [
-            {
-              id_categoria: settings.conta_azul_revenue_category_id,
-              valor: amount,
-            },
-          ],
-          condicao_pagamento: {
-            parcelas: [
-              {
-                descricao: "Parcela Única",
-                data_vencimento: dueDate,
-                nota: "Gerado via Portal DK Gestão",
-                conta_financeira: settings.conta_azul_financial_account_id,
-                detalhe_valor: {
-                  valor_bruto: amount,
-                  valor_liquido: amount,
-                },
-              },
-            ],
-          },
-        },
-      },
+      provider_payload: responsePayload,
       amount,
       due_date: dueDate,
       status: "processing",
@@ -632,6 +634,32 @@ function getProtocolId(response: { protocolId?: unknown }) {
     : null;
 }
 
+function buildContaAzulRequestPayload(
+  diagnostics: ReturnType<typeof getContaAzulResponseDiagnostics>,
+) {
+  if (!diagnostics) {
+    return buildPreValidationPayload(
+      "Resposta Conta Azul sem diagnóstico de requisição.",
+    );
+  }
+
+  return {
+    stage: diagnostics.stage ?? "create_receivable_event",
+    endpoint: diagnostics.endpoint,
+    method: diagnostics.method,
+    status: diagnostics.status,
+    body: diagnostics.body,
+    sanitized_payload: diagnostics.sanitizedPayload,
+  };
+}
+
+function buildPreValidationPayload(reason: string) {
+  return {
+    stage: "pre_validation",
+    reason,
+  };
+}
+
 async function saveFailure(
   supabase: ReturnType<typeof createAdminClient>,
   enrollmentId: string,
@@ -641,7 +669,7 @@ async function saveFailure(
   amount: number | null = null,
   providerCustomerId: string | null = null,
   dueDate: string | null = null,
-  providerPayload: unknown = null,
+  providerPayload: unknown = buildPreValidationPayload(message),
 ): Promise<EnrollmentReceivableResult> {
   await saveFinancialRecord(supabase, {
     enrollment_id: enrollmentId,
@@ -715,30 +743,12 @@ function buildFailurePayload(error: unknown) {
       method: error.details.method ?? null,
       status: error.details.status ?? error.status ?? null,
       body: error.details.body ?? null,
-      payload: error.details.payload ? "sanitized" : null,
       sanitized_payload: error.details.payload ?? null,
     };
   }
 
   return {
-    stage: inferFailureStage(error),
-    endpoint: null,
-    status: null,
-    body: {
-      message: getErrorMessage(error),
-    },
-    payload: null,
+    stage: "pre_validation",
+    reason: getErrorMessage(error),
   };
-}
-
-function inferFailureStage(error: unknown) {
-  const message = getErrorMessage(error).toLowerCase();
-
-  if (message.includes("cliente") || message.includes("customer")) {
-    return message.includes("criar") || message.includes("create")
-      ? "customer_create"
-      : "customer_lookup";
-  }
-
-  return "create_receivable_event";
 }
