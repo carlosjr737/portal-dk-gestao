@@ -3,6 +3,7 @@ import "server-only";
 import {
   clearContaAzulTokens,
   getContaAzulTokens,
+  refreshContaAzulAccessTokenWithRefreshToken,
   saveContaAzulTokens,
 } from "@/features/finance/conta-azul/token-store";
 
@@ -100,29 +101,7 @@ export async function refreshContaAzulAccessToken() {
     throw new Error(reconnectMessage);
   }
 
-  try {
-    const tokenResponse = await requestContaAzulToken({
-      grant_type: "refresh_token",
-      refresh_token: tokens.refreshToken,
-    });
-    const accessToken = requireAccessToken(tokenResponse);
-
-    await saveContaAzulTokens({
-      accessToken,
-      refreshToken: tokenResponse.refresh_token ?? tokens.refreshToken,
-      expiresIn: tokenResponse.expires_in ?? null,
-      status: "connected",
-    });
-
-    return accessToken;
-  } catch (error) {
-    await clearContaAzulTokens("expired");
-    console.error(
-      "Conta Azul refresh token error:",
-      error instanceof Error ? error.message : error,
-    );
-    throw new Error(reconnectMessage);
-  }
+  return refreshContaAzulAccessTokenWithRefreshToken(tokens.refreshToken);
 }
 
 function getContaAzulOAuthConfig() {

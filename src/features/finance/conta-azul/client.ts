@@ -11,8 +11,10 @@ import type {
   ContaAzulReceivable,
   ContaAzulRevenueCategory,
 } from "@/features/finance/conta-azul/types";
-import { refreshContaAzulAccessToken } from "@/features/finance/conta-azul/auth";
-import { getContaAzulTokens } from "@/features/finance/conta-azul/token-store";
+import {
+  getValidContaAzulAccessToken,
+  refreshContaAzulAccessTokenWithRefreshToken,
+} from "@/features/finance/conta-azul/token-store";
 
 const DEFAULT_CONTA_AZUL_BASE_URL = "https://api-v2.contaazul.com";
 const accessTokenNotConfiguredMessage =
@@ -288,13 +290,7 @@ export class ContaAzulClient {
         throw new ContaAzulApiError(reconnectMessage, response.status);
       }
 
-      try {
-        this.accessToken = await refreshContaAzulAccessToken();
-      } catch (error) {
-        console.error(
-          "Conta Azul token refresh failed after unauthorized response:",
-          error instanceof Error ? error.message : error,
-        );
+      if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
         throw new ContaAzulApiError(reconnectMessage, response.status);
       }
 
@@ -344,13 +340,7 @@ export class ContaAzulClient {
         throw new ContaAzulApiError(reconnectMessage, response.status);
       }
 
-      try {
-        this.accessToken = await refreshContaAzulAccessToken();
-      } catch (error) {
-        console.error(
-          "Conta Azul token refresh failed after unauthorized response:",
-          error instanceof Error ? error.message : error,
-        );
+      if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
         throw new ContaAzulApiError(reconnectMessage, response.status);
       }
 
@@ -452,13 +442,7 @@ export class ContaAzulClient {
         };
       }
 
-      try {
-        this.accessToken = await refreshContaAzulAccessToken();
-      } catch (error) {
-        console.error(
-          "Conta Azul token refresh failed after unauthorized response:",
-          error instanceof Error ? error.message : error,
-        );
+      if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
         return {
           label: logLabel,
           endpoint: buildEndpointLogValue(url),
@@ -507,24 +491,8 @@ export class ContaAzulClient {
   }
 
   private async getAccessToken() {
-    if (this.accessToken) {
+    if (process.env.NODE_ENV === "development" && this.accessToken) {
       return this.accessToken;
-    }
-
-    let tokens = null;
-
-    try {
-      tokens = await getContaAzulTokens();
-    } catch (error) {
-      console.error(
-        "Conta Azul token-store access error:",
-        error instanceof Error ? error.message : error,
-      );
-    }
-
-    if (tokens?.accessToken && tokens.status === "connected") {
-      this.accessToken = tokens.accessToken;
-      return tokens.accessToken;
     }
 
     if (process.env.NODE_ENV === "development" && process.env.CONTA_AZUL_ACCESS_TOKEN) {
@@ -532,7 +500,35 @@ export class ContaAzulClient {
       return this.accessToken;
     }
 
-    throw new ContaAzulApiError(accessTokenNotConfiguredMessage);
+    try {
+      this.accessToken = await getValidContaAzulAccessToken();
+      return this.accessToken;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : accessTokenNotConfiguredMessage;
+
+      console.error("Conta Azul valid token load failed:", {
+        message,
+      });
+      throw new ContaAzulApiError(message);
+    }
+  }
+
+  private async refreshAccessTokenAfterUnauthorized(url: URL) {
+    try {
+      this.accessToken = await refreshContaAzulAccessTokenWithRefreshToken();
+      console.info("Conta Azul token renewed after unauthorized response:", {
+        endpoint: `${url.origin}${url.pathname}`,
+        renewed: true,
+      });
+      return true;
+    } catch (error) {
+      console.error("Conta Azul token refresh failed after unauthorized response:", {
+        endpoint: `${url.origin}${url.pathname}`,
+        renewed: false,
+        message: error instanceof Error ? error.message : error,
+      });
+      return false;
+    }
   }
 
   private logFailedRequest(
@@ -548,7 +544,7 @@ export class ContaAzulClient {
       url: `${url.origin}${url.pathname}`,
       queryParams,
       status,
-      responseText,
+      responseText: sanitizeLogResponseText(responseText),
       message,
       ...(status === 400
         ? {
@@ -572,6 +568,13 @@ export class ContaAzulClient {
       status,
     });
   }
+}
+
+function sanitizeLogResponseText(responseText: string) {
+  return responseText
+    .replace(/"access_token"\s*:\s*"[^"]+"/gi, '"access_token":"[redacted]"')
+    .replace(/"refresh_token"\s*:\s*"[^"]+"/gi, '"refresh_token":"[redacted]"')
+    .replace(/"client_secret"\s*:\s*"[^"]+"/gi, '"client_secret":"[redacted]"');
 }
 
 function getContaAzulConfig(): ContaAzulClientConfig {
