@@ -44,10 +44,19 @@ type SearchPeopleParams = {
   maxPages?: number;
 };
 
+type ContaAzulApiErrorDetails = {
+  stage?: string;
+  endpoint?: string;
+  status?: number;
+  body?: unknown;
+  payload?: unknown;
+};
+
 export class ContaAzulApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
+    public readonly details?: ContaAzulApiErrorDetails,
   ) {
     super(message);
     this.name = "ContaAzulApiError";
@@ -95,6 +104,9 @@ export class ContaAzulClient {
     return this.post<ContaAzulCreatePersonPayload, ContaAzulPerson>(
       "/v1/pessoas",
       buildCreatePersonPayload(input),
+      {
+        stage: "customer_create",
+      },
     );
   }
 
@@ -203,7 +215,10 @@ export class ContaAzulClient {
     return this.post<
       ContaAzulCreateReceivablePayload,
       ContaAzulCreateReceivableResponse
-    >("/v1/financeiro/contas-a-receber", buildCreateReceivablePayload(input));
+    >("/v1/financeiro/contas-a-receber", buildCreateReceivablePayload(input), {
+      debugLabel: "createReceivable",
+      stage: "create_receivable",
+    });
   }
 
   private async getAllPages<T>(
@@ -297,14 +312,23 @@ export class ContaAzulClient {
 
     if (response.status === 401) {
       const responseText = await response.text();
+      const responseBody = parseResponseBody(responseText);
       this.logFailedRequest(url, query, response.status, responseText, reconnectMessage);
 
       if (!retryOnUnauthorized) {
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+        });
       }
 
       if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+        });
       }
 
       return this.get<T>(path, query, false);
@@ -312,11 +336,16 @@ export class ContaAzulClient {
 
     if (!response.ok) {
       const responseText = await response.text();
+      const responseBody = parseResponseBody(responseText);
       const message = getErrorMessage(response.status, responseText);
 
       this.logFailedRequest(url, query, response.status, responseText, message);
 
-      throw new ContaAzulApiError(message, response.status);
+      throw new ContaAzulApiError(message, response.status, {
+        endpoint: path,
+        status: response.status,
+        body: sanitizeLogBody(responseBody),
+      });
     }
 
     return (await response.json()) as T;
@@ -325,11 +354,22 @@ export class ContaAzulClient {
   private async post<TPayload, TResponse>(
     path: string,
     payload: TPayload,
+    options: {
+      debugLabel?: "createReceivable";
+      stage?: string;
+    } = {},
     retryOnUnauthorized = true,
   ): Promise<TResponse> {
     const url = new URL(path, this.baseUrl);
+    const sanitizedPayload = sanitizeLogBody(payload);
 
     this.logRequest(url, {});
+    if (options.debugLabel === "createReceivable") {
+      console.log("[CA RECEIVABLE] method", "POST");
+      console.log("[CA RECEIVABLE] full URL", url.toString());
+      console.log("[CA RECEIVABLE] endpoint", path);
+      console.log("[CA RECEIVABLE] payloadSanitized", sanitizedPayload);
+    }
 
     const accessToken = await this.getAccessToken();
     const response = await fetch(url, {
@@ -342,34 +382,63 @@ export class ContaAzulClient {
       body: JSON.stringify(payload),
       cache: "no-store",
     });
+    const responseText = await response.text();
+    const responseBody = parseResponseBody(responseText);
 
     this.logResponse(url, {}, response.status);
+    if (options.debugLabel === "createReceivable") {
+      console.log("[CA RECEIVABLE] responseStatus", response.status);
+      console.log(
+        "[CA RECEIVABLE] responseBodySanitized",
+        sanitizeLogBody(responseBody),
+      );
+    }
 
     if (response.status === 401) {
-      const responseText = await response.text();
       this.logFailedRequest(url, {}, response.status, responseText, reconnectMessage);
 
       if (!retryOnUnauthorized) {
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          stage: options.stage,
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+          payload: sanitizedPayload,
+        });
       }
 
       if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
-        throw new ContaAzulApiError(reconnectMessage, response.status);
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          stage: options.stage,
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+          payload: sanitizedPayload,
+        });
       }
 
-      return this.post<TPayload, TResponse>(path, payload, false);
+      return this.post<TPayload, TResponse>(path, payload, options, false);
     }
 
     if (!response.ok) {
-      const responseText = await response.text();
       const message = getErrorMessage(response.status, responseText);
+      const statusText = response.statusText || message;
+      const errorMessage = options.stage
+        ? `${options.stage} failed: ${response.status} ${statusText} - ${path}`
+        : message;
 
       this.logFailedRequest(url, {}, response.status, responseText, message);
 
-      throw new ContaAzulApiError(message, response.status);
+      throw new ContaAzulApiError(errorMessage, response.status, {
+        stage: options.stage,
+        endpoint: path,
+        status: response.status,
+        body: sanitizeLogBody(responseBody),
+        payload: sanitizedPayload,
+      });
     }
 
-    return (await response.json()) as TResponse;
+    return responseBody as TResponse;
   }
 
   private async getJsonWithDebug(

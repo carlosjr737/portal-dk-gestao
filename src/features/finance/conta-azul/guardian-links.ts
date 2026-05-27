@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { ContaAzulApiError } from "@/features/finance/conta-azul/client";
 import { ContaAzulProvider } from "@/features/finance/providers/conta-azul-provider";
 import type { FinanceCustomer } from "@/features/finance/providers/finance-provider";
 
@@ -147,10 +148,38 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
   }
 
   const provider = new ContaAzulProvider();
-  const customer = await provider.getCustomerByDocument(normalizedDocument);
+  let customer: FinanceCustomer | null = null;
+
+  try {
+    customer = await provider.getCustomerByDocument(normalizedDocument);
+  } catch (error) {
+    if (error instanceof ContaAzulApiError) {
+      throw new ContaAzulApiError(
+        `customer_lookup failed: ${error.status ?? "-"} ${error.message} - /v1/pessoas`,
+        error.status,
+        {
+          ...error.details,
+          stage: "customer_lookup",
+          endpoint: error.details?.endpoint ?? "/v1/pessoas",
+          status: error.details?.status ?? error.status,
+        },
+      );
+    }
+
+    throw error;
+  }
+  console.info("[CA RECEIVABLE] customerLookupResult", {
+    guardianId,
+    found: Boolean(customer),
+  });
 
   if (customer) {
     await confirmContaAzulGuardianLink(guardianId, customer.externalId);
+    console.info("[CA RECEIVABLE] customerCreatedOrLinked", {
+      guardianId,
+      action: "linked_existing",
+      contaAzulPersonId: customer.externalId,
+    });
     return customer.externalId;
   }
 
@@ -168,6 +197,11 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
       contaAzulPersonId: createdCustomer.externalId,
       document: maskDocument(normalizedDocument),
     });
+    console.info("[CA RECEIVABLE] customerCreatedOrLinked", {
+      guardianId,
+      action: "created",
+      contaAzulPersonId: createdCustomer.externalId,
+    });
 
     return createdCustomer.externalId;
   } catch (error) {
@@ -176,6 +210,19 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
       document: maskDocument(normalizedDocument),
       message: error instanceof Error ? error.message : error,
     });
+    if (error instanceof ContaAzulApiError) {
+      throw new ContaAzulApiError(
+        `customer_create failed: ${error.status ?? "-"} ${error.message} - /v1/pessoas`,
+        error.status,
+        {
+          ...error.details,
+          stage: "customer_create",
+          endpoint: error.details?.endpoint ?? "/v1/pessoas",
+          status: error.details?.status ?? error.status,
+        },
+      );
+    }
+
     throw new Error(
       `Não foi possível criar cliente no Conta Azul: ${
         error instanceof Error ? error.message : "erro desconhecido"

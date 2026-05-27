@@ -1,7 +1,10 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ContaAzulClient } from "@/features/finance/conta-azul/client";
+import {
+  ContaAzulApiError,
+  ContaAzulClient,
+} from "@/features/finance/conta-azul/client";
 import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azul/guardian-links";
 
 const CONTA_AZUL_PROVIDER = "conta_azul";
@@ -43,6 +46,12 @@ type NamedRecord = {
   name?: string | null;
 };
 
+type GuardianDebugRecord = {
+  id: string;
+  document: string | null;
+  conta_azul_person_id: string | null;
+};
+
 type RecordPayload = {
   enrollment_id: string;
   student_id: string | null;
@@ -68,6 +77,7 @@ export async function createContaAzulReceivableForEnrollment(
   let failureCustomerId: string | null = null;
   let failureAmount: number | null = null;
   let failureDueDate: string | null = null;
+  let failurePayload: unknown = null;
 
   try {
     supabase = createAdminClient();
@@ -83,6 +93,7 @@ export async function createContaAzulReceivableForEnrollment(
       supabase,
       enrollmentId,
     );
+    console.info("[CA RECEIVABLE] enrollmentId", enrollmentId);
 
     if (existingReceivable) {
       return {
@@ -102,8 +113,15 @@ export async function createContaAzulReceivableForEnrollment(
 
     failureStudentId = enrollment.student_id;
     failureGuardianId = enrollment.financial_guardian_id;
+    console.info("[CA RECEIVABLE] guardianId", enrollment.financial_guardian_id);
 
     const settings = await getContaAzulSettings(supabase);
+    console.info("[CA RECEIVABLE] financialAccountConfigured", {
+      configured: Boolean(settings?.conta_azul_financial_account_id),
+    });
+    console.info("[CA RECEIVABLE] revenueCategoryConfigured", {
+      configured: Boolean(settings?.conta_azul_revenue_category_id),
+    });
 
     const skippedMessage = getSkippedSettingsMessage(settings, mode);
 
@@ -199,6 +217,19 @@ export async function createContaAzulReceivableForEnrollment(
       };
     }
 
+    const guardianDebug = await getGuardianDebug(
+      supabase,
+      enrollment.financial_guardian_id,
+    );
+    console.info("[CA RECEIVABLE] hasGuardian", Boolean(guardianDebug));
+    console.info("[CA RECEIVABLE] hasGuardianDocument", {
+      hasDocument: Boolean(guardianDebug?.document),
+    });
+    console.info("[CA RECEIVABLE] contaAzulPersonIdBefore", {
+      present: Boolean(guardianDebug?.conta_azul_person_id),
+      value: guardianDebug?.conta_azul_person_id ?? null,
+    });
+
     const amount = normalizeAmount(enrollment.monthly_amount);
 
     if (!amount || amount <= 0) {
@@ -220,11 +251,15 @@ export async function createContaAzulReceivableForEnrollment(
       enrollment.financial_guardian_id,
     );
     failureCustomerId = customerId;
+    console.info("[CA RECEIVABLE] providerCustomerId", customerId);
     const dueDate = calculateDueDate(settings.default_due_day);
     failureDueDate = dueDate;
     failureAmount = amount;
+    console.info("[CA RECEIVABLE] amount", amount);
+    console.info("[CA RECEIVABLE] dueDate", dueDate);
     const competenceDate = enrollment.start_date ?? toDateString(new Date());
     const description = buildDescription(student, danceClass);
+    console.info("[CA RECEIVABLE] endpoint", "/v1/financeiro/contas-a-receber");
     const response = await new ContaAzulClient().createReceivable({
       customerId,
       amount,
@@ -260,10 +295,12 @@ export async function createContaAzulReceivableForEnrollment(
       providerReceivableId: response.id,
     };
   } catch (error) {
+    failurePayload = buildFailurePayload(error);
     console.error("Conta Azul enrollment receivable failed:", {
       enrollmentId,
       status: "failed",
       message: getErrorMessage(error),
+      payload: failurePayload,
     });
 
     try {
@@ -276,6 +313,7 @@ export async function createContaAzulReceivableForEnrollment(
         failureAmount,
         failureCustomerId,
         failureDueDate,
+        failurePayload,
       );
     } catch (recordError) {
       console.error("Conta Azul enrollment receivable failure record failed:", {
@@ -411,6 +449,23 @@ async function getClass(
   return (data as NamedRecord | null) ?? null;
 }
 
+async function getGuardianDebug(
+  supabase: ReturnType<typeof createAdminClient>,
+  guardianId: string,
+): Promise<GuardianDebugRecord | null> {
+  const { data, error } = await supabase
+    .from("guardians")
+    .select("id, document, conta_azul_person_id")
+    .eq("id", guardianId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data as GuardianDebugRecord | null) ?? null;
+}
+
 function normalizeAmount(value: number | string | null) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : null;
@@ -480,6 +535,7 @@ async function saveFailure(
   amount: number | null = null,
   providerCustomerId: string | null = null,
   dueDate: string | null = null,
+  providerPayload: unknown = null,
 ): Promise<EnrollmentReceivableResult> {
   await saveFinancialRecord(supabase, {
     enrollment_id: enrollmentId,
@@ -489,6 +545,7 @@ async function saveFailure(
     provider_customer_id: providerCustomerId,
     amount,
     due_date: dueDate,
+    provider_payload: providerPayload,
     status: "failed",
     error_message: message,
   });
@@ -542,4 +599,39 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Não foi possível criar a conta a receber no Conta Azul.";
+}
+
+function buildFailurePayload(error: unknown) {
+  if (error instanceof ContaAzulApiError && error.details) {
+    return {
+      stage: error.details.stage ?? "conta_azul_request",
+      endpoint: error.details.endpoint ?? null,
+      status: error.details.status ?? error.status ?? null,
+      body: error.details.body ?? null,
+      payload: error.details.payload ? "sanitized" : null,
+      sanitized_payload: error.details.payload ?? null,
+    };
+  }
+
+  return {
+    stage: inferFailureStage(error),
+    endpoint: null,
+    status: null,
+    body: {
+      message: getErrorMessage(error),
+    },
+    payload: null,
+  };
+}
+
+function inferFailureStage(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+
+  if (message.includes("cliente") || message.includes("customer")) {
+    return message.includes("criar") || message.includes("create")
+      ? "customer_create"
+      : "customer_lookup";
+  }
+
+  return "create_receivable";
 }
