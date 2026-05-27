@@ -66,9 +66,23 @@ export type ContaAzulCreateReceivablePayload = {
 };
 
 export type ContaAzulCreateReceivableResponse = {
-  protocolId: string;
+  protocolId?: string;
+  protocol_id?: string;
+  protocolo?: string;
+  id?: string;
   status?: string;
   createdAt?: string;
+  data_criacao?: string;
+  data?: {
+    protocolId?: unknown;
+    protocolo?: unknown;
+    id?: unknown;
+  };
+  result?: {
+    protocolId?: unknown;
+    protocolo?: unknown;
+    id?: unknown;
+  };
   [key: string]: unknown;
 };
 

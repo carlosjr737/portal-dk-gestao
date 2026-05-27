@@ -309,9 +309,8 @@ export async function createContaAzulReceivableForEnrollment(
       revenueCategoryId: settings.conta_azul_revenue_category_id,
     });
     const protocolId = getProtocolId(response);
-    const responsePayload = buildContaAzulRequestPayload(
-      getContaAzulResponseDiagnostics(response),
-    );
+    const responseDiagnostics = getContaAzulResponseDiagnostics(response);
+    const responsePayload = buildContaAzulRequestPayload(responseDiagnostics);
 
     if (!protocolId) {
       return await saveFailure(
@@ -327,8 +326,9 @@ export async function createContaAzulReceivableForEnrollment(
       );
     }
 
-    console.info("[CA RECEIVABLE] protocolId", protocolId);
-    console.info("[CA RECEIVABLE] responseStatus", response.status ?? null);
+    console.log("[CA RECEIVABLE] response status", responseDiagnostics?.status ?? null);
+    console.log("[CA RECEIVABLE] body status", response.status ?? null);
+    console.log("[CA RECEIVABLE] detected protocol", protocolId);
 
     await saveFinancialRecord(supabase, {
       enrollment_id: enrollment.id,
@@ -628,10 +628,50 @@ function buildObservation(danceClass: NamedRecord | null) {
   return `Matrícula ${className} - ${teacherName}`;
 }
 
-function getProtocolId(response: { protocolId?: unknown }) {
-  return typeof response.protocolId === "string" && response.protocolId.length > 0
-    ? response.protocolId
-    : null;
+function getProtocolId(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  const body = response as {
+    protocolId?: unknown;
+    protocol_id?: unknown;
+    protocolo?: unknown;
+    id?: unknown;
+    data?: {
+      protocolId?: unknown;
+      protocolo?: unknown;
+      id?: unknown;
+    };
+    result?: {
+      protocolId?: unknown;
+      protocolo?: unknown;
+      id?: unknown;
+    };
+  };
+
+  return firstStringValue([
+    body.protocolId,
+    body.protocol_id,
+    body.protocolo,
+    body.id,
+    body.data?.protocolId,
+    body.data?.protocolo,
+    body.data?.id,
+    body.result?.protocolId,
+    body.result?.protocolo,
+    body.result?.id,
+  ]);
+}
+
+function firstStringValue(values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function buildContaAzulRequestPayload(
