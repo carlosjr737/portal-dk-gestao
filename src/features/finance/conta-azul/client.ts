@@ -84,28 +84,47 @@ export class ContaAzulClient {
   }
 
   async listFinancialAccounts() {
-    return this.getAllPages<ContaAzulFinancialAccount>(
+    const body = await this.getJsonWithDebug(
       "/v1/financeiro/contas-financeiras",
       { apenas_ativo: "true" },
-      {
-        pageSize: 1000,
-        maxPages: 1,
-      },
+      "listFinancialAccounts",
     );
+
+    return normalizeFinancialAccounts(body);
   }
 
   async listRevenueCategories() {
-    return this.getAllPages<ContaAzulRevenueCategory>(
-      "/v1/financeiro/categorias",
-      {
-        tipo: "RECEITA",
-        apenas_filhos: "true",
-      },
-      {
-        pageSize: 1000,
-        maxPages: 1,
-      },
-    );
+    try {
+      const body = await this.getJsonWithDebug(
+        "/v1/financeiro/categorias",
+        {
+          tipo: "RECEITA",
+          apenas_filhos: "true",
+        },
+        "listRevenueCategories",
+      );
+
+      return normalizeRevenueCategories(body);
+    } catch (error) {
+      console.warn("Conta Azul revenue categories primary query failed:", {
+        endpoint: "/v1/financeiro/categorias",
+        queryParams: {
+          tipo: "RECEITA",
+          apenas_filhos: "true",
+        },
+        message: error instanceof Error ? error.message : error,
+      });
+
+      const fallbackBody = await this.getJsonWithDebug(
+        "/v1/financeiro/categorias",
+        {
+          tipo: "RECEITA",
+        },
+        "listRevenueCategories",
+      );
+
+      return normalizeRevenueCategories(fallbackBody);
+    }
   }
 
   async createReceivable(input: ContaAzulCreateReceivableInput) {
@@ -293,6 +312,80 @@ export class ContaAzulClient {
     return (await response.json()) as TResponse;
   }
 
+  private async getJsonWithDebug(
+    path: string,
+    query: ContaAzulQueryParams,
+    logLabel: "listFinancialAccounts" | "listRevenueCategories",
+    retryOnUnauthorized = true,
+  ): Promise<unknown> {
+    const url = new URL(path, this.baseUrl);
+
+    for (const [key, value] of Object.entries(query)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item !== "") {
+            url.searchParams.append(key, item);
+          }
+        }
+      } else if (value !== undefined && value !== "") {
+        url.searchParams.append(key, String(value));
+      }
+    }
+
+    this.logRequest(url, query);
+    console.log(`[conta-azul] ${logLabel} endpoint`, {
+      url: `${url.origin}${url.pathname}`,
+      queryParams: buildLogQueryParams(query),
+    });
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+    const responseText = await response.text();
+    const body = parseResponseBody(responseText);
+
+    this.logResponse(url, query, response.status);
+    console.log(`[conta-azul] ${logLabel} status`, response.status);
+    console.log(`[conta-azul] ${logLabel} body`, sanitizeLogBody(body));
+
+    if (response.status === 401) {
+      this.logFailedRequest(url, query, response.status, responseText, reconnectMessage);
+
+      if (!retryOnUnauthorized) {
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
+      try {
+        this.accessToken = await refreshContaAzulAccessToken();
+      } catch (error) {
+        console.error(
+          "Conta Azul token refresh failed after unauthorized response:",
+          error instanceof Error ? error.message : error,
+        );
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
+      return this.getJsonWithDebug(path, query, logLabel, false);
+    }
+
+    if (!response.ok) {
+      const message = getErrorMessage(response.status, responseText);
+
+      this.logFailedRequest(url, query, response.status, responseText, message);
+
+      throw new ContaAzulApiError(message, response.status);
+    }
+
+    return body;
+  }
+
   private async getAccessToken() {
     if (this.accessToken) {
       return this.accessToken;
@@ -449,6 +542,88 @@ function buildCreateReceivablePayload(
   };
 }
 
+function normalizeFinancialAccounts(body: unknown): ContaAzulFinancialAccount[] {
+  return getBodyItems(body, ["itens", "items", "data"])
+    .map((item) => {
+      if (!isRecord(item) || !item.id || !item.nome) {
+        return null;
+      }
+
+      return {
+        id: String(item.id),
+        nome: String(item.nome),
+        ativo: item.ativo === true,
+        tipo: typeof item.tipo === "string" ? item.tipo : "",
+      };
+    })
+    .filter((item): item is ContaAzulFinancialAccount => Boolean(item));
+}
+
+function normalizeRevenueCategories(body: unknown): ContaAzulRevenueCategory[] {
+  return getBodyItems(body, ["items", "itens", "data"])
+    .map((item) => {
+      if (!isRecord(item) || !item.id || !item.nome) {
+        return null;
+      }
+
+      return {
+        id: String(item.id),
+        nome: String(item.nome),
+        tipo: typeof item.tipo === "string" ? item.tipo : "RECEITA",
+      };
+    })
+    .filter((item): item is ContaAzulRevenueCategory => Boolean(item));
+}
+
+function getBodyItems(body: unknown, keys: string[]) {
+  if (Array.isArray(body)) {
+    return body;
+  }
+
+  if (!isRecord(body)) {
+    return [];
+  }
+
+  for (const key of keys) {
+    const value = body[key];
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
+}
+
+function parseResponseBody(responseText: string) {
+  if (!responseText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return responseText;
+  }
+}
+
+function sanitizeLogBody(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLogBody(item));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      shouldRedactKey(key) ? "[redacted]" : sanitizeLogBody(item),
+    ]),
+  );
+}
+
 function buildLogQueryParams(query: ContaAzulQueryParams) {
   return Object.fromEntries(
     Object.entries(query).filter(
@@ -461,15 +636,25 @@ function buildLogQueryParams(query: ContaAzulQueryParams) {
 }
 
 function sanitizeLogQueryValue(key: string, value: ContaAzulQueryValue) {
-  const normalizedKey = key.toLowerCase();
-
-  if (
-    normalizedKey.includes("token") ||
-    normalizedKey.includes("secret") ||
-    normalizedKey.includes("document")
-  ) {
+  if (shouldRedactKey(key)) {
     return "[redacted]";
   }
 
   return value;
+}
+
+function shouldRedactKey(key: string) {
+  const normalizedKey = key.toLowerCase();
+
+  return (
+    normalizedKey.includes("token") ||
+    normalizedKey.includes("secret") ||
+    normalizedKey.includes("document") ||
+    normalizedKey.includes("cpf") ||
+    normalizedKey.includes("cnpj")
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

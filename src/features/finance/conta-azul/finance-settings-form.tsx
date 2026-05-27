@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type {
   FinanceProviderSettings,
   FinanceSettingsActionState,
@@ -35,6 +35,14 @@ export function FinanceSettingsForm({
   revenueCategories,
 }: FinanceSettingsFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [selectedFinancialAccountId, setSelectedFinancialAccountId] = useState(
+    settings?.conta_azul_financial_account_id ?? "",
+  );
+  const [selectedRevenueCategoryId, setSelectedRevenueCategoryId] = useState(
+    settings?.conta_azul_revenue_category_id ?? "",
+  );
+  const canEnableAutomaticReceivable =
+    selectedFinancialAccountId.length > 0 && selectedRevenueCategoryId.length > 0;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -50,10 +58,14 @@ export function FinanceSettingsForm({
         </div>
       ) : null}
 
-      <Field label="Conta financeira Conta Azul" error={state.errors?.conta_azul_financial_account_id?.[0]}>
+      <Field
+        label="Conta financeira Conta Azul"
+        error={state.errors?.conta_azul_financial_account_id?.[0]}
+      >
         <select
           name="conta_azul_financial_account_id"
-          defaultValue={settings?.conta_azul_financial_account_id ?? ""}
+          value={selectedFinancialAccountId}
+          onChange={(event) => setSelectedFinancialAccountId(event.target.value)}
           className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
         >
           <option value="">Selecione uma conta</option>
@@ -65,10 +77,14 @@ export function FinanceSettingsForm({
         </select>
       </Field>
 
-      <Field label="Categoria de receita Conta Azul" error={state.errors?.conta_azul_revenue_category_id?.[0]}>
+      <Field
+        label="Categoria de receita Conta Azul"
+        error={state.errors?.conta_azul_revenue_category_id?.[0]}
+      >
         <select
           name="conta_azul_revenue_category_id"
-          defaultValue={settings?.conta_azul_revenue_category_id ?? ""}
+          value={selectedRevenueCategoryId}
+          onChange={(event) => setSelectedRevenueCategoryId(event.target.value)}
           className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
         >
           <option value="">Selecione uma categoria</option>
@@ -80,7 +96,10 @@ export function FinanceSettingsForm({
         </select>
       </Field>
 
-      <Field label="Dia padrão de vencimento" error={state.errors?.default_due_day?.[0]}>
+      <Field
+        label="Dia padrão de vencimento"
+        error={state.errors?.default_due_day?.[0]}
+      >
         <input
           type="number"
           name="default_due_day"
@@ -96,7 +115,11 @@ export function FinanceSettingsForm({
           <input
             type="checkbox"
             name="auto_create_receivable_on_enrollment"
-            defaultChecked={settings?.auto_create_receivable_on_enrollment ?? false}
+            defaultChecked={
+              canEnableAutomaticReceivable &&
+              (settings?.auto_create_receivable_on_enrollment ?? false)
+            }
+            disabled={!canEnableAutomaticReceivable}
             className="mt-0.5 h-4 w-4 rounded border-border"
           />
           <span>Criar conta a receber automaticamente ao matricular?</span>
@@ -137,7 +160,9 @@ function Field({
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-xs text-red-600">{error}</span> : null}
+      {error ? (
+        <span className="mt-1 block text-xs text-red-600">{error}</span>
+      ) : null}
     </label>
   );
 }

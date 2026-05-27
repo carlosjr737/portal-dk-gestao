@@ -28,7 +28,8 @@ export default async function ConfiguracoesFinanceirasPage() {
 
       {data.loadError ? (
         <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Não foi possível carregar contas financeiras/categorias do Conta Azul.
+          Não foi possível carregar contas/categorias do Conta Azul. Verifique
+          conexão, token e permissões.
         </div>
       ) : null}
 

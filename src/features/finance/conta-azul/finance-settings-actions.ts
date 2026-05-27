@@ -71,29 +71,33 @@ export async function saveFinanceProviderSettingsAction(
     formData.get("auto_create_receivable_on_enrollment") === "on";
   const active = formData.get("active") === "on";
   const errors: Record<string, string[]> = {};
+  const missingAutoCreateConfig =
+    "Selecione conta financeira, categoria de receita e dia de vencimento antes de ativar a criação automática.";
 
   if (defaultDueDay.invalid) {
     errors.default_due_day = ["Informe um dia entre 1 e 31."];
   }
 
-  if (active || autoCreateReceivable) {
+  if (autoCreateReceivable) {
     if (!financialAccountId) {
-      errors.conta_azul_financial_account_id = [
-        "Selecione uma conta financeira.",
-      ];
+      errors.conta_azul_financial_account_id = [missingAutoCreateConfig];
     }
 
     if (!revenueCategoryId) {
-      errors.conta_azul_revenue_category_id = [
-        "Selecione uma categoria de receita.",
-      ];
+      errors.conta_azul_revenue_category_id = [missingAutoCreateConfig];
+    }
+
+    if (!defaultDueDay.value) {
+      errors.default_due_day = [missingAutoCreateConfig];
     }
   }
 
   if (Object.keys(errors).length > 0) {
     return {
       success: false,
-      message: "Revise os campos destacados.",
+      message: autoCreateReceivable
+        ? missingAutoCreateConfig
+        : "Revise os campos destacados.",
       errors,
     };
   }
