@@ -12,6 +12,10 @@ type EnrollmentReceivableResult = {
   providerReceivableId?: string;
 };
 
+type CreateContaAzulReceivableOptions = {
+  mode?: "automatic" | "manual";
+};
+
 type FinanceProviderSettings = {
   active: boolean | null;
   auto_create_receivable_on_enrollment: boolean | null;
@@ -55,7 +59,9 @@ type RecordPayload = {
 
 export async function createContaAzulReceivableForEnrollment(
   enrollmentId: string,
+  options: CreateContaAzulReceivableOptions = {},
 ): Promise<EnrollmentReceivableResult> {
+  const mode = options.mode ?? "automatic";
   let supabase: ReturnType<typeof createAdminClient>;
   let failureStudentId: string | null = null;
   let failureGuardianId: string | null = null;
@@ -99,7 +105,7 @@ export async function createContaAzulReceivableForEnrollment(
 
     const settings = await getContaAzulSettings(supabase);
 
-    const skippedMessage = getSkippedSettingsMessage(settings);
+    const skippedMessage = getSkippedSettingsMessage(settings, mode);
 
     if (skippedMessage) {
       await saveFinancialRecord(supabase, {
@@ -144,8 +150,21 @@ export async function createContaAzulReceivableForEnrollment(
       );
     }
 
+    if (mode === "manual" && !settings.default_due_day) {
+      return await saveFailure(
+        supabase,
+        enrollment.id,
+        enrollment.student_id,
+        enrollment.financial_guardian_id,
+        "Dia padrão de vencimento não configurado.",
+      );
+    }
+
     if (enrollment.status !== "active") {
-      const message = "Matrícula não ativa; criação automática de conta a receber ignorada.";
+      const message =
+        mode === "manual"
+          ? "Matrícula não ativa; conta a receber não gerada."
+          : "Matrícula não ativa; criação automática de conta a receber ignorada.";
 
       await saveFinancialRecord(supabase, {
         enrollment_id: enrollment.id,
@@ -312,7 +331,10 @@ async function getContaAzulSettings(
   return (data as FinanceProviderSettings | null) ?? null;
 }
 
-function getSkippedSettingsMessage(settings: FinanceProviderSettings | null) {
+function getSkippedSettingsMessage(
+  settings: FinanceProviderSettings | null,
+  mode: CreateContaAzulReceivableOptions["mode"],
+) {
   if (!settings) {
     return "Configuração financeira Conta Azul não encontrada.";
   }
@@ -321,7 +343,7 @@ function getSkippedSettingsMessage(settings: FinanceProviderSettings | null) {
     return "Configuração financeira Conta Azul inativa.";
   }
 
-  if (!settings.auto_create_receivable_on_enrollment) {
+  if (mode !== "manual" && !settings.auto_create_receivable_on_enrollment) {
     return "Criação automática de conta a receber desativada.";
   }
 
