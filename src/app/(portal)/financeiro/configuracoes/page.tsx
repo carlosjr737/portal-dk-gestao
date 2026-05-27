@@ -16,7 +16,7 @@ export default async function ConfiguracoesFinanceirasPage() {
       <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <PageHeader
           title="Configurações financeiras"
-          description="Defina a conta financeira, categoria de receita e automação de contas a receber no Conta Azul."
+          description="Defina conta financeira, categoria de receita e serviço padrão para contratos no Conta Azul."
         />
         <Link
           href="/financeiro"
@@ -105,8 +105,8 @@ export default async function ConfiguracoesFinanceirasPage() {
             Conta Azul
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Estas configurações controlam a criação automática de contas a receber
-            quando uma matrícula é criada.
+            Estas configurações controlam a criação manual e futura automação de
+            contratos recorrentes a partir de matrículas.
           </p>
         </div>
 
@@ -115,6 +115,7 @@ export default async function ConfiguracoesFinanceirasPage() {
           settings={data.settings}
           financialAccounts={data.financialAccounts}
           revenueCategories={data.revenueCategories}
+          services={data.services}
         />
       </section>
     </div>

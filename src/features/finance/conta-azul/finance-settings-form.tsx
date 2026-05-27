@@ -16,6 +16,11 @@ type RevenueCategoryOption = {
   nome: string;
 };
 
+type ServiceOption = {
+  id: string;
+  descricao: string;
+};
+
 type FinanceSettingsFormProps = {
   action: (
     previousState: FinanceSettingsActionState,
@@ -24,6 +29,7 @@ type FinanceSettingsFormProps = {
   settings: FinanceProviderSettings | null;
   financialAccounts: FinancialAccountOption[];
   revenueCategories: RevenueCategoryOption[];
+  services: ServiceOption[];
 };
 
 const initialState: FinanceSettingsActionState = {};
@@ -33,6 +39,7 @@ export function FinanceSettingsForm({
   settings,
   financialAccounts,
   revenueCategories,
+  services,
 }: FinanceSettingsFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [selectedFinancialAccountId, setSelectedFinancialAccountId] = useState(
@@ -41,11 +48,15 @@ export function FinanceSettingsForm({
   const [selectedRevenueCategoryId, setSelectedRevenueCategoryId] = useState(
     settings?.conta_azul_revenue_category_id ?? "",
   );
+  const [selectedServiceItemId, setSelectedServiceItemId] = useState(
+    settings?.conta_azul_service_item_id ?? "",
+  );
   const canEnableAutomaticReceivable =
     financialAccounts.length > 0 &&
     revenueCategories.length > 0 &&
     selectedFinancialAccountId.length > 0 &&
-    selectedRevenueCategoryId.length > 0;
+    selectedRevenueCategoryId.length > 0 &&
+    selectedServiceItemId.length > 0;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -113,6 +124,86 @@ export function FinanceSettingsForm({
         />
       </Field>
 
+      <div className="space-y-4 rounded-md border border-border bg-white p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Serviço padrão para contratos
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            O contrato recorrente usa este serviço como item do Conta Azul.
+          </p>
+        </div>
+
+        <Field
+          label="Serviço/Produto Conta Azul"
+          error={state.errors?.conta_azul_service_item_id?.[0]}
+        >
+          <select
+            value={selectedServiceItemId}
+            onChange={(event) => setSelectedServiceItemId(event.target.value)}
+            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+          >
+            <option value="">Selecione um serviço</option>
+            {services.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.descricao}
+              </option>
+            ))}
+            {settings?.conta_azul_service_item_id &&
+            !services.some(
+              (service) => service.id === settings.conta_azul_service_item_id,
+            ) ? (
+              <option value={settings.conta_azul_service_item_id}>
+                {settings.conta_azul_service_item_name ??
+                  "Serviço configurado"}
+              </option>
+            ) : null}
+          </select>
+        </Field>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="ID do serviço">
+            <input
+              type="text"
+              name="conta_azul_service_item_id"
+              value={selectedServiceItemId}
+              onChange={(event) => setSelectedServiceItemId(event.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            />
+          </Field>
+
+          <Field label="Nome do serviço">
+            <input
+              type="text"
+              name="conta_azul_service_item_name"
+              defaultValue={settings?.conta_azul_service_item_name ?? ""}
+              className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            />
+          </Field>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            name="intent"
+            value="search_service"
+            disabled={isPending}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Buscar serviço Mensalidade
+          </button>
+          <button
+            type="submit"
+            name="intent"
+            value="create_service"
+            disabled={isPending}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Criar serviço Mensalidade DK Studio
+          </button>
+        </div>
+      </div>
+
       <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4">
         <label className="flex items-start gap-3 text-sm text-foreground">
           <input
@@ -125,7 +216,7 @@ export function FinanceSettingsForm({
             disabled={!canEnableAutomaticReceivable}
             className="mt-0.5 h-4 w-4 rounded border-border"
           />
-          <span>Criar conta a receber automaticamente ao matricular?</span>
+          <span>Criar contrato automaticamente ao matricular?</span>
         </label>
 
         <label className="flex items-start gap-3 text-sm text-foreground">
@@ -141,6 +232,8 @@ export function FinanceSettingsForm({
 
       <button
         type="submit"
+        name="intent"
+        value="save"
         disabled={isPending}
         className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >

@@ -9,12 +9,16 @@ import type {
   ContaAzulCreateReceivableInput,
   ContaAzulCreateReceivablePayload,
   ContaAzulCreateReceivableResponse,
+  ContaAzulCreateServiceInput,
+  ContaAzulCreateServicePayload,
+  ContaAzulCreateServiceResponse,
   ContaAzulEndpointDiagnostic,
   ContaAzulFinancialAccount,
   ContaAzulPaginatedResponse,
   ContaAzulPerson,
   ContaAzulReceivable,
   ContaAzulRevenueCategory,
+  ContaAzulService,
 } from "@/features/finance/conta-azul/types";
 import {
   getValidContaAzulAccessToken,
@@ -126,6 +130,25 @@ export class ContaAzulClient {
 
   async getPersonById(id: string) {
     return this.get<ContaAzulPerson>(`/v1/pessoas/${encodeURIComponent(id)}`, {});
+  }
+
+  async listServices(searchText: string) {
+    const response = await this.get<unknown>("/v1/servicos", {
+      busca_textual: searchText,
+      tamanho_pagina: 10,
+    });
+
+    return normalizeServices(response);
+  }
+
+  async createService(input: ContaAzulCreateServiceInput) {
+    return this.post<ContaAzulCreateServicePayload, ContaAzulCreateServiceResponse>(
+      "/v1/servicos",
+      buildCreateServicePayload(input),
+      {
+        stage: "create_service",
+      },
+    );
   }
 
   async createPerson(input: ContaAzulCreatePersonInput) {
@@ -833,10 +856,11 @@ function buildCreateContractPayload(
       data_inicio: input.startDate,
       ...(input.endDate ? { data_fim: input.endDate } : {}),
       intervalo_frequencia: 1,
-      dia_emissao_venda: input.dueDay,
+      dia_emissao_venda: 1,
       numero: input.contractNumber,
     },
     condicao_pagamento: {
+      tipo_pagamento: "BOLETO_BANCARIO",
       id_conta_financeira: input.financialAccountId,
       dia_vencimento: input.dueDay,
       primeira_data_vencimento: input.firstDueDate,
@@ -849,6 +873,18 @@ function buildCreateContractPayload(
         valor: input.amount,
       },
     ],
+  };
+}
+
+function buildCreateServicePayload(
+  input: ContaAzulCreateServiceInput,
+): ContaAzulCreateServicePayload {
+  return {
+    descricao: input.descricao,
+    preco: input.preco,
+    custo: 0,
+    status: "ATIVO",
+    tipo_servico: "PRESTADO",
   };
 }
 
@@ -916,6 +952,28 @@ function normalizeRevenueCategories(body: unknown): ContaAzulRevenueCategory[] {
       };
     })
     .filter((item): item is ContaAzulRevenueCategory => Boolean(item));
+}
+
+function normalizeServices(body: unknown): ContaAzulService[] {
+  return getBodyItems(body, ["itens", "items", "data", "content"])
+    .map((item) => {
+      if (!isRecord(item) || !item.id || !item.descricao) {
+        return null;
+      }
+
+      return {
+        id: String(item.id),
+        descricao: String(item.descricao),
+        preco:
+          typeof item.preco === "number"
+            ? item.preco
+            : item.preco
+              ? Number(item.preco)
+              : null,
+        status: typeof item.status === "string" ? item.status : "",
+      };
+    })
+    .filter((item): item is ContaAzulService => Boolean(item));
 }
 
 function getBodyItems(body: unknown, keys: string[]) {

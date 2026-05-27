@@ -9,6 +9,7 @@ import {
 import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azul/guardian-links";
 
 const CONTA_AZUL_PROVIDER = "conta_azul";
+const DEFAULT_CONTA_AZUL_SERVICE_NAME = "Mensalidade DK Studio";
 
 type EnrollmentReceivableResult = {
   status:
@@ -35,6 +36,8 @@ type FinanceProviderSettings = {
   conta_azul_financial_account_name?: string | null;
   conta_azul_revenue_category_id: string | null;
   conta_azul_revenue_category_name?: string | null;
+  conta_azul_service_item_id?: string | null;
+  conta_azul_service_item_name?: string | null;
   default_due_day: number | null;
 };
 
@@ -72,6 +75,7 @@ type RecordPayload = {
   provider_protocol_id?: string | null;
   provider_receivable_id?: string | null;
   provider_contract_id?: string | null;
+  provider_sale_id?: string | null;
   external_reference?: string | null;
   provider_payload?: unknown;
   contract_payload?: unknown;
@@ -224,21 +228,13 @@ export async function createContaAzulContractForEnrollment(
       );
     }
 
-    const contractItemId = getContaAzulContractItemId();
-
-    if (!contractItemId) {
-      return await saveContractFailure(
-        supabase,
-        enrollment,
-        "CONTA_AZUL_CONTRACT_ITEM_ID não configurado.",
-        amount,
-      );
-    }
-
     const [student, danceClass] = await Promise.all([
       getStudent(supabase, enrollment.student_id),
       getClass(supabase, enrollment.class_id),
     ]);
+    const contractItemId =
+      settings.conta_azul_service_item_id ??
+      (await ensureContaAzulServiceItem());
     const customerId = await ensureContaAzulCustomerForGuardian(
       enrollment.financial_guardian_id,
     );
@@ -248,10 +244,10 @@ export async function createContaAzulContractForEnrollment(
     const startDate = enrollment.start_date ?? toDateString(new Date());
     const firstDueDate = calculateFirstDueDate(startDate, settings.default_due_day);
     failureDueDate = firstDueDate;
-    const contractNumber = await new ContaAzulClient().getNextContractNumber();
-    const description = buildContractDescription(student, danceClass);
-    const observations = buildObservation(danceClass);
     const client = new ContaAzulClient();
+    const contractNumber = await client.getNextContractNumber();
+    const description = buildMonthlyServiceDescription(student);
+    const observations = buildContractObservation(student, danceClass);
     const response = await client.createContract({
       customerId,
       contractNumber,
@@ -271,6 +267,7 @@ export async function createContaAzulContractForEnrollment(
     const contractPayload = buildContaAzulRequestPayload(responseDiagnostics);
     failureContractPayload = contractPayload;
     const contractId = getContractId(response);
+    const saleId = getSaleId(response);
 
     if (!contractId) {
       return await saveContractFailure(
@@ -294,6 +291,7 @@ export async function createContaAzulContractForEnrollment(
       provider: CONTA_AZUL_PROVIDER,
       provider_customer_id: customerId,
       provider_contract_id: contractId,
+      provider_sale_id: saleId,
       contract_payload: contractPayload,
       amount,
       due_date: firstDueDate,
@@ -341,6 +339,60 @@ export async function createContaAzulContractForEnrollment(
       };
     }
   }
+}
+
+export async function ensureContaAzulServiceItem(price = 0) {
+  const supabase = createAdminClient();
+  const settings = await getContaAzulSettings(supabase);
+
+  if (settings?.conta_azul_service_item_id) {
+    return settings.conta_azul_service_item_id;
+  }
+
+  const client = new ContaAzulClient();
+  const services = await client.listServices("Mensalidade");
+  const existingService =
+    services.find(
+      (service) =>
+        service.status === "ATIVO" &&
+        normalizeText(service.descricao).includes(
+          normalizeText(DEFAULT_CONTA_AZUL_SERVICE_NAME),
+        ),
+    ) ??
+    services.find(
+      (service) =>
+        service.status === "ATIVO" &&
+        normalizeText(service.descricao).includes("mensalidade"),
+    ) ??
+    null;
+
+  if (existingService) {
+    await saveContaAzulServiceItem(
+      supabase,
+      existingService.id,
+      existingService.descricao,
+    );
+
+    return existingService.id;
+  }
+
+  const createdService = await client.createService({
+    descricao: DEFAULT_CONTA_AZUL_SERVICE_NAME,
+    preco: price,
+  });
+  const serviceId = getContractId(createdService);
+  const serviceName =
+    typeof createdService.descricao === "string"
+      ? createdService.descricao
+      : DEFAULT_CONTA_AZUL_SERVICE_NAME;
+
+  if (!serviceId) {
+    throw new Error("create_service failed: resposta sem id do serviço.");
+  }
+
+  await saveContaAzulServiceItem(supabase, serviceId, serviceName);
+
+  return serviceId;
 }
 
 export async function createContaAzulReceivableForEnrollment(
@@ -708,7 +760,7 @@ async function getContaAzulSettings(
   const { data, error } = await supabase
     .from("finance_provider_settings")
     .select(
-      "active, auto_create_receivable_on_enrollment, conta_azul_financial_account_id, conta_azul_financial_account_name, conta_azul_revenue_category_id, conta_azul_revenue_category_name, default_due_day",
+      "active, auto_create_receivable_on_enrollment, conta_azul_financial_account_id, conta_azul_financial_account_name, conta_azul_revenue_category_id, conta_azul_revenue_category_name, conta_azul_service_item_id, conta_azul_service_item_name, default_due_day",
     )
     .eq("provider", CONTA_AZUL_PROVIDER)
     .maybeSingle();
@@ -718,6 +770,28 @@ async function getContaAzulSettings(
   }
 
   return (data as FinanceProviderSettings | null) ?? null;
+}
+
+async function saveContaAzulServiceItem(
+  supabase: ReturnType<typeof createAdminClient>,
+  serviceId: string,
+  serviceName: string,
+) {
+  const { error } = await supabase.from("finance_provider_settings").upsert(
+    {
+      provider: CONTA_AZUL_PROVIDER,
+      conta_azul_service_item_id: serviceId,
+      conta_azul_service_item_name: serviceName,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "provider",
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 function getSkippedSettingsMessage(
@@ -936,11 +1010,15 @@ function buildDescription(student: NamedRecord | null) {
   return `Mensalidade DK Studio - ${student?.full_name ?? "Aluno"}`;
 }
 
-function buildContractDescription(
+function buildMonthlyServiceDescription(student: NamedRecord | null) {
+  return `Mensalidade DK Studio - ${student?.full_name ?? "Aluno"}`;
+}
+
+function buildContractObservation(
   student: NamedRecord | null,
   danceClass: NamedRecord | null,
 ) {
-  return `Contrato DK Studio - ${student?.full_name ?? "Aluno"} - ${
+  return `Matrícula DK Studio - ${student?.full_name ?? "Aluno"} - ${
     danceClass?.name ?? "Turma"
   }`;
 }
@@ -1022,6 +1100,40 @@ function getContractId(response: unknown) {
   ]);
 }
 
+function getSaleId(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  const body = response as {
+    id_venda?: unknown;
+    saleId?: unknown;
+    sale_id?: unknown;
+    data?: {
+      id_venda?: unknown;
+      saleId?: unknown;
+      sale_id?: unknown;
+    };
+    result?: {
+      id_venda?: unknown;
+      saleId?: unknown;
+      sale_id?: unknown;
+    };
+  };
+
+  return firstStringValue([
+    body.id_venda,
+    body.saleId,
+    body.sale_id,
+    body.data?.id_venda,
+    body.data?.saleId,
+    body.data?.sale_id,
+    body.result?.id_venda,
+    body.result?.saleId,
+    body.result?.sale_id,
+  ]);
+}
+
 function firstStringValue(values: unknown[]) {
   for (const value of values) {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -1030,6 +1142,14 @@ function firstStringValue(values: unknown[]) {
   }
 
   return null;
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
 }
 
 function buildContaAzulRequestPayload(
@@ -1056,10 +1176,6 @@ function buildPreValidationPayload(reason: string) {
     stage: "pre_validation",
     reason,
   };
-}
-
-function getContaAzulContractItemId() {
-  return process.env.CONTA_AZUL_CONTRACT_ITEM_ID?.trim() || null;
 }
 
 async function saveFailure(

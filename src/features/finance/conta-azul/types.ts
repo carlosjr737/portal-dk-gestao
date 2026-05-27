@@ -72,6 +72,7 @@ export type ContaAzulCreateContractPayload = {
     numero: number;
   };
   condicao_pagamento: {
+    tipo_pagamento: "BOLETO_BANCARIO";
     id_conta_financeira: string;
     dia_vencimento: number;
     primeira_data_vencimento: string;
@@ -88,6 +89,34 @@ export type ContaAzulCreateContractResponse = {
   id?: string;
   id_legado?: number;
   id_venda?: string;
+  [key: string]: unknown;
+};
+
+export type ContaAzulService = {
+  id: string;
+  descricao: string;
+  preco: number | null;
+  status: string;
+};
+
+export type ContaAzulCreateServiceInput = {
+  descricao: string;
+  preco: number;
+};
+
+export type ContaAzulCreateServicePayload = {
+  descricao: string;
+  preco: number;
+  custo: 0;
+  status: "ATIVO";
+  tipo_servico: "PRESTADO";
+};
+
+export type ContaAzulCreateServiceResponse = {
+  id?: string;
+  descricao?: string;
+  preco?: number;
+  status?: string;
   [key: string]: unknown;
 };
 

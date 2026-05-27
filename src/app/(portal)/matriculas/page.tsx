@@ -188,7 +188,7 @@ export default async function MatriculasPage({
                               {enrollment.externalFinancialRecord?.status ===
                               "failed"
                                 ? "Tentar novamente"
-                                : "Gerar contrato"}
+                                : "Gerar contrato Conta Azul"}
                             </button>
                           </form>
                         )}
