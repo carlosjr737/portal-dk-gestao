@@ -203,7 +203,7 @@ async function loadContaAzulFinancialAccounts(): Promise<{
       diagnostics: [
         {
           label: "listFinancialAccounts",
-          endpoint: "/v1/financeiro/contas-financeiras?apenas_ativo=true",
+          endpoint: "/v1/conta-financeira?apenas_ativo=true",
           status: null,
           ok: false,
           message,
@@ -250,7 +250,8 @@ async function loadContaAzulRevenueCategories(): Promise<{
       diagnostics: [
         {
           label: "listRevenueCategories",
-          endpoint: "/v1/financeiro/categorias?tipo=RECEITA&apenas_filhos=true",
+          endpoint:
+            "/v1/categorias?tipo=RECEITA&pagina=1&tamanho_pagina=100&permite_apenas_filhos=true",
           status: null,
           ok: false,
           message,

@@ -95,7 +95,7 @@ export class ContaAzulClient {
 
   async listFinancialAccountsWithDiagnostics() {
     const primary = await this.getJsonWithDebug(
-      "/v1/financeiro/contas-financeiras",
+      "/v1/conta-financeira",
       { apenas_ativo: "true" },
       "listFinancialAccounts",
       false,
@@ -113,7 +113,7 @@ export class ContaAzulClient {
     }
 
     const fallback = await this.getJsonWithDebug(
-      "/v1/financeiro/contas-financeiras",
+      "/v1/conta-financeira",
       {},
       "listFinancialAccounts",
       true,
@@ -141,10 +141,12 @@ export class ContaAzulClient {
 
   async listRevenueCategoriesWithDiagnostics() {
     const primary = await this.getJsonWithDebug(
-      "/v1/financeiro/categorias",
+      "/v1/categorias",
       {
         tipo: "RECEITA",
-        apenas_filhos: "true",
+        pagina: 1,
+        tamanho_pagina: 100,
+        permite_apenas_filhos: "true",
       },
       "listRevenueCategories",
       false,
@@ -162,9 +164,11 @@ export class ContaAzulClient {
     }
 
     const fallback = await this.getJsonWithDebug(
-      "/v1/financeiro/categorias",
+      "/v1/categorias",
       {
         tipo: "RECEITA",
+        pagina: 1,
+        tamanho_pagina: 100,
       },
       "listRevenueCategories",
       true,
