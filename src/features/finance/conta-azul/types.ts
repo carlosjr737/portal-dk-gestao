@@ -113,6 +113,24 @@ export type ContaAzulPerson = {
   };
 };
 
+export type ContaAzulCreatePersonInput = {
+  nome: string;
+  cpf: string;
+  email?: string | null;
+  telefone_celular?: string | null;
+};
+
+export type ContaAzulCreatePersonPayload = {
+  nome: string;
+  tipo_pessoa: "Física";
+  cpf: string;
+  email?: string;
+  telefone_celular?: string;
+  perfis: Array<{
+    tipo_perfil: "Cliente";
+  }>;
+};
+
 export type ContaAzulPeopleResponse = {
   items: ContaAzulPerson[];
   totalItems: number;

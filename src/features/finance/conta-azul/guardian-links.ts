@@ -138,27 +138,64 @@ export async function ensureContaAzulCustomerForGuardian(guardianId: string) {
   }
 
   const document = (guardian.document as string | null) ?? null;
+  const normalizedDocument = normalizeDocument(document);
 
-  if (document) {
-    const customer = await new ContaAzulProvider().getCustomerByDocument(document);
-
-    if (customer) {
-      await confirmContaAzulGuardianLink(guardianId, customer.externalId);
-      return customer.externalId;
-    }
+  if (!normalizedDocument) {
+    throw new Error(
+      "Responsável financeiro sem CPF para criar cliente no Conta Azul.",
+    );
   }
 
-  // TODO: criar cliente na Conta Azul via POST /v1/pessoas quando o endpoint,
-  // o contrato de payload e os campos obrigatorios estiverem confirmados para
-  // a conta do Portal DK. Dados disponiveis aqui para montar o futuro payload:
-  // full_name, document, phone e email.
-  throw new Error(
-    "Cliente não encontrado no Conta Azul e criação automática ainda não configurada.",
-  );
+  const provider = new ContaAzulProvider();
+  const customer = await provider.getCustomerByDocument(normalizedDocument);
+
+  if (customer) {
+    await confirmContaAzulGuardianLink(guardianId, customer.externalId);
+    return customer.externalId;
+  }
+
+  try {
+    const createdCustomer = await provider.createCustomer({
+      name: guardian.full_name as string,
+      document: normalizedDocument,
+      email: (guardian.email as string | null) ?? null,
+      phone: (guardian.phone as string | null) ?? null,
+    });
+
+    await confirmContaAzulGuardianLink(guardianId, createdCustomer.externalId);
+    console.info("Cliente Conta Azul criado e vinculado.", {
+      guardianId,
+      contaAzulPersonId: createdCustomer.externalId,
+      document: maskDocument(normalizedDocument),
+    });
+
+    return createdCustomer.externalId;
+  } catch (error) {
+    console.error("Conta Azul customer creation failed:", {
+      guardianId,
+      document: maskDocument(normalizedDocument),
+      message: error instanceof Error ? error.message : error,
+    });
+    throw new Error(
+      `Não foi possível criar cliente no Conta Azul: ${
+        error instanceof Error ? error.message : "erro desconhecido"
+      }`,
+    );
+  }
 }
 
 export function normalizeDocument(value: string | null | undefined) {
   return value?.replace(/[\s./-]/g, "").replace(/\D/g, "") ?? "";
+}
+
+function maskDocument(value: string) {
+  const normalized = normalizeDocument(value);
+
+  if (normalized.length <= 4) {
+    return "****";
+  }
+
+  return `${"*".repeat(Math.max(0, normalized.length - 4))}${normalized.slice(-4)}`;
 }
 
 async function getPortalGuardians(): Promise<PortalGuardian[]> {

@@ -1,6 +1,8 @@
 import "server-only";
 
 import type {
+  ContaAzulCreatePersonInput,
+  ContaAzulCreatePersonPayload,
   ContaAzulCreateReceivableInput,
   ContaAzulCreateReceivablePayload,
   ContaAzulCreateReceivableResponse,
@@ -87,6 +89,13 @@ export class ContaAzulClient {
 
   async getPersonById(id: string) {
     return this.get<ContaAzulPerson>(`/v1/pessoas/${encodeURIComponent(id)}`, {});
+  }
+
+  async createPerson(input: ContaAzulCreatePersonInput) {
+    return this.post<ContaAzulCreatePersonPayload, ContaAzulPerson>(
+      "/v1/pessoas",
+      buildCreatePersonPayload(input),
+    );
   }
 
   async listFinancialAccounts() {
@@ -666,6 +675,25 @@ function buildCreateReceivablePayload(
         },
       ],
     },
+  };
+}
+
+function buildCreatePersonPayload(
+  input: ContaAzulCreatePersonInput,
+): ContaAzulCreatePersonPayload {
+  return {
+    nome: input.nome,
+    tipo_pessoa: "Física",
+    cpf: input.cpf,
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.telefone_celular
+      ? { telefone_celular: input.telefone_celular }
+      : {}),
+    perfis: [
+      {
+        tipo_perfil: "Cliente",
+      },
+    ],
   };
 }
 

@@ -93,6 +93,22 @@ export class ContaAzulProvider implements FinanceProvider {
     return byDocument.get(document) ?? null;
   }
 
+  async createCustomer(input: {
+    name: string;
+    document: string;
+    email?: string | null;
+    phone?: string | null;
+  }): Promise<FinanceCustomer> {
+    const person = await this.getClient().createPerson({
+      nome: input.name,
+      cpf: input.document,
+      email: input.email,
+      telefone_celular: normalizePhone(input.phone),
+    });
+
+    return mapContaAzulPersonToFinanceCustomer(person);
+  }
+
   async getCustomers(params: GetCustomersParams = {}): Promise<FinanceCustomer[]> {
     const people = await this.getClient().searchPeople({
       document: params.document,
@@ -408,6 +424,10 @@ function calculateDaysOverdue(dueDate: string) {
 
 function normalizeDocument(value: string | undefined) {
   return value?.replace(/\D/g, "") ?? "";
+}
+
+function normalizePhone(value: string | null | undefined) {
+  return value?.replace(/\D/g, "") || null;
 }
 
 function normalizeText(value: string | undefined) {
