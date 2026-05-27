@@ -30,6 +30,7 @@ export const navigationItems = [
   { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
   { href: "/financeiro/vinculos-conta-azul", label: "Vínculos Conta Azul" },
+  { href: "/financeiro/configuracoes", label: "Configurações financeiras" },
   { href: "/configuracoes", label: "Configurações" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
 ] as const;

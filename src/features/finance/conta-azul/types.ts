@@ -2,6 +2,7 @@ import "server-only";
 
 export type ContaAzulPaginatedResponse<T> = {
   itens_totais?: number;
+  total_itens?: number;
   totalItems?: number;
   items?: T[];
   itens?: T[];
@@ -26,6 +27,61 @@ export type ContaAzulReceivable = {
     id?: string;
     nome?: string;
   };
+};
+
+export type ContaAzulCreateReceivableInput = {
+  customerId: string;
+  amount: number;
+  description: string;
+  competenceDate: string;
+  dueDate: string;
+  financialAccountId: string;
+  revenueCategoryId: string;
+};
+
+export type ContaAzulCreateReceivablePayload = {
+  id_cliente: string;
+  valor: number;
+  descricao: string;
+  data_competencia: string;
+  conta_financeira: string;
+  rateio: Array<{
+    id_categoria: string;
+    valor: number;
+  }>;
+  condicao_pagamento: {
+    parcelas: Array<{
+      descricao: string;
+      data_vencimento: string;
+      conta_financeira: string;
+      detalhe_valor: {
+        valor_bruto: number;
+      };
+    }>;
+  };
+};
+
+export type ContaAzulCreateReceivableResponse = {
+  id: string;
+  status?: string;
+  descricao?: string;
+  valor?: number;
+  data_competencia?: string;
+  id_cliente?: string;
+  [key: string]: unknown;
+};
+
+export type ContaAzulFinancialAccount = {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  tipo: string;
+};
+
+export type ContaAzulRevenueCategory = {
+  id: string;
+  nome: string;
+  tipo: string;
 };
 
 export type ContaAzulPerson = {

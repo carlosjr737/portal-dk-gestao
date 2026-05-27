@@ -1,9 +1,14 @@
 import "server-only";
 
 import type {
+  ContaAzulCreateReceivableInput,
+  ContaAzulCreateReceivablePayload,
+  ContaAzulCreateReceivableResponse,
+  ContaAzulFinancialAccount,
   ContaAzulPaginatedResponse,
   ContaAzulPerson,
   ContaAzulReceivable,
+  ContaAzulRevenueCategory,
 } from "@/features/finance/conta-azul/types";
 import { refreshContaAzulAccessToken } from "@/features/finance/conta-azul/auth";
 import { getContaAzulTokens } from "@/features/finance/conta-azul/token-store";
@@ -78,6 +83,38 @@ export class ContaAzulClient {
     return this.get<ContaAzulPerson>(`/v1/pessoas/${encodeURIComponent(id)}`, {});
   }
 
+  async listFinancialAccounts() {
+    return this.getAllPages<ContaAzulFinancialAccount>(
+      "/v1/financeiro/contas-financeiras",
+      { apenas_ativo: "true" },
+      {
+        pageSize: 1000,
+        maxPages: 1,
+      },
+    );
+  }
+
+  async listRevenueCategories() {
+    return this.getAllPages<ContaAzulRevenueCategory>(
+      "/v1/financeiro/categorias",
+      {
+        tipo: "RECEITA",
+        apenas_filhos: "true",
+      },
+      {
+        pageSize: 1000,
+        maxPages: 1,
+      },
+    );
+  }
+
+  async createReceivable(input: ContaAzulCreateReceivableInput) {
+    return this.post<
+      ContaAzulCreateReceivablePayload,
+      ContaAzulCreateReceivableResponse
+    >("/v1/financeiro/contas-a-receber", buildCreateReceivablePayload(input));
+  }
+
   private async getAllPages<T>(
     path: string,
     query: ContaAzulQueryParams,
@@ -94,7 +131,8 @@ export class ContaAzulClient {
         tamanho_pagina: pageSize,
       });
       const pageItems = response.itens ?? response.items ?? [];
-      const totalItems = response.itens_totais ?? response.totalItems;
+      const totalItems =
+        response.itens_totais ?? response.total_itens ?? response.totalItems;
 
       items.push(...pageItems);
 
@@ -197,6 +235,62 @@ export class ContaAzulClient {
     }
 
     return (await response.json()) as T;
+  }
+
+  private async post<TPayload, TResponse>(
+    path: string,
+    payload: TPayload,
+    retryOnUnauthorized = true,
+  ): Promise<TResponse> {
+    const url = new URL(path, this.baseUrl);
+
+    this.logRequest(url, {});
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    this.logResponse(url, {}, response.status);
+
+    if (response.status === 401) {
+      const responseText = await response.text();
+      this.logFailedRequest(url, {}, response.status, responseText, reconnectMessage);
+
+      if (!retryOnUnauthorized) {
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
+      try {
+        this.accessToken = await refreshContaAzulAccessToken();
+      } catch (error) {
+        console.error(
+          "Conta Azul token refresh failed after unauthorized response:",
+          error instanceof Error ? error.message : error,
+        );
+        throw new ContaAzulApiError(reconnectMessage, response.status);
+      }
+
+      return this.post<TPayload, TResponse>(path, payload, false);
+    }
+
+    if (!response.ok) {
+      const responseText = await response.text();
+      const message = getErrorMessage(response.status, responseText);
+
+      this.logFailedRequest(url, {}, response.status, responseText, message);
+
+      throw new ContaAzulApiError(message, response.status);
+    }
+
+    return (await response.json()) as TResponse;
   }
 
   private async getAccessToken() {
@@ -322,6 +416,36 @@ function buildPeopleQueryParams(params: SearchPeopleParams = {}) {
     busca: params.search,
     tipo_perfil: "Cliente",
     tipo_pessoa: params.onlyIndividuals ? "FISICA" : undefined,
+  };
+}
+
+function buildCreateReceivablePayload(
+  input: ContaAzulCreateReceivableInput,
+): ContaAzulCreateReceivablePayload {
+  return {
+    id_cliente: input.customerId,
+    valor: input.amount,
+    descricao: input.description,
+    data_competencia: input.competenceDate,
+    conta_financeira: input.financialAccountId,
+    rateio: [
+      {
+        id_categoria: input.revenueCategoryId,
+        valor: input.amount,
+      },
+    ],
+    condicao_pagamento: {
+      parcelas: [
+        {
+          descricao: "Parcela Única",
+          data_vencimento: input.dueDate,
+          conta_financeira: input.financialAccountId,
+          detalhe_valor: {
+            valor_bruto: input.amount,
+          },
+        },
+      ],
+    },
   };
 }
 

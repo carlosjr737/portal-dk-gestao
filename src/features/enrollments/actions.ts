@@ -8,6 +8,7 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
+import { createContaAzulReceivableForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -156,15 +157,38 @@ export async function createEnrollment(
     });
   }
 
+  const receivableResult = await createContaAzulReceivableForEnrollment(
+    data.id as string,
+  ).catch((error) => {
+    console.error("Enrollment Conta Azul receivable integration error:", {
+      enrollmentId: data.id,
+      message: error instanceof Error ? error.message : error,
+    });
+
+    return {
+      status: "failed" as const,
+      message: "Matrícula criada, mas a cobrança no Conta Azul não foi gerada.",
+    };
+  });
+
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
   revalidatePath("/financeiro/growth-churn");
   revalidatePath(`/alunos/${data.student_id}`);
   revalidatePath(`/turmas/${data.class_id}`);
+
+  const redirectParams = new URLSearchParams();
+
+  if (!parsed.data.financial_guardian_id) {
+    redirectParams.set("created", "without-financial-guardian");
+  } else if (receivableResult.status === "failed") {
+    redirectParams.set("created", "conta-azul-receivable-failed");
+  }
+
+  const redirectQuery = redirectParams.toString();
+
   redirect(
-    parsed.data.financial_guardian_id
-      ? "/matriculas"
-      : "/matriculas?created=without-financial-guardian",
+    redirectQuery ? `/matriculas?${redirectQuery}` : "/matriculas",
   );
 }
 

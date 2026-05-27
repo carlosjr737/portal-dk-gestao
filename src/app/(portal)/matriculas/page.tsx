@@ -46,6 +46,12 @@ export default async function MatriculasPage({
         </div>
       ) : null}
 
+      {params?.created === "conta-azul-receivable-failed" ? (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Matrícula criada, mas a cobrança no Conta Azul não foi gerada.
+        </div>
+      ) : null}
+
       <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
