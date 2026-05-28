@@ -17,6 +17,8 @@ export type EnrollmentActionState = {
   success?: boolean;
 };
 
+const redirectParamValue = (value: string) => value.slice(0, 180);
+
 const cancelEnrollmentSchema = z.object({
   enrollment_id: z.string().uuid("Matrícula inválida."),
   cancellation_reason: enrollmentCancellationReasonSchema,
@@ -160,21 +162,8 @@ export async function createEnrollment(
     });
   }
 
-  const guardianContractStatus = await addEnrollmentToGuardianFinancialContract(
-    data.id as string,
-  )
-    .then(() => "created" as const)
-    .catch((guardianContractError) => {
-      console.error("[GUARDIAN CONTRACT] enrollment registration failed", {
-        enrollmentId: data.id,
-        message:
-          guardianContractError instanceof Error
-            ? guardianContractError.message
-            : guardianContractError,
-      });
-
-      return "failed" as const;
-    });
+  const guardianContractResult =
+    await addEnrollmentToGuardianFinancialContract(data.id as string);
 
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
@@ -186,8 +175,13 @@ export async function createEnrollment(
 
   redirectParams.set("created", "1");
 
-  if (guardianContractStatus === "failed") {
-    redirectParams.set("guardianContract", "failed");
+  if (guardianContractResult.status === "warning") {
+    redirectParams.set("guardianContract", "warning");
+    redirectParams.set("guardianContractStage", guardianContractResult.stage);
+    redirectParams.set(
+      "guardianContractMessage",
+      redirectParamValue(guardianContractResult.message),
+    );
   }
 
   const redirectQuery = redirectParams.toString();

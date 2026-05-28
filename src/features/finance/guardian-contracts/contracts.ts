@@ -82,6 +82,22 @@ type GuardianRecord = {
   conta_azul_person_id: string | null;
 };
 
+type AddEnrollmentToGuardianContractResult =
+  | {
+      status: "created";
+      guardianContractId: string;
+      totalAmount: number;
+      itemId: string | null;
+    }
+  | {
+      status: "warning";
+      enrollmentId: string;
+      guardianContractId: string | null;
+      stage: string;
+      message: string;
+      details: ReturnType<typeof buildFailurePayload>;
+    };
+
 class GuardianContractSyncError extends Error {
   constructor(
     public readonly stage: string,
@@ -153,7 +169,7 @@ export async function getOrCreateGuardianFinancialContractDraft(
 
 export async function addEnrollmentToGuardianFinancialContract(
   enrollmentId: string,
-) {
+): Promise<AddEnrollmentToGuardianContractResult> {
   const supabase = createAdminClient();
   console.info("[GUARDIAN CONTRACT] addEnrollment start");
   console.info("[GUARDIAN CONTRACT] enrollmentId", enrollmentId);
@@ -303,24 +319,36 @@ export async function addEnrollmentToGuardianFinancialContract(
     console.info("[GUARDIAN CONTRACT] totalAmount", totalAmount);
 
     return {
+      status: "created",
       guardianContractId: guardianContract.id,
-      status: nextStatus,
       totalAmount,
       itemId,
     };
   } catch (error) {
-    console.error("[GUARDIAN CONTRACT] failed stage", getErrorStage(error));
-    console.error("[GUARDIAN CONTRACT] error message", getErrorMessage(error));
+    const stage = getErrorStage(error);
+    const message = getErrorMessage(error);
+    const details = buildFailurePayload(error);
+
     console.error("[GUARDIAN CONTRACT] error", {
-      stage: getErrorStage(error),
-      message: getErrorMessage(error),
+      enrollmentId,
+      guardianContractId,
+      stage,
+      message,
+      details,
     });
 
     if (guardianContractId) {
       await saveSyncFailure(supabase, guardianContractId, error);
     }
 
-    throw error;
+    return {
+      status: "warning",
+      enrollmentId,
+      guardianContractId,
+      stage,
+      message,
+      details,
+    };
   }
 }
 
@@ -450,24 +478,26 @@ export async function backfillMissingGuardianContractItems() {
   }> = [];
 
   for (const enrollment of missingEnrollments) {
-    try {
-      const result = await addEnrollmentToGuardianFinancialContract(enrollment.id);
+    const result = await addEnrollmentToGuardianFinancialContract(enrollment.id);
+
+    if (result.status === "created") {
       results.push({
         enrollmentId: enrollment.id,
         status: "created",
         guardianContractId: result.guardianContractId,
         itemId: result.itemId,
       });
-    } catch (error) {
+    } else {
       console.error("[GUARDIAN CONTRACT] backfill error", {
         enrollmentId: enrollment.id,
-        stage: getErrorStage(error),
-        message: getErrorMessage(error),
+        stage: result.stage,
+        message: result.message,
       });
       results.push({
         enrollmentId: enrollment.id,
         status: "failed",
-        message: getErrorMessage(error),
+        guardianContractId: result.guardianContractId ?? undefined,
+        message: result.message,
       });
     }
   }
