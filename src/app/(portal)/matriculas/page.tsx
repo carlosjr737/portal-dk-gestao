@@ -27,10 +27,10 @@ type MatriculasPageProps = {
 };
 
 const contractMessages: Record<string, string> = {
-  created: "Contrato criado no Conta Azul.",
+  created: "Matrícula criada e contrato enviado ao Conta Azul com sucesso.",
   "already-created":
     "Esta matrícula já possui contrato no Conta Azul.",
-  failed: "Não foi possível criar contrato no Conta Azul.",
+  failed: "Matrícula criada, mas o contrato no Conta Azul não foi gerado.",
   unauthorized: "Acesso não autorizado.",
 };
 
@@ -62,6 +62,12 @@ export default async function MatriculasPage({
       {params?.created === "without-financial-guardian" ? (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Matrícula criada sem responsável financeiro.
+        </div>
+      ) : null}
+
+      {params?.created === "1" ? (
+        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Matrícula criada com sucesso.
         </div>
       ) : null}
 

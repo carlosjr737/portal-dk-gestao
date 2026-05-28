@@ -8,11 +8,8 @@ export const enrollmentStatusSchema = z.enum([
   "evaluation",
 ]);
 
-const nullableUuid = z
-  .string()
-  .trim()
-  .transform((value) => (value.length > 0 ? value : null))
-  .pipe(z.string().uuid().nullable());
+const requiredUuid = (message: string) =>
+  z.string().trim().min(1, message).pipe(z.string().uuid(message));
 
 const nullableText = z
   .string()
@@ -36,9 +33,9 @@ const optionalMoneyValue = z
 const requiredPositiveMoneyValue = z
   .string()
   .trim()
-  .min(1, "Informe o valor mensal.")
+  .min(1, "Informe o valor mensal da matrícula.")
   .transform((value) => Number(value))
-  .pipe(z.number().positive("Informe um valor mensal maior que zero."));
+  .pipe(z.number().positive("O valor mensal deve ser maior que zero."));
 
 export const enrollmentFormSchema = z
   .object({
@@ -46,14 +43,11 @@ export const enrollmentFormSchema = z
     class_id: z.string().uuid("Selecione uma turma."),
     start_date: requiredDate("Informe a data de início."),
     end_date: requiredDate("Informe a data final."),
-    first_due_date: nullableText.pipe(
-      z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data válida.")
-        .nullable(),
-    ),
+    first_due_date: requiredDate("Informe o primeiro vencimento da matrícula."),
     status: enrollmentStatusSchema,
-    financial_guardian_id: nullableUuid,
+    financial_guardian_id: requiredUuid(
+      "Informe o responsável financeiro da matrícula.",
+    ),
     monthly_amount: requiredPositiveMoneyValue,
     discount_amount: optionalMoneyValue,
     discount_reason: nullableText,

@@ -9,6 +9,7 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
+import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -65,16 +66,7 @@ export async function createEnrollment(
   const supabase = await createClient();
   const contaAzulSettings = await getContaAzulSettings();
 
-  if (contaAzulSettings.active) {
-    if (!parsed.data.first_due_date) {
-      return {
-        errors: {
-          first_due_date: ["Informe o primeiro vencimento."],
-        },
-        message: "Informe o primeiro vencimento.",
-      };
-    }
-
+  if (contaAzulSettings.shouldCreateContract) {
     if (parsed.data.first_due_date < toDateString(new Date())) {
       return {
         errors: {
@@ -114,31 +106,29 @@ export async function createEnrollment(
     }
   }
 
-  if (parsed.data.financial_guardian_id) {
-    const { data: guardianLink, error: guardianLinkError } = await supabase
-      .from("student_guardians")
-      .select("id")
-      .eq("student_id", parsed.data.student_id)
-      .eq("guardian_id", parsed.data.financial_guardian_id)
-      .maybeSingle();
+  const { data: guardianLink, error: guardianLinkError } = await supabase
+    .from("student_guardians")
+    .select("id")
+    .eq("student_id", parsed.data.student_id)
+    .eq("guardian_id", parsed.data.financial_guardian_id)
+    .maybeSingle();
 
-    if (guardianLinkError) {
-      console.error("Enrollment guardian link check error:", guardianLinkError);
-      return {
-        message: `Não foi possível validar o responsável financeiro: ${guardianLinkError.message}`,
-      };
-    }
+  if (guardianLinkError) {
+    console.error("Enrollment guardian link check error:", guardianLinkError);
+    return {
+      message: `Não foi possível validar o responsável financeiro: ${guardianLinkError.message}`,
+    };
+  }
 
-    if (!guardianLink) {
-      return {
-        errors: {
-          financial_guardian_id: [
-            "Selecione um responsável vinculado ao aluno.",
-          ],
-        },
-        message: "O responsável financeiro precisa estar vinculado ao aluno.",
-      };
-    }
+  if (!guardianLink) {
+    return {
+      errors: {
+        financial_guardian_id: [
+          "Selecione um responsável vinculado ao aluno.",
+        ],
+      },
+      message: "O responsável financeiro precisa estar vinculado ao aluno.",
+    };
   }
 
   const payload = {
@@ -173,6 +163,9 @@ export async function createEnrollment(
         : "Não foi possível criar a matrícula.",
     };
   }
+  console.log("[ENROLLMENT] enrollment created", {
+    enrollmentId: data.id,
+  });
 
   if (data.status === "active") {
     await ensureGrowthChurnEvent({
@@ -183,6 +176,48 @@ export async function createEnrollment(
     });
   }
 
+  let contractStatus: "created" | "failed" | "skipped" = "skipped";
+
+  if (contaAzulSettings.shouldCreateContract) {
+    console.log("[ENROLLMENT] attempting Conta Azul contract", {
+      enrollmentId: data.id,
+    });
+
+    const contractResult = await createContaAzulContractForEnrollment(
+      data.id as string,
+    ).catch((contractError) => {
+      console.error("[ENROLLMENT] Conta Azul contract failed", {
+        enrollmentId: data.id,
+        message:
+          contractError instanceof Error ? contractError.message : contractError,
+      });
+
+      return {
+        status: "failed" as const,
+        message:
+          "Matrícula criada, mas o contrato no Conta Azul não foi gerado.",
+      };
+    });
+
+    if (
+      contractResult.status === "contract_created" ||
+      contractResult.status === "already_created"
+    ) {
+      contractStatus = "created";
+      console.log("[ENROLLMENT] Conta Azul contract created", {
+        enrollmentId: data.id,
+        providerContractId: contractResult.providerContractId ?? null,
+      });
+    } else {
+      contractStatus = "failed";
+      console.error("[ENROLLMENT] Conta Azul contract failed", {
+        enrollmentId: data.id,
+        status: contractResult.status,
+        message: contractResult.message ?? null,
+      });
+    }
+  }
+
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
   revalidatePath("/financeiro/growth-churn");
@@ -191,8 +226,12 @@ export async function createEnrollment(
 
   const redirectParams = new URLSearchParams();
 
-  if (!parsed.data.financial_guardian_id) {
-    redirectParams.set("created", "without-financial-guardian");
+  if (contractStatus === "created") {
+    redirectParams.set("contract", "created");
+  } else if (contractStatus === "failed") {
+    redirectParams.set("contract", "failed");
+  } else {
+    redirectParams.set("created", "1");
   }
 
   const redirectQuery = redirectParams.toString();
@@ -206,7 +245,9 @@ async function getContaAzulSettings() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("finance_provider_settings")
-    .select("active")
+    .select(
+      "active, conta_azul_financial_account_id, conta_azul_revenue_category_id, conta_azul_service_item_id, default_due_day",
+    )
     .eq("provider", "conta_azul")
     .maybeSingle();
 
@@ -216,6 +257,12 @@ async function getContaAzulSettings() {
 
   return {
     active: data?.active === true,
+    shouldCreateContract:
+      data?.active === true &&
+      Boolean(data.conta_azul_financial_account_id) &&
+      Boolean(data.conta_azul_revenue_category_id) &&
+      Boolean(data.conta_azul_service_item_id) &&
+      Boolean(data.default_due_day),
   };
 }
 

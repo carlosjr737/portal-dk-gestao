@@ -241,6 +241,7 @@ export async function createContaAzulContractForEnrollment(
     );
     failureCustomerId = customerId;
     failureAmount = amount;
+    console.log("[CA CONTRACT] providerCustomerId", customerId);
 
     const today = new Date();
     const todayString = toDateString(today);
@@ -302,6 +303,8 @@ export async function createContaAzulContractForEnrollment(
 
     console.log("[CA CONTRACT] response status", responseDiagnostics?.status ?? null);
     console.log("[CA CONTRACT] detected contract", contractId);
+    console.log("[CA CONTRACT] providerContractId", contractId);
+    console.log("[CA CONTRACT] status", "contract_created");
 
     await saveFinancialRecord(supabase, {
       enrollment_id: enrollment.id,
