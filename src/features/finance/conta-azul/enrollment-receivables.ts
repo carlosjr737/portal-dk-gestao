@@ -1169,6 +1169,7 @@ function buildContaAzulRequestPayload(
     endpoint: diagnostics.endpoint,
     method: diagnostics.method,
     status: diagnostics.status,
+    response: diagnostics.body,
     body: diagnostics.body,
     sanitized_payload: diagnostics.sanitizedPayload,
   };
