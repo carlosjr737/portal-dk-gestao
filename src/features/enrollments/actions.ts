@@ -8,6 +8,7 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
+import { cancelEnrollmentGuardianFinancialContractItem } from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -278,6 +279,20 @@ export async function cancelEnrollment(
     return {
       message: `Não foi possível cancelar a matrícula: ${error.message}`,
     };
+  }
+
+  const guardianContractResult =
+    await cancelEnrollmentGuardianFinancialContractItem({
+      enrollmentId: parsed.data.enrollment_id,
+      cancelledAt,
+    });
+
+  if (guardianContractResult.status === "failed") {
+    console.error("[GUARDIAN CONTRACT] enrollment cancellation failed", {
+      enrollmentId: parsed.data.enrollment_id,
+      stage: guardianContractResult.stage,
+      message: guardianContractResult.message,
+    });
   }
 
   const studentId = enrollment.student_id as string | null;

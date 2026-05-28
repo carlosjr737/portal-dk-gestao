@@ -98,6 +98,27 @@ type AddEnrollmentToGuardianContractResult =
       details: ReturnType<typeof buildFailurePayload>;
     };
 
+type CancelEnrollmentGuardianContractItemResult =
+  | {
+      status: "updated";
+      enrollmentId: string;
+      guardianContractId: string;
+      itemId: string;
+      totalAmount: number;
+      contractStatus: "draft" | "pending_replacement";
+    }
+  | {
+      status: "skipped";
+      enrollmentId: string;
+      reason: string;
+    }
+  | {
+      status: "failed";
+      enrollmentId: string;
+      stage: string;
+      message: string;
+    };
+
 class GuardianContractSyncError extends Error {
   constructor(
     public readonly stage: string,
@@ -535,6 +556,205 @@ export async function backfillMissingGuardianContractItems() {
   };
 }
 
+export async function cancelEnrollmentGuardianFinancialContractItem(input: {
+  enrollmentId: string;
+  cancelledAt: string;
+}): Promise<CancelEnrollmentGuardianContractItemResult> {
+  const supabase = createAdminClient();
+  console.info("[GUARDIAN CONTRACT] enrollment cancelled", {
+    enrollmentId: input.enrollmentId,
+  });
+
+  try {
+    const { data: item, error: itemLoadError } = await supabase
+      .from("guardian_financial_contract_items")
+      .select("id, guardian_contract_id")
+      .eq("enrollment_id", input.enrollmentId)
+      .maybeSingle();
+
+    if (itemLoadError) {
+      throw new GuardianContractSyncError(
+        "load_contract_item",
+        itemLoadError.message,
+        itemLoadError,
+      );
+    }
+
+    if (!item?.guardian_contract_id || !item.id) {
+      return {
+        status: "skipped",
+        enrollmentId: input.enrollmentId,
+        reason: "Item do contrato consolidado não encontrado.",
+      };
+    }
+
+    const endedAt = input.cancelledAt.slice(0, 10);
+    const { error: itemUpdateError } = await supabase
+      .from("guardian_financial_contract_items")
+      .update({
+        status: "cancelled",
+        ended_at: endedAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("enrollment_id", input.enrollmentId);
+
+    if (itemUpdateError) {
+      throw new GuardianContractSyncError(
+        "cancel_contract_item",
+        itemUpdateError.message,
+        itemUpdateError,
+      );
+    }
+
+    console.info("[GUARDIAN CONTRACT] item cancelled", {
+      enrollmentId: input.enrollmentId,
+      itemId: item.id,
+      guardianContractId: item.guardian_contract_id,
+    });
+
+    const recalculated = await recalculateGuardianFinancialContractTotal(
+      item.guardian_contract_id,
+    );
+
+    return {
+      status: "updated",
+      enrollmentId: input.enrollmentId,
+      guardianContractId: item.guardian_contract_id,
+      itemId: item.id,
+      totalAmount: recalculated.totalAmount,
+      contractStatus: recalculated.status,
+    };
+  } catch (error) {
+    console.error("[GUARDIAN CONTRACT] cancellation error", {
+      enrollmentId: input.enrollmentId,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+      details: error,
+    });
+
+    return {
+      status: "failed",
+      enrollmentId: input.enrollmentId,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+    };
+  }
+}
+
+export async function recalculateGuardianFinancialContractTotal(
+  guardianContractId: string,
+) {
+  const supabase = createAdminClient();
+  const contract = await getGuardianContract(supabase, guardianContractId);
+
+  if (!contract) {
+    throw new GuardianContractSyncError(
+      "load_contract",
+      "Contrato financeiro consolidado não encontrado.",
+    );
+  }
+
+  const totalAmount = await recalculateContractTotal(supabase, guardianContractId);
+  const status: "draft" | "pending_replacement" = contract.provider_contract_id
+    ? "pending_replacement"
+    : "draft";
+  const { error } = await supabase
+    .from("guardian_financial_contracts")
+    .update({
+      total_amount: totalAmount,
+      status,
+      ...(status === "pending_replacement" ? {} : { error_message: null }),
+    })
+    .eq("id", guardianContractId);
+
+  if (error) {
+    throw new GuardianContractSyncError(
+      "update_contract_total",
+      error.message,
+      error,
+    );
+  }
+
+  console.info("[GUARDIAN CONTRACT] total recalculated", {
+    guardianContractId,
+    totalAmount,
+  });
+
+  if (status === "pending_replacement") {
+    console.info("[GUARDIAN CONTRACT] marked pending_replacement", {
+      guardianContractId,
+    });
+  }
+
+  return {
+    guardianContractId,
+    totalAmount,
+    status,
+  };
+}
+
+export async function backfillCancelledGuardianContractItems() {
+  const supabase = createAdminClient();
+  const { data: items, error } = await supabase
+    .from("guardian_financial_contract_items")
+    .select(
+      "id, enrollment_id, guardian_contract_id, enrollments!inner(status, cancelled_at)",
+    )
+    .eq("status", "active")
+    .eq("enrollments.status", "cancelled");
+
+  if (error) {
+    throw new GuardianContractSyncError(
+      "backfill_cancelled_items_load",
+      error.message,
+      error,
+    );
+  }
+
+  const contractIds = new Set<string>();
+  let updated = 0;
+
+  for (const item of items ?? []) {
+    const enrollment = item.enrollments as {
+      status?: string | null;
+      cancelled_at?: string | null;
+    } | null;
+    const cancelledAt = enrollment?.cancelled_at ?? new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("guardian_financial_contract_items")
+      .update({
+        status: "cancelled",
+        ended_at: cancelledAt.slice(0, 10),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (updateError) {
+      throw new GuardianContractSyncError(
+        "backfill_cancelled_item_update",
+        updateError.message,
+        updateError,
+      );
+    }
+
+    updated += 1;
+
+    if (typeof item.guardian_contract_id === "string") {
+      contractIds.add(item.guardian_contract_id);
+    }
+  }
+
+  for (const guardianContractId of contractIds) {
+    await recalculateGuardianFinancialContractTotal(guardianContractId);
+  }
+
+  return {
+    scanned: items?.length ?? 0,
+    updated,
+    recalculatedContracts: contractIds.size,
+  };
+}
+
 export async function replaceGuardianContractOnContaAzul(
   guardianContractId: string,
   reason: string,
@@ -824,10 +1044,11 @@ async function getActiveContractItems(
   const { data, error } = await supabase
     .from("guardian_financial_contract_items")
     .select(
-      "id, enrollment_id, student_id, class_id, description, amount, status, started_at, ended_at",
+      "id, enrollment_id, student_id, class_id, description, amount, status, started_at, ended_at, enrollments!inner(status)",
     )
     .eq("guardian_contract_id", guardianContractId)
-    .eq("status", "active");
+    .eq("status", "active")
+    .eq("enrollments.status", "active");
 
   if (error) {
     throw new Error(error.message);
