@@ -4,6 +4,7 @@ import type {
   ContaAzulCreateContractInput,
   ContaAzulCreateContractPayload,
   ContaAzulCreateContractResponse,
+  ContaAzulCloseContractResponse,
   ContaAzulCreatePersonInput,
   ContaAzulCreatePersonPayload,
   ContaAzulCreateReceivableInput,
@@ -286,6 +287,16 @@ export class ContaAzulClient {
     });
   }
 
+  async closeContract(contractId: string): Promise<ContaAzulCloseContractResponse> {
+    return this.postRaw(
+      `/v1/contratos/${encodeURIComponent(contractId)}/encerrar`,
+      null,
+      {
+        stage: "close_contract",
+      },
+    );
+  }
+
   async getNextContractNumber() {
     return this.get<number>("/v1/contratos/proximo-numero", {});
   }
@@ -530,6 +541,84 @@ export class ContaAzulClient {
       body: sanitizeLogBody(responseBody),
       sanitizedPayload,
     });
+  }
+
+  private async postRaw<TPayload>(
+    path: string,
+    payload: TPayload,
+    options: {
+      stage?: string;
+    } = {},
+    retryOnUnauthorized = true,
+  ): Promise<ContaAzulCloseContractResponse> {
+    const url = new URL(path, this.baseUrl);
+    const sanitizedPayload = sanitizeLogBody(payload);
+
+    this.logRequest(url, {});
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      ...(payload === null ? {} : { body: JSON.stringify(payload) }),
+      cache: "no-store",
+    });
+    const responseText = await response.text();
+    const responseBody = parseResponseBody(responseText);
+
+    this.logResponse(url, {}, response.status);
+
+    if (response.status === 401) {
+      this.logFailedRequest(url, {}, response.status, responseText, reconnectMessage);
+
+      if (!retryOnUnauthorized) {
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          stage: options.stage,
+          method: "POST",
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+          payload: sanitizedPayload,
+        });
+      }
+
+      if (!(await this.refreshAccessTokenAfterUnauthorized(url))) {
+        throw new ContaAzulApiError(reconnectMessage, response.status, {
+          stage: options.stage,
+          method: "POST",
+          endpoint: path,
+          status: response.status,
+          body: sanitizeLogBody(responseBody),
+          payload: sanitizedPayload,
+        });
+      }
+
+      return this.postRaw<TPayload>(path, payload, options, false);
+    }
+
+    if (!response.ok) {
+      const message = getErrorMessage(response.status, responseText);
+
+      this.logFailedRequest(url, {}, response.status, responseText, message);
+
+      throw new ContaAzulApiError(message, response.status, {
+        stage: options.stage,
+        method: "POST",
+        endpoint: path,
+        status: response.status,
+        body: sanitizeLogBody(responseBody),
+        payload: sanitizedPayload,
+      });
+    }
+
+    return {
+      status: response.status,
+      body: responseBody,
+    };
   }
 
   private async getJsonWithDebug(
@@ -865,14 +954,18 @@ function buildCreateContractPayload(
       dia_vencimento: input.dueDay,
       primeira_data_vencimento: input.firstDueDate,
     },
-    itens: [
+    itens: (input.items ?? [
       {
-        id: input.itemId,
-        quantidade: 1,
-        descricao: input.description,
-        valor: input.amount,
+        itemId: input.itemId,
+        description: input.description,
+        amount: input.amount,
       },
-    ],
+    ]).map((item) => ({
+      id: item.itemId ?? "",
+      quantidade: 1,
+      descricao: item.description ?? "Mensalidade DK Studio",
+      valor: item.amount ?? 0,
+    })),
   };
 }
 

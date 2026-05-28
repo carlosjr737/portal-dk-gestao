@@ -6,12 +6,14 @@ import {
   getAuthenticatedUser,
   getProfileByUserId,
 } from "@/features/auth/session";
-import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
+import {
+  createContaAzulContractFromGuardianContract,
+  replaceGuardianContractOnContaAzul,
+} from "@/features/finance/guardian-contracts/contracts";
 
-export async function createManualContaAzulContractForEnrollmentAction(
-  formData: FormData,
-) {
-  const enrollmentId = String(formData.get("enrollmentId") ?? "");
+export async function syncGuardianFinancialContractAction(formData: FormData) {
+  const guardianContractId = String(formData.get("guardianContractId") ?? "");
+  const mode = String(formData.get("mode") ?? "replace");
   const user = await getAuthenticatedUser();
   const profile = user ? await getProfileByUserId(user.id) : null;
 
@@ -19,21 +21,36 @@ export async function createManualContaAzulContractForEnrollmentAction(
     redirect("/matriculas?contract=unauthorized");
   }
 
-  if (!enrollmentId) {
-    redirect("/matriculas?contract=failed");
+  if (!guardianContractId) {
+    redirect("/matriculas?guardianContract=failed");
   }
 
-  const result = await createContaAzulContractForEnrollment(enrollmentId);
+  let synced = false;
 
-  revalidatePath("/matriculas");
+  try {
+    if (mode === "create") {
+      await createContaAzulContractFromGuardianContract(guardianContractId);
+    } else {
+      await replaceGuardianContractOnContaAzul(
+        guardianContractId,
+        "Atualização de matrículas/valores",
+      );
+    }
 
-  if (result.status === "contract_created") {
-    redirect("/matriculas?contract=created");
+    revalidatePath("/matriculas");
+    synced = true;
+  } catch (error) {
+    console.error("[GUARDIAN CONTRACT REPLACE] action failed", {
+      guardianContractId,
+      message: error instanceof Error ? error.message : error,
+    });
+
+    revalidatePath("/matriculas");
   }
 
-  if (result.status === "already_created") {
-    redirect("/matriculas?contract=already-created");
-  }
-
-  redirect("/matriculas?contract=failed");
+  redirect(
+    synced
+      ? "/matriculas?guardianContract=synced"
+      : "/matriculas?guardianContract=failed",
+  );
 }

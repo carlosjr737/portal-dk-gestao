@@ -3,13 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
-import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
 import { addEnrollmentToGuardianFinancialContract } from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
@@ -65,21 +63,6 @@ export async function createEnrollment(
   }
 
   const supabase = await createClient();
-  const contaAzulSettings = await getContaAzulSettings();
-
-  if (contaAzulSettings.shouldCreateContract) {
-    if (parsed.data.first_due_date < toDateString(new Date())) {
-      return {
-        errors: {
-          first_due_date: [
-            "O primeiro vencimento não pode ser anterior à data de hoje para gerar contrato no Conta Azul.",
-          ],
-        },
-        message:
-          "O primeiro vencimento não pode ser anterior à data de hoje para gerar contrato no Conta Azul.",
-      };
-    }
-  }
 
   if (parsed.data.status === "active") {
     const { data: existingEnrollment, error: duplicateError } = await supabase
@@ -193,48 +176,6 @@ export async function createEnrollment(
       return "failed" as const;
     });
 
-  let contractStatus: "created" | "failed" | "skipped" = "skipped";
-
-  if (contaAzulSettings.shouldCreateContract) {
-    console.log("[ENROLLMENT] attempting Conta Azul contract", {
-      enrollmentId: data.id,
-    });
-
-    const contractResult = await createContaAzulContractForEnrollment(
-      data.id as string,
-    ).catch((contractError) => {
-      console.error("[ENROLLMENT] Conta Azul contract failed", {
-        enrollmentId: data.id,
-        message:
-          contractError instanceof Error ? contractError.message : contractError,
-      });
-
-      return {
-        status: "failed" as const,
-        message:
-          "Matrícula criada, mas o contrato no Conta Azul não foi gerado.",
-      };
-    });
-
-    if (
-      contractResult.status === "contract_created" ||
-      contractResult.status === "already_created"
-    ) {
-      contractStatus = "created";
-      console.log("[ENROLLMENT] Conta Azul contract created", {
-        enrollmentId: data.id,
-        providerContractId: contractResult.providerContractId ?? null,
-      });
-    } else {
-      contractStatus = "failed";
-      console.error("[ENROLLMENT] Conta Azul contract failed", {
-        enrollmentId: data.id,
-        status: contractResult.status,
-        message: contractResult.message ?? null,
-      });
-    }
-  }
-
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
   revalidatePath("/financeiro/growth-churn");
@@ -243,13 +184,7 @@ export async function createEnrollment(
 
   const redirectParams = new URLSearchParams();
 
-  if (contractStatus === "created") {
-    redirectParams.set("contract", "created");
-  } else if (contractStatus === "failed") {
-    redirectParams.set("contract", "failed");
-  } else {
-    redirectParams.set("created", "1");
-  }
+  redirectParams.set("created", "1");
 
   if (guardianContractStatus === "failed") {
     redirectParams.set("guardianContract", "failed");
@@ -260,39 +195,6 @@ export async function createEnrollment(
   redirect(
     redirectQuery ? `/matriculas?${redirectQuery}` : "/matriculas",
   );
-}
-
-async function getContaAzulSettings() {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("finance_provider_settings")
-    .select(
-      "active, conta_azul_financial_account_id, conta_azul_revenue_category_id, conta_azul_service_item_id, default_due_day",
-    )
-    .eq("provider", "conta_azul")
-    .maybeSingle();
-
-  if (error) {
-    console.error("Enrollment Conta Azul settings load error:", error.message);
-  }
-
-  return {
-    active: data?.active === true,
-    shouldCreateContract:
-      data?.active === true &&
-      Boolean(data.conta_azul_financial_account_id) &&
-      Boolean(data.conta_azul_revenue_category_id) &&
-      Boolean(data.conta_azul_service_item_id) &&
-      Boolean(data.default_due_day),
-  };
-}
-
-function toDateString(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
 }
 
 export async function cancelEnrollment(

@@ -66,4 +66,12 @@ export type EnrollmentListRow = {
     due_date: string | null;
     error_message: string | null;
   } | null;
+  guardianFinancialContract: {
+    id: string;
+    status: string;
+    provider_contract_id: string | null;
+    total_amount: number | null;
+    version: number | null;
+    error_message: string | null;
+  } | null;
 };

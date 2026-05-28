@@ -11,7 +11,7 @@ import {
   formatMoney,
 } from "@/features/enrollments/formatters";
 import type { EnrollmentListRow } from "@/features/enrollments/types";
-import { createManualContaAzulContractForEnrollmentAction } from "@/features/finance/conta-azul/enrollment-receivable-actions";
+import { syncGuardianFinancialContractAction } from "@/features/finance/conta-azul/enrollment-receivable-actions";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
@@ -28,10 +28,9 @@ type MatriculasPageProps = {
 };
 
 const contractMessages: Record<string, string> = {
-  created: "Matrícula criada e contrato enviado ao Conta Azul com sucesso.",
-  "already-created":
-    "Esta matrícula já possui contrato no Conta Azul.",
-  failed: "Matrícula criada, mas o contrato no Conta Azul não foi gerado.",
+  created: "Contrato consolidado enviado ao Conta Azul com sucesso.",
+  "already-created": "Este contrato consolidado já existe no Conta Azul.",
+  failed: "Não foi possível sincronizar o contrato consolidado no Conta Azul.",
   unauthorized: "Acesso não autorizado.",
 };
 
@@ -94,8 +93,14 @@ export default async function MatriculasPage({
 
       {params?.guardianContract === "failed" ? (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Matrícula criada, mas não foi possível registrar o contrato financeiro
-          consolidado do responsável.
+          Não foi possível registrar ou sincronizar o contrato financeiro
+          consolidado do responsável. Verifique os logs e tente novamente.
+        </div>
+      ) : null}
+
+      {params?.guardianContract === "synced" ? (
+        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Contrato consolidado sincronizado com o Conta Azul.
         </div>
       ) : null}
 
@@ -175,40 +180,48 @@ export default async function MatriculasPage({
                       {formatMoney(enrollment.monthly_amount)}
                     </td>
                     <td className="px-4 py-3">
-                      <ExternalFinancialStatus enrollment={enrollment} />
+                      <ConsolidatedContractStatus enrollment={enrollment} />
                     </td>
                     {canGenerateReceivable ? (
                       <td className="px-4 py-3">
-                        {isExternalFinancialLocked(
-                          enrollment.externalFinancialRecord?.status,
-                        ) ? (
-                          <span className="text-xs text-muted-foreground">
-                            {enrollment.externalFinancialRecord?.status ===
-                            "contract_created"
-                              ? "Contrato criado"
-                              : "Processando"}
-                          </span>
-                        ) : (
-                          <form
-                            action={
-                              createManualContaAzulContractForEnrollmentAction
-                            }
-                          >
+                        {shouldShowGuardianContractSync(enrollment) ? (
+                          <form action={syncGuardianFinancialContractAction}>
                             <input
                               type="hidden"
-                              name="enrollmentId"
-                              value={enrollment.id}
+                              name="guardianContractId"
+                              value={enrollment.guardianFinancialContract?.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="mode"
+                              value={
+                                enrollment.guardianFinancialContract
+                                  ?.provider_contract_id
+                                  ? "replace"
+                                  : "create"
+                              }
                             />
                             <button
                               type="submit"
                               className="h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:opacity-90"
                             >
                               {enrollment.externalFinancialRecord?.status ===
-                              "failed"
-                                ? "Tentar novamente"
-                                : "Gerar contrato Conta Azul"}
+                                "failed" ||
+                              enrollment.guardianFinancialContract?.status ===
+                                "sync_failed"
+                                ? "Tentar sincronizar novamente"
+                                : "Sincronizar contrato consolidado"}
                             </button>
                           </form>
+                        ) : enrollment.guardianFinancialContract?.status ===
+                          "active" ? (
+                          <span className="text-xs text-muted-foreground">
+                            Contrato ativo
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Aguardando contrato consolidado
+                          </span>
                         )}
                       </td>
                     ) : null}
@@ -252,6 +265,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       { data: guardians, error: guardiansError },
       { data: teachers, error: teachersError },
       { data: financialRecords, error: financialRecordsError },
+      { data: guardianContracts, error: guardianContractsError },
     ] = await Promise.all([
       supabase
         .from("enrollments")
@@ -273,6 +287,12 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         )
         .eq("provider", "conta_azul")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("guardian_financial_contracts")
+        .select(
+          "id, guardian_id, year, status, provider_contract_id, total_amount, version, error_message",
+        )
+        .eq("provider", "conta_azul"),
     ]);
 
     const firstError =
@@ -281,7 +301,8 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       classesError ??
       guardiansError ??
       teachersError ??
-      financialRecordsError;
+      financialRecordsError ??
+      guardianContractsError;
 
     if (firstError) {
       console.error("Enrollments list load error:", firstError.message);
@@ -329,6 +350,10 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       string,
       EnrollmentListRow["externalFinancialRecord"]
     >();
+    const guardianContractsByGuardianYear = new Map<
+      string,
+      EnrollmentListRow["guardianFinancialContract"]
+    >();
 
     for (const record of financialRecords ?? []) {
       const enrollmentId = record.enrollment_id as string;
@@ -352,6 +377,35 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
           error_message: (record.error_message as string | null) ?? null,
         });
       }
+    }
+
+    for (const contract of guardianContracts ?? []) {
+      const guardianId = contract.guardian_id as string | null;
+      const year = contract.year as number | null;
+
+      if (!guardianId || !year) {
+        continue;
+      }
+
+      guardianContractsByGuardianYear.set(`${guardianId}:${year}`, {
+        id: contract.id as string,
+        status: contract.status as string,
+        provider_contract_id:
+          (contract.provider_contract_id as string | null) ?? null,
+        total_amount:
+          typeof contract.total_amount === "number"
+            ? contract.total_amount
+            : contract.total_amount
+              ? Number(contract.total_amount)
+              : null,
+        version:
+          typeof contract.version === "number"
+            ? contract.version
+            : contract.version
+              ? Number(contract.version)
+              : null,
+        error_message: (contract.error_message as string | null) ?? null,
+      });
     }
 
     return (enrollments ?? []).map((enrollment) => ({
@@ -384,6 +438,12 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         guardiansById.get(enrollment.financial_guardian_id as string) ?? null,
       externalFinancialRecord:
         financialRecordsByEnrollmentId.get(enrollment.id as string) ?? null,
+      guardianFinancialContract:
+        guardianContractsByGuardianYear.get(
+          `${String(enrollment.financial_guardian_id ?? "")}:${getYear(
+            enrollment.start_date as string | null,
+          )}`,
+        ) ?? null,
     }));
   } catch (error) {
     console.error(
@@ -394,54 +454,66 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
   }
 }
 
-function ExternalFinancialStatus({
+function ConsolidatedContractStatus({
   enrollment,
 }: {
   enrollment: EnrollmentListRow;
 }) {
-  const record = enrollment.externalFinancialRecord;
+  const contract = enrollment.guardianFinancialContract;
 
-  if (!record) {
-    return <span className="text-sm text-muted-foreground">Não gerado</span>;
+  if (!contract) {
+    return (
+      <span className="text-sm text-muted-foreground">
+        Contrato consolidado não criado
+      </span>
+    );
   }
 
   const statusLabel =
-    record.status === "contract_created"
-      ? "Contrato criado"
-      : record.status === "receivable_created"
-        ? "Gerada"
-      : record.status === "processing"
-        ? "Processando"
-      : record.status === "failed"
-        ? "Falhou"
-        : record.status === "skipped"
-          ? "Ignorada"
-          : record.status;
+    contract.status === "active"
+      ? "Contrato ativo"
+      : contract.status === "pending_replacement"
+        ? "Contrato consolidado pendente de sincronização no Conta Azul."
+        : contract.status === "sync_failed"
+          ? "Falha na sincronização"
+          : contract.status === "draft"
+            ? "Contrato consolidado em rascunho"
+            : contract.status;
 
   return (
     <div className="space-y-1 text-sm">
       <div className="font-medium text-foreground">{statusLabel}</div>
-      {record.provider_contract_id ||
-      record.provider_receivable_id ||
-      record.provider_protocol_id ? (
+      {contract.provider_contract_id ? (
         <div className="font-mono text-xs text-muted-foreground">
-          {record.provider_contract_id ??
-            record.provider_receivable_id ??
-            record.provider_protocol_id}
+          {contract.provider_contract_id}
         </div>
       ) : null}
       <div className="text-xs text-muted-foreground">
-        {formatMoney(record.amount)} · {formatDate(record.due_date)}
+        {formatMoney(contract.total_amount)} · v{contract.version ?? 1}
       </div>
-      {record.error_message ? (
+      {contract.error_message ? (
         <div className="max-w-[260px] text-xs text-red-600">
-          {record.error_message}
+          {contract.error_message}
         </div>
       ) : null}
     </div>
   );
 }
 
-function isExternalFinancialLocked(status: string | undefined) {
-  return status === "contract_created" || status === "processing";
+function shouldShowGuardianContractSync(enrollment: EnrollmentListRow) {
+  const contract = enrollment.guardianFinancialContract;
+
+  return (
+    contract?.status === "draft" ||
+    contract?.status === "pending_replacement" ||
+    contract?.status === "sync_failed"
+  );
+}
+
+function getYear(date: string | null) {
+  if (!date) {
+    return "";
+  }
+
+  return String(date).slice(0, 4);
 }

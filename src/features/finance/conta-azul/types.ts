@@ -48,12 +48,17 @@ export type ContaAzulCreateContractInput = {
   endDate: string | null;
   firstDueDate: string;
   dueDay: number;
-  description: string;
+  description?: string;
   observations: string;
-  amount: number;
+  amount?: number;
   financialAccountId: string;
   revenueCategoryId: string;
-  itemId: string;
+  itemId?: string;
+  items?: Array<{
+    itemId: string;
+    description: string;
+    amount: number;
+  }>;
 };
 
 export type ContaAzulCreateContractPayload = {
@@ -90,6 +95,11 @@ export type ContaAzulCreateContractResponse = {
   id_legado?: number;
   id_venda?: string;
   [key: string]: unknown;
+};
+
+export type ContaAzulCloseContractResponse = {
+  status: number;
+  body: unknown;
 };
 
 export type ContaAzulService = {
