@@ -6,7 +6,6 @@ import {
   getContaAzulResponseDiagnostics,
 } from "@/features/finance/conta-azul/client";
 import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azul/guardian-links";
-import { ensureContaAzulServiceItem } from "@/features/finance/conta-azul/enrollment-receivables";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const CONTA_AZUL_PROVIDER = "conta_azul";
@@ -82,6 +81,17 @@ type GuardianRecord = {
   conta_azul_person_id: string | null;
 };
 
+class GuardianContractSyncError extends Error {
+  constructor(
+    public readonly stage: string,
+    message: string,
+    public readonly details: unknown = null,
+  ) {
+    super(message);
+    this.name = "GuardianContractSyncError";
+  }
+}
+
 export async function getOrCreateGuardianFinancialContractDraft(
   input: GuardianFinancialContractDraftInput,
 ) {
@@ -147,144 +157,233 @@ export async function addEnrollmentToGuardianFinancialContract(
   console.info("[GUARDIAN CONTRACT] start");
   console.info("[GUARDIAN CONTRACT] enrollmentId", enrollmentId);
 
-  const enrollment = await getEnrollmentSnapshot(supabase, enrollmentId);
+  let guardianContractId: string | null = null;
 
-  if (!enrollment) {
-    throw new Error("Matrícula não encontrada.");
-  }
+  try {
+    const enrollment = await getEnrollmentSnapshot(supabase, enrollmentId);
 
-  if (!enrollment.financial_guardian_id) {
-    throw new Error("Matrícula sem responsável financeiro.");
-  }
+    if (!enrollment) {
+      throw new GuardianContractSyncError(
+        "load_enrollment",
+        "Matrícula não encontrada.",
+      );
+    }
 
-  console.info("[GUARDIAN CONTRACT] guardianId", enrollment.financial_guardian_id);
+    if (!enrollment.financial_guardian_id) {
+      throw new GuardianContractSyncError(
+        "validate_enrollment",
+        "Matrícula sem responsável financeiro.",
+      );
+    }
 
-  const amount = normalizeAmount(enrollment.monthly_amount);
+    console.info("[GUARDIAN CONTRACT] guardianId", enrollment.financial_guardian_id);
 
-  if (!amount || amount <= 0) {
-    throw new Error("Matrícula sem valor mensal válido.");
-  }
+    const amount = normalizeAmount(enrollment.monthly_amount);
 
-  if (!enrollment.start_date || !enrollment.end_date || !enrollment.first_due_date) {
-    throw new Error("Matrícula sem datas financeiras obrigatórias.");
-  }
+    if (!amount || amount <= 0) {
+      throw new GuardianContractSyncError(
+        "validate_enrollment",
+        "Matrícula sem valor mensal válido.",
+      );
+    }
 
-  const [student, danceClass, guardian] = await Promise.all([
-    getStudent(supabase, enrollment.student_id),
-    getClass(supabase, enrollment.class_id),
-    getGuardian(supabase, enrollment.financial_guardian_id),
-  ]);
+    if (!enrollment.start_date || !enrollment.end_date || !enrollment.first_due_date) {
+      throw new GuardianContractSyncError(
+        "validate_enrollment",
+        "Matrícula sem datas financeiras obrigatórias.",
+      );
+    }
 
-  if (!guardian) {
-    throw new Error("Responsável financeiro não encontrado.");
-  }
+    const [student, danceClass, guardian] = await Promise.all([
+      getStudent(supabase, enrollment.student_id),
+      getClass(supabase, enrollment.class_id),
+      getGuardian(supabase, enrollment.financial_guardian_id),
+    ]);
 
-  const year = Number(enrollment.start_date.slice(0, 4));
+    if (!guardian) {
+      throw new GuardianContractSyncError(
+        "validate_guardian",
+        "Responsável financeiro não encontrado.",
+      );
+    }
 
-  if (!Number.isInteger(year)) {
-    throw new Error("Ano da matrícula inválido.");
-  }
+    const year = Number(enrollment.start_date.slice(0, 4));
 
-  console.info("[GUARDIAN CONTRACT] year", year);
+    if (!Number.isInteger(year)) {
+      throw new GuardianContractSyncError(
+        "validate_enrollment",
+        "Ano da matrícula inválido.",
+      );
+    }
 
-  const guardianContract = await getOrCreateGuardianFinancialContractDraft({
-    guardianId: enrollment.financial_guardian_id,
-    provider: CONTA_AZUL_PROVIDER,
-    providerCustomerId: guardian.conta_azul_person_id,
-    year,
-    startDate: enrollment.start_date,
-    endDate: enrollment.end_date,
-    firstDueDate: enrollment.first_due_date,
-  });
-  const existingItem = await getExistingContractItem(supabase, enrollment.id);
+    console.info("[GUARDIAN CONTRACT] year", year);
 
-  if (!existingItem) {
-    const { error: itemError } = await supabase
-      .from("guardian_financial_contract_items")
-      .insert({
-        guardian_contract_id: guardianContract.id,
-        enrollment_id: enrollment.id,
-        student_id: enrollment.student_id,
-        class_id: enrollment.class_id,
-        description: buildDescription(student, danceClass),
-        amount,
-        status: "active",
-        started_at: enrollment.start_date,
-        ended_at: enrollment.end_date,
-      });
+    const guardianContract = await getOrCreateGuardianFinancialContractDraft({
+      guardianId: enrollment.financial_guardian_id,
+      provider: CONTA_AZUL_PROVIDER,
+      providerCustomerId: guardian.conta_azul_person_id,
+      year,
+      startDate: enrollment.start_date,
+      endDate: enrollment.end_date,
+      firstDueDate: enrollment.first_due_date,
+    });
+    guardianContractId = guardianContract.id;
+    const existingItem = await getExistingContractItem(supabase, enrollment.id);
 
-    if (itemError) {
-      if (itemError.code === "23505") {
-        console.info("[GUARDIAN CONTRACT] itemCreated", false);
+    if (!existingItem) {
+      const { error: itemError } = await supabase
+        .from("guardian_financial_contract_items")
+        .insert({
+          guardian_contract_id: guardianContract.id,
+          enrollment_id: enrollment.id,
+          student_id: enrollment.student_id,
+          class_id: enrollment.class_id,
+          description: buildDescription(student, danceClass),
+          amount,
+          status: "active",
+          started_at: enrollment.start_date,
+          ended_at: enrollment.end_date,
+        });
+
+      if (itemError) {
+        if (itemError.code === "23505") {
+          console.info("[GUARDIAN CONTRACT] itemCreated", false);
+        } else {
+          throw new GuardianContractSyncError(
+            "insert_contract_item",
+            itemError.message,
+            itemError,
+          );
+        }
       } else {
-        throw new Error(itemError.message);
+        console.info("[GUARDIAN CONTRACT] itemCreated", true);
       }
     } else {
-      console.info("[GUARDIAN CONTRACT] itemCreated", true);
+      console.info("[GUARDIAN CONTRACT] itemCreated", false);
     }
-  } else {
-    console.info("[GUARDIAN CONTRACT] itemCreated", false);
-  }
 
-  const totalAmount = await recalculateContractTotal(supabase, guardianContract.id);
-  const nextStatus = guardianContract.provider_contract_id
-    ? "pending_replacement"
-    : "draft";
-  const { error: updateError } = await supabase
-    .from("guardian_financial_contracts")
-    .update({
-      total_amount: totalAmount,
+    const totalAmount = await recalculateContractTotal(supabase, guardianContract.id);
+    const nextStatus = guardianContract.provider_contract_id
+      ? "pending_replacement"
+      : "draft";
+    const { error: updateError } = await supabase
+      .from("guardian_financial_contracts")
+      .update({
+        total_amount: totalAmount,
+        status: nextStatus,
+        error_message: null,
+        last_sync_payload: null,
+      })
+      .eq("id", guardianContract.id);
+
+    if (updateError) {
+      throw new GuardianContractSyncError(
+        "update_contract_total",
+        updateError.message,
+        updateError,
+      );
+    }
+
+    console.info("[GUARDIAN CONTRACT] totalAmount", totalAmount);
+
+    if (!guardianContract.provider_contract_id) {
+      const syncResult = await syncGuardianFinancialContractToContaAzul(
+        guardianContract.id,
+      );
+
+      return {
+        guardianContractId: guardianContract.id,
+        status: syncResult.status,
+        totalAmount,
+      };
+    }
+
+    return {
+      guardianContractId: guardianContract.id,
       status: nextStatus,
-      error_message: null,
-    })
-    .eq("id", guardianContract.id);
+      totalAmount,
+    };
+  } catch (error) {
+    console.error("[GUARDIAN CONTRACT] failed stage", getErrorStage(error));
+    console.error("[GUARDIAN CONTRACT] error message", getErrorMessage(error));
 
-  if (updateError) {
-    throw new Error(updateError.message);
+    if (guardianContractId) {
+      await saveSyncFailure(supabase, guardianContractId, error);
+    }
+
+    throw error;
   }
-
-  console.info("[GUARDIAN CONTRACT] totalAmount", totalAmount);
-
-  return {
-    guardianContractId: guardianContract.id,
-    status: nextStatus,
-    totalAmount,
-  };
 }
 
 export async function createContaAzulContractFromGuardianContract(
   guardianContractId: string,
 ) {
+  return syncGuardianFinancialContractToContaAzul(guardianContractId);
+}
+
+export async function syncGuardianFinancialContractToContaAzul(
+  guardianContractId: string,
+) {
   const supabase = createAdminClient();
-  const contract = await getGuardianContract(supabase, guardianContractId);
 
-  if (!contract) {
-    throw new Error("Contrato financeiro consolidado não encontrado.");
+  try {
+    const contract = await getGuardianContract(supabase, guardianContractId);
+
+    if (!contract) {
+      throw new GuardianContractSyncError(
+        "load_contract",
+        "Contrato financeiro consolidado não encontrado.",
+      );
+    }
+
+    if (contract.provider_contract_id) {
+      return {
+        status: "active" as const,
+        providerContractId: contract.provider_contract_id,
+        providerLegacyId: contract.provider_legacy_id,
+        response: null,
+      };
+    }
+
+    const { response, contractPayload, providerContractId, providerLegacyId } =
+      await createProviderContractForCurrentItems(supabase, contract);
+    const { error } = await supabase
+      .from("guardian_financial_contracts")
+      .update({
+        provider_contract_id: providerContractId,
+        provider_legacy_id: providerLegacyId,
+        status: "active",
+        contract_payload: contractPayload,
+        error_message: null,
+        last_sync_payload: null,
+      })
+      .eq("id", guardianContractId);
+
+    if (error) {
+      throw new GuardianContractSyncError(
+        "update_synced_contract",
+        error.message,
+        error,
+      );
+    }
+
+    return {
+      status: "active" as const,
+      providerContractId,
+      providerLegacyId,
+      response,
+    };
+  } catch (error) {
+    console.error("[GUARDIAN CONTRACT SYNC] failed stage", getErrorStage(error));
+    console.error("[GUARDIAN CONTRACT SYNC] error message", getErrorMessage(error));
+    console.error(
+      "[GUARDIAN CONTRACT SYNC] response body",
+      getFailureResponseBody(error),
+    );
+
+    await saveSyncFailure(supabase, guardianContractId, error);
+    throw error;
   }
-
-  const { response, contractPayload, providerContractId, providerLegacyId } =
-    await createProviderContractForCurrentItems(supabase, contract);
-  const { error } = await supabase
-    .from("guardian_financial_contracts")
-    .update({
-      provider_contract_id: providerContractId,
-      provider_legacy_id: providerLegacyId,
-      status: "active",
-      contract_payload: contractPayload,
-      error_message: null,
-    })
-    .eq("id", guardianContractId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return {
-    status: "active" as const,
-    providerContractId,
-    providerLegacyId,
-    response,
-  };
 }
 
 export async function replaceGuardianContractOnContaAzul(
@@ -399,45 +498,92 @@ async function createProviderContractForCurrentItems(
   ]);
 
   if (!guardian) {
-    throw new Error("Responsável financeiro não encontrado.");
+    throw new GuardianContractSyncError(
+      "validate_guardian",
+      "Responsável financeiro não encontrado.",
+    );
   }
 
   if (!settings?.active) {
-    throw new Error("Configuração financeira Conta Azul inativa ou inexistente.");
+    throw new GuardianContractSyncError(
+      "validate_finance_settings",
+      "Configuração financeira Conta Azul inativa ou inexistente.",
+    );
   }
 
   if (!settings.conta_azul_financial_account_id) {
-    throw new Error("Conta financeira Conta Azul não configurada.");
+    throw new GuardianContractSyncError(
+      "validate_finance_settings",
+      "Conta financeira Conta Azul não configurada.",
+    );
   }
 
   if (!settings.conta_azul_revenue_category_id) {
-    throw new Error("Categoria de receita Conta Azul não configurada.");
+    throw new GuardianContractSyncError(
+      "validate_finance_settings",
+      "Categoria Conta Azul não configurada.",
+    );
+  }
+
+  if (!settings.conta_azul_service_item_id) {
+    throw new GuardianContractSyncError(
+      "validate_finance_settings",
+      "Serviço padrão Conta Azul não configurado.",
+    );
   }
 
   if (!settings.default_due_day) {
-    throw new Error("Dia padrão de vencimento não configurado.");
+    throw new GuardianContractSyncError(
+      "validate_finance_settings",
+      "Dia padrão de vencimento não configurado.",
+    );
+  }
+
+  if (items.length === 0) {
+    throw new GuardianContractSyncError(
+      "validate_contract_items",
+      "Contrato consolidado sem itens ativos.",
+    );
   }
 
   const totalAmount = sumItemAmounts(items);
 
   if (totalAmount <= 0) {
-    throw new Error("Contrato consolidado sem itens ativos com valor.");
+    throw new GuardianContractSyncError(
+      "validate_contract_items",
+      "Contrato consolidado sem itens ativos.",
+    );
   }
 
-  const customerId = await ensureContaAzulCustomerForGuardian(contract.guardian_id);
-  const serviceItemId =
-    settings.conta_azul_service_item_id ?? (await ensureContaAzulServiceItem());
+  if (contract.end_date < contract.start_date) {
+    throw new GuardianContractSyncError(
+      "validate_contract_dates",
+      "Data final do contrato não pode ser anterior à data inicial.",
+    );
+  }
+
+  const customerId = await ensureContaAzulCustomer(contract.guardian_id);
+  const serviceItemId = settings.conta_azul_service_item_id;
   const client = new ContaAzulClient();
   const todayString = toDateString(new Date());
-  const firstDueDate = getNextFutureDueDate(
-    settings.default_due_day,
-    contract.first_due_date,
-  );
+  const firstDueDate = contract.first_due_date;
+
+  if (firstDueDate < todayString) {
+    throw new GuardianContractSyncError(
+      "validate_contract_dates",
+      "Primeiro vencimento não pode ser anterior à data atual.",
+      {
+        firstDueDate,
+        today: todayString,
+      },
+    );
+  }
+
   const response = await client.createContract({
     customerId,
-    contractNumber: await client.getNextContractNumber(),
+    contractNumber: buildUniqueContractNumber(),
     issueDate: todayString,
-    startDate: todayString,
+    startDate: contract.start_date,
     endDate: contract.end_date,
     firstDueDate,
     dueDay: settings.default_due_day,
@@ -656,7 +802,7 @@ async function saveSyncFailure(
   guardianContractId: string,
   error: unknown,
 ) {
-  await supabase
+  const { error: updateError } = await supabase
     .from("guardian_financial_contracts")
     .update({
       status: "sync_failed",
@@ -664,6 +810,13 @@ async function saveSyncFailure(
       last_sync_payload: buildFailurePayload(error),
     })
     .eq("id", guardianContractId);
+
+  if (updateError) {
+    console.error("[GUARDIAN CONTRACT SYNC] failure persistence failed", {
+      guardianContractId,
+      message: updateError.message,
+    });
+  }
 }
 
 async function syncContractCustomerAndTotal(
@@ -744,35 +897,20 @@ function buildContractObservation(
   }`;
 }
 
-function getNextFutureDueDate(defaultDueDay: number, fallbackDueDate: string) {
-  const today = new Date();
-  const dueDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    clampDay(today.getFullYear(), today.getMonth(), defaultDueDay),
-  );
-
-  if (dueDate >= startOfToday(today)) {
-    return toDateString(dueDate);
+async function ensureContaAzulCustomer(guardianId: string) {
+  try {
+    return await ensureContaAzulCustomerForGuardian(guardianId);
+  } catch (error) {
+    throw new GuardianContractSyncError(
+      "ensure_customer",
+      "Responsável financeiro sem cliente Conta Azul.",
+      buildFailurePayload(error),
+    );
   }
-
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextDueDate = new Date(
-    nextMonth.getFullYear(),
-    nextMonth.getMonth(),
-    clampDay(nextMonth.getFullYear(), nextMonth.getMonth(), defaultDueDay),
-  );
-  const nextDueDateString = toDateString(nextDueDate);
-
-  return nextDueDateString > fallbackDueDate ? nextDueDateString : fallbackDueDate;
 }
 
-function clampDay(year: number, month: number, day: number) {
-  return Math.min(day, new Date(year, month + 1, 0).getDate());
-}
-
-function startOfToday(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function buildUniqueContractNumber() {
+  return Date.now();
 }
 
 function toDateString(date: Date) {
@@ -869,25 +1007,95 @@ function buildContaAzulRequestPayload(
 }
 
 function buildFailurePayload(error: unknown) {
+  if (error instanceof GuardianContractSyncError) {
+    return {
+      stage: error.stage,
+      error: error.message,
+      details: error.details,
+      sanitized_payload: null,
+      response_body: getFailureResponseBody(error.details),
+      status: getFailureStatus(error.details),
+    };
+  }
+
   if (error instanceof ContaAzulApiError && error.details) {
     return {
       stage: error.details.stage ?? "conta_azul_request",
-      endpoint: error.details.endpoint ?? null,
-      method: error.details.method ?? null,
+      error: error.message,
+      details: {
+        endpoint: error.details.endpoint ?? null,
+        method: error.details.method ?? null,
+      },
       status: error.details.status ?? error.status ?? null,
-      body: error.details.body ?? null,
+      response_body: error.details.body ?? null,
       sanitized_payload: error.details.payload ?? null,
     };
   }
 
   return {
     stage: "pre_validation",
-    reason: getErrorMessage(error),
+    error: getErrorMessage(error),
+    details: null,
+    sanitized_payload: null,
+    response_body: null,
+    status: null,
   };
+}
+
+function getErrorStage(error: unknown) {
+  if (error instanceof GuardianContractSyncError) {
+    return error.stage;
+  }
+
+  if (error instanceof ContaAzulApiError) {
+    return error.details?.stage ?? "conta_azul_request";
+  }
+
+  return "unknown";
+}
+
+function getFailureResponseBody(error: unknown) {
+  if (error instanceof GuardianContractSyncError) {
+    return getFailureResponseBody(error.details);
+  }
+
+  if (error instanceof ContaAzulApiError) {
+    return error.details?.body ?? null;
+  }
+
+  if (isRecord(error) && "response_body" in error) {
+    return error.response_body;
+  }
+
+  if (isRecord(error) && "body" in error) {
+    return error.body;
+  }
+
+  return null;
+}
+
+function getFailureStatus(error: unknown) {
+  if (error instanceof GuardianContractSyncError) {
+    return getFailureStatus(error.details);
+  }
+
+  if (error instanceof ContaAzulApiError) {
+    return error.details?.status ?? error.status ?? null;
+  }
+
+  if (isRecord(error) && "status" in error) {
+    return error.status;
+  }
+
+  return null;
 }
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Não foi possível sincronizar o contrato consolidado no Conta Azul.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
