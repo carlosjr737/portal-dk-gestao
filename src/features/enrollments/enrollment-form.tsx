@@ -307,9 +307,10 @@ export function EnrollmentForm({
             label="Valor mensal"
             name="monthly_amount"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             error={state.errors?.monthly_amount?.[0]}
+            required
           />
           <Field
             label="Desconto"

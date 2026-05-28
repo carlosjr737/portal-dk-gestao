@@ -22,7 +22,7 @@ const nullableText = z
 const requiredDate = (message: string) =>
   z.string().trim().min(1, message).regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data válida.");
 
-const moneyValue = z
+const optionalMoneyValue = z
   .string()
   .trim()
   .transform((value) => (value.length > 0 ? Number(value) : null))
@@ -32,6 +32,13 @@ const moneyValue = z
       .nonnegative("Informe um valor maior ou igual a zero.")
       .nullable(),
   );
+
+const requiredPositiveMoneyValue = z
+  .string()
+  .trim()
+  .min(1, "Informe o valor mensal.")
+  .transform((value) => Number(value))
+  .pipe(z.number().positive("Informe um valor mensal maior que zero."));
 
 export const enrollmentFormSchema = z
   .object({
@@ -47,8 +54,8 @@ export const enrollmentFormSchema = z
     ),
     status: enrollmentStatusSchema,
     financial_guardian_id: nullableUuid,
-    monthly_amount: moneyValue,
-    discount_amount: moneyValue,
+    monthly_amount: requiredPositiveMoneyValue,
+    discount_amount: optionalMoneyValue,
     discount_reason: nullableText,
     notes: nullableText,
   })
