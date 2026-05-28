@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   enrollmentCancellationReasonSchema,
@@ -36,6 +37,7 @@ function enrollmentFormDataToObject(formData: FormData) {
     class_id: String(formData.get("class_id") ?? ""),
     start_date: String(formData.get("start_date") ?? ""),
     end_date: String(formData.get("end_date") ?? ""),
+    first_due_date: String(formData.get("first_due_date") ?? ""),
     status: String(formData.get("status") ?? "active"),
     financial_guardian_id: String(formData.get("financial_guardian_id") ?? ""),
     monthly_amount: String(formData.get("monthly_amount") ?? ""),
@@ -61,6 +63,30 @@ export async function createEnrollment(
   }
 
   const supabase = await createClient();
+  const contaAzulSettings = await getContaAzulSettings();
+
+  if (contaAzulSettings.active) {
+    if (!parsed.data.first_due_date) {
+      return {
+        errors: {
+          first_due_date: ["Informe o primeiro vencimento."],
+        },
+        message: "Informe o primeiro vencimento.",
+      };
+    }
+
+    if (parsed.data.first_due_date < toDateString(new Date())) {
+      return {
+        errors: {
+          first_due_date: [
+            "O primeiro vencimento não pode ser anterior à data de hoje para gerar contrato no Conta Azul.",
+          ],
+        },
+        message:
+          "O primeiro vencimento não pode ser anterior à data de hoje para gerar contrato no Conta Azul.",
+      };
+    }
+  }
 
   if (parsed.data.status === "active") {
     const { data: existingEnrollment, error: duplicateError } = await supabase
@@ -121,6 +147,7 @@ export async function createEnrollment(
     status: parsed.data.status,
     start_date: parsed.data.start_date,
     end_date: parsed.data.end_date,
+    first_due_date: parsed.data.first_due_date,
     financial_guardian_id: parsed.data.financial_guardian_id,
     monthly_amount: parsed.data.monthly_amount,
     discount_amount: parsed.data.discount_amount,
@@ -173,6 +200,31 @@ export async function createEnrollment(
   redirect(
     redirectQuery ? `/matriculas?${redirectQuery}` : "/matriculas",
   );
+}
+
+async function getContaAzulSettings() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("finance_provider_settings")
+    .select("active")
+    .eq("provider", "conta_azul")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Enrollment Conta Azul settings load error:", error.message);
+  }
+
+  return {
+    active: data?.active === true,
+  };
+}
+
+function toDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 export async function cancelEnrollment(

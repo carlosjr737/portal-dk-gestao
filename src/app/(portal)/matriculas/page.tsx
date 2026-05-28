@@ -96,6 +96,7 @@ export default async function MatriculasPage({
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Início</th>
                 <th className="px-4 py-3 font-semibold">Data final</th>
+                <th className="px-4 py-3 font-semibold">1º vencimento</th>
                 <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
                 <th className="px-4 py-3 font-semibold">Valor mensal</th>
                 <th className="px-4 py-3 font-semibold">Conta Azul</th>
@@ -149,6 +150,9 @@ export default async function MatriculasPage({
                       {formatDate(enrollment.end_date)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(enrollment.first_due_date)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
                       {formatFinancialGuardianName(
                         enrollment.financialGuardian?.full_name,
                       )}
@@ -199,7 +203,7 @@ export default async function MatriculasPage({
               ) : (
                 <tr>
                   <td
-                    colSpan={canGenerateReceivable ? 10 : 9}
+                    colSpan={canGenerateReceivable ? 11 : 10}
                     className="px-4 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhuma matrícula encontrada.
@@ -238,7 +242,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       supabase
         .from("enrollments")
         .select(
-          "id, student_id, class_id, status, start_date, end_date, financial_guardian_id, monthly_amount, discount_amount, discount_reason, cancellation_reason, cancelled_at",
+          "id, student_id, class_id, status, start_date, end_date, first_due_date, financial_guardian_id, monthly_amount, discount_amount, discount_reason, cancellation_reason, cancelled_at",
         )
         .order("created_at", { ascending: false }),
       supabase.from("students").select("id, full_name"),
@@ -341,6 +345,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       status: enrollment.status as EnrollmentListRow["status"],
       start_date: (enrollment.start_date as string | null) ?? null,
       end_date: (enrollment.end_date as string | null) ?? null,
+      first_due_date: (enrollment.first_due_date as string | null) ?? null,
       financial_guardian_id:
         (enrollment.financial_guardian_id as string | null) ?? null,
       monthly_amount:

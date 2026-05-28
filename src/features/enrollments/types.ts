@@ -37,6 +37,7 @@ export type EnrollmentListRow = {
   status: EnrollmentStatus;
   start_date: string | null;
   end_date: string | null;
+  first_due_date: string | null;
   monthly_amount: number | null;
   discount_amount: number | null;
   discount_reason: string | null;

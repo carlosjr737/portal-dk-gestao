@@ -22,6 +22,9 @@ type EnrollmentFormProps = {
   initialStudentId?: string;
   initialStudentSearch?: string;
   initialClassSearch?: string;
+  defaultStartDate: string;
+  defaultEndDate: string;
+  defaultFirstDueDate: string;
   classes: EnrollmentClassOption[];
   guardianLinks: EnrollmentGuardianOption[];
 };
@@ -34,6 +37,9 @@ export function EnrollmentForm({
   initialStudentId = "",
   initialStudentSearch = "",
   initialClassSearch = "",
+  defaultStartDate,
+  defaultEndDate,
+  defaultFirstDueDate,
   classes,
   guardianLinks,
 }: EnrollmentFormProps) {
@@ -243,6 +249,7 @@ export function EnrollmentForm({
             label="Data de início"
             name="start_date"
             type="date"
+            defaultValue={defaultStartDate}
             error={state.errors?.start_date?.[0]}
             required
           />
@@ -250,7 +257,16 @@ export function EnrollmentForm({
             label="Data final"
             name="end_date"
             type="date"
+            defaultValue={defaultEndDate}
             error={state.errors?.end_date?.[0]}
+            required
+          />
+          <Field
+            label="Primeiro vencimento"
+            name="first_due_date"
+            type="date"
+            defaultValue={defaultFirstDueDate}
+            error={state.errors?.first_due_date?.[0]}
             required
           />
           <SelectField
@@ -442,6 +458,7 @@ type FieldProps = {
   type?: string;
   min?: string;
   step?: string;
+  defaultValue?: string;
   error?: string;
   required?: boolean;
 };
@@ -452,6 +469,7 @@ function Field({
   type = "text",
   min,
   step,
+  defaultValue,
   error,
   required,
 }: FieldProps) {
@@ -463,6 +481,7 @@ function Field({
         type={type}
         min={min}
         step={step}
+        defaultValue={defaultValue}
         required={required}
         className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
       />

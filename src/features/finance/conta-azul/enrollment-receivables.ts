@@ -50,6 +50,7 @@ type EnrollmentSnapshot = {
   status: string | null;
   start_date: string | null;
   end_date: string | null;
+  first_due_date: string | null;
   created_at: string | null;
 };
 
@@ -244,8 +245,20 @@ export async function createContaAzulContractForEnrollment(
     const today = new Date();
     const todayString = toDateString(today);
     const startDate = enrollment.start_date ?? todayString;
-    const firstDueDate = calculateFirstDueDate(settings.default_due_day, today);
+    const firstDueDate =
+      enrollment.first_due_date ??
+      calculateFirstDueDate(settings.default_due_day, today);
     failureDueDate = firstDueDate;
+    if (firstDueDate < todayString) {
+      return await saveContractFailure(
+        supabase,
+        enrollment,
+        "O primeiro vencimento não pode ser anterior à data de hoje para gerar contrato no Conta Azul.",
+        amount,
+        customerId,
+        firstDueDate,
+      );
+    }
     console.log("[CA CONTRACT] enrollmentStartDate", startDate);
     console.log("[CA CONTRACT] today", todayString);
     console.log("[CA CONTRACT] defaultDueDay", settings.default_due_day);
@@ -830,7 +843,7 @@ async function getEnrollmentSnapshot(
   const { data, error } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, end_date, created_at",
+      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, end_date, first_due_date, created_at",
     )
     .eq("id", enrollmentId)
     .maybeSingle();
@@ -1006,7 +1019,11 @@ function startOfToday(date: Date) {
 }
 
 function toDateString(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function buildDescription(student: NamedRecord | null) {

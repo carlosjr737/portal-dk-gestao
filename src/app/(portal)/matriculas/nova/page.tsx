@@ -33,6 +33,11 @@ export default async function NovaMatriculaPage({
   const studentId = params?.studentId?.trim() ?? "";
   const studentSearch = params?.studentSearch?.trim() ?? "";
   const classSearch = params?.classSearch?.trim() ?? "";
+  const defaultDueDay = await getDefaultDueDay();
+  const today = new Date();
+  const defaultStartDate = toDateString(today);
+  const defaultEndDate = `${today.getFullYear()}-12-31`;
+  const defaultFirstDueDate = calculateNextDueDate(defaultDueDay, today);
 
   const [studentResults, selectedStudent, classes, guardianLinks] =
     await Promise.all([
@@ -69,11 +74,64 @@ export default async function NovaMatriculaPage({
         initialStudentId={studentId}
         initialStudentSearch={studentSearch}
         initialClassSearch={classSearch}
+        defaultStartDate={defaultStartDate}
+        defaultEndDate={defaultEndDate}
+        defaultFirstDueDate={defaultFirstDueDate}
         classes={classes}
         guardianLinks={guardianLinks}
       />
     </div>
   );
+}
+
+async function getDefaultDueDay() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("finance_provider_settings")
+    .select("default_due_day")
+    .eq("provider", "conta_azul")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Enrollment default due day load error:", error.message);
+  }
+
+  return typeof data?.default_due_day === "number" ? data.default_due_day : 5;
+}
+
+function calculateNextDueDate(defaultDueDay: number, baseDate = new Date()) {
+  let dueDate = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    clampDay(baseDate.getFullYear(), baseDate.getMonth(), defaultDueDay),
+  );
+
+  if (dueDate < startOfToday(baseDate)) {
+    const nextMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
+    dueDate = new Date(
+      nextMonth.getFullYear(),
+      nextMonth.getMonth(),
+      clampDay(nextMonth.getFullYear(), nextMonth.getMonth(), defaultDueDay),
+    );
+  }
+
+  return toDateString(dueDate);
+}
+
+function clampDay(year: number, month: number, day: number) {
+  return Math.min(day, new Date(year, month + 1, 0).getDate());
+}
+
+function startOfToday(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 async function getStudentResults(

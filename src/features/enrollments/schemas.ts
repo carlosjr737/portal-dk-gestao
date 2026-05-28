@@ -39,6 +39,12 @@ export const enrollmentFormSchema = z
     class_id: z.string().uuid("Selecione uma turma."),
     start_date: requiredDate("Informe a data de início."),
     end_date: requiredDate("Informe a data final."),
+    first_due_date: nullableText.pipe(
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data válida.")
+        .nullable(),
+    ),
     status: enrollmentStatusSchema,
     financial_guardian_id: nullableUuid,
     monthly_amount: moneyValue,
