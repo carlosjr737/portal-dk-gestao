@@ -8,7 +8,6 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
-import { addEnrollmentToGuardianFinancialContract } from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -16,8 +15,6 @@ export type EnrollmentActionState = {
   message?: string;
   success?: boolean;
 };
-
-const redirectParamValue = (value: string) => value.slice(0, 180);
 
 const cancelEnrollmentSchema = z.object({
   enrollment_id: z.string().uuid("Matrícula inválida."),
@@ -131,7 +128,7 @@ export async function createEnrollment(
     notes: parsed.data.notes,
   };
 
-  const { data, error } = await supabase
+  const { data: enrollment, error } = await supabase
     .from("enrollments")
     .insert(payload)
     .select(
@@ -139,7 +136,7 @@ export async function createEnrollment(
     )
     .single();
 
-  if (error || !data) {
+  if (error || !enrollment) {
     console.error("Enrollment insert error:", {
       error,
       payload,
@@ -152,45 +149,60 @@ export async function createEnrollment(
     };
   }
   console.log("[ENROLLMENT CREATED]", {
-    enrollmentId: data.id,
-    financialGuardianId: data.financial_guardian_id,
-    monthlyAmount: data.monthly_amount,
-    startDate: data.start_date,
-    endDate: data.end_date,
-    firstDueDate: data.first_due_date,
+    enrollmentId: enrollment.id,
+    financialGuardianId: enrollment.financial_guardian_id,
+    monthlyAmount: enrollment.monthly_amount,
+    startDate: enrollment.start_date,
+    endDate: enrollment.end_date,
+    firstDueDate: enrollment.first_due_date,
   });
 
-  if (data.status === "active") {
+  let guardianContractFailed = false;
+
+  if (enrollment.status === "active") {
+    console.log("[GUARDIAN CONTRACT RPC] calling", {
+      enrollmentId: enrollment.id,
+    });
+
+    const { data: itemId, error: guardianContractError } = await supabase.rpc(
+      "ensure_guardian_financial_contract_item",
+      {
+        p_enrollment_id: enrollment.id,
+      },
+    );
+
+    if (guardianContractError) {
+      guardianContractFailed = true;
+      console.error("[GUARDIAN CONTRACT RPC] error", {
+        enrollmentId: enrollment.id,
+        error: guardianContractError,
+      });
+    } else {
+      console.log("[GUARDIAN CONTRACT RPC] success", { itemId });
+    }
+  }
+
+  if (enrollment.status === "active") {
     await ensureGrowthChurnEvent({
-      enrollmentId: data.id as string,
+      enrollmentId: enrollment.id as string,
       eventType: "entrada",
-      eventDate: (data.start_date as string | null) ?? null,
+      eventDate: (enrollment.start_date as string | null) ?? null,
       source: "enrollment_created",
     });
   }
 
-  console.log("[CALLING GUARDIAN CONTRACT]", data.id);
-
-  const guardianContractResult =
-    await addEnrollmentToGuardianFinancialContract(data.id as string);
-
   revalidatePath("/matriculas");
   revalidatePath("/dashboard");
   revalidatePath("/financeiro/growth-churn");
-  revalidatePath(`/alunos/${data.student_id}`);
-  revalidatePath(`/turmas/${data.class_id}`);
+  revalidatePath(`/alunos/${enrollment.student_id}`);
+  revalidatePath(`/turmas/${enrollment.class_id}`);
 
   const redirectParams = new URLSearchParams();
 
   redirectParams.set("created", "1");
 
-  if (guardianContractResult.status === "warning") {
-    redirectParams.set("guardianContract", "warning");
-    redirectParams.set("guardianContractStage", guardianContractResult.stage);
-    redirectParams.set(
-      "guardianContractMessage",
-      redirectParamValue(guardianContractResult.message),
-    );
+  if (guardianContractFailed) {
+    redirectParams.set("guardianContract", "failed");
   }
 
   const redirectQuery = redirectParams.toString();
