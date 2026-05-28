@@ -241,9 +241,15 @@ export async function createContaAzulContractForEnrollment(
     failureCustomerId = customerId;
     failureAmount = amount;
 
-    const startDate = enrollment.start_date ?? toDateString(new Date());
-    const firstDueDate = calculateFirstDueDate(startDate, settings.default_due_day);
+    const today = new Date();
+    const todayString = toDateString(today);
+    const startDate = enrollment.start_date ?? todayString;
+    const firstDueDate = calculateFirstDueDate(settings.default_due_day, today);
     failureDueDate = firstDueDate;
+    console.log("[CA CONTRACT] enrollmentStartDate", startDate);
+    console.log("[CA CONTRACT] today", todayString);
+    console.log("[CA CONTRACT] defaultDueDay", settings.default_due_day);
+    console.log("[CA CONTRACT] firstDueDate", firstDueDate);
     const client = new ContaAzulClient();
     const contractNumber = await client.getNextContractNumber();
     const description = buildMonthlyServiceDescription(student);
@@ -251,7 +257,7 @@ export async function createContaAzulContractForEnrollment(
     const response = await client.createContract({
       customerId,
       contractNumber,
-      issueDate: toDateString(new Date()),
+      issueDate: todayString,
       startDate,
       endDate: enrollment.end_date,
       firstDueDate,
@@ -972,18 +978,15 @@ function calculateDueDate(defaultDueDay: number | null) {
   return toDateString(dueDate);
 }
 
-function calculateFirstDueDate(startDate: string, defaultDueDay: number) {
-  const [year, month] = startDate.split("-").map(Number);
-  const start = new Date(year, month - 1, 1);
+function calculateFirstDueDate(defaultDueDay: number, baseDate = new Date()) {
   let dueDate = new Date(
-    start.getFullYear(),
-    start.getMonth(),
-    clampDay(start.getFullYear(), start.getMonth(), defaultDueDay),
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    clampDay(baseDate.getFullYear(), baseDate.getMonth(), defaultDueDay),
   );
-  const enrollmentStart = new Date(`${startDate}T00:00:00`);
 
-  if (dueDate < enrollmentStart) {
-    const nextMonth = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+  if (dueDate < startOfToday(baseDate)) {
+    const nextMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
     dueDate = new Date(
       nextMonth.getFullYear(),
       nextMonth.getMonth(),
