@@ -26,6 +26,7 @@ type EnrollmentSnapshot = {
   class_id: string | null;
   financial_guardian_id: string | null;
   monthly_amount: number | string | null;
+  status: string | null;
   start_date: string | null;
   end_date: string | null;
   first_due_date: string | null;
@@ -154,7 +155,7 @@ export async function addEnrollmentToGuardianFinancialContract(
   enrollmentId: string,
 ) {
   const supabase = createAdminClient();
-  console.info("[GUARDIAN CONTRACT] start");
+  console.info("[GUARDIAN CONTRACT] addEnrollment start");
   console.info("[GUARDIAN CONTRACT] enrollmentId", enrollmentId);
 
   let guardianContractId: string | null = null;
@@ -173,6 +174,13 @@ export async function addEnrollmentToGuardianFinancialContract(
       throw new GuardianContractSyncError(
         "validate_enrollment",
         "Matrícula sem responsável financeiro.",
+      );
+    }
+
+    if (enrollment.status !== "active") {
+      throw new GuardianContractSyncError(
+        "validate_enrollment",
+        "Matrícula não ativa; contrato consolidado não atualizado.",
       );
     }
 
@@ -228,10 +236,12 @@ export async function addEnrollmentToGuardianFinancialContract(
       firstDueDate: enrollment.first_due_date,
     });
     guardianContractId = guardianContract.id;
+    console.info("[GUARDIAN CONTRACT] contractId", guardianContract.id);
     const existingItem = await getExistingContractItem(supabase, enrollment.id);
+    let itemId = existingItem?.id ? String(existingItem.id) : null;
 
     if (!existingItem) {
-      const { error: itemError } = await supabase
+      const { data: createdItem, error: itemError } = await supabase
         .from("guardian_financial_contract_items")
         .insert({
           guardian_contract_id: guardianContract.id,
@@ -243,10 +253,14 @@ export async function addEnrollmentToGuardianFinancialContract(
           status: "active",
           started_at: enrollment.start_date,
           ended_at: enrollment.end_date,
-        });
+        })
+        .select("id")
+        .single();
 
       if (itemError) {
         if (itemError.code === "23505") {
+          const duplicateItem = await getExistingContractItem(supabase, enrollment.id);
+          itemId = duplicateItem?.id ? String(duplicateItem.id) : null;
           console.info("[GUARDIAN CONTRACT] itemCreated", false);
         } else {
           throw new GuardianContractSyncError(
@@ -256,11 +270,13 @@ export async function addEnrollmentToGuardianFinancialContract(
           );
         }
       } else {
+        itemId = createdItem?.id ? String(createdItem.id) : null;
         console.info("[GUARDIAN CONTRACT] itemCreated", true);
       }
     } else {
       console.info("[GUARDIAN CONTRACT] itemCreated", false);
     }
+    console.info("[GUARDIAN CONTRACT] itemId", itemId);
 
     const totalAmount = await recalculateContractTotal(supabase, guardianContract.id);
     const nextStatus = guardianContract.provider_contract_id
@@ -286,26 +302,19 @@ export async function addEnrollmentToGuardianFinancialContract(
 
     console.info("[GUARDIAN CONTRACT] totalAmount", totalAmount);
 
-    if (!guardianContract.provider_contract_id) {
-      const syncResult = await syncGuardianFinancialContractToContaAzul(
-        guardianContract.id,
-      );
-
-      return {
-        guardianContractId: guardianContract.id,
-        status: syncResult.status,
-        totalAmount,
-      };
-    }
-
     return {
       guardianContractId: guardianContract.id,
       status: nextStatus,
       totalAmount,
+      itemId,
     };
   } catch (error) {
     console.error("[GUARDIAN CONTRACT] failed stage", getErrorStage(error));
     console.error("[GUARDIAN CONTRACT] error message", getErrorMessage(error));
+    console.error("[GUARDIAN CONTRACT] error", {
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+    });
 
     if (guardianContractId) {
       await saveSyncFailure(supabase, guardianContractId, error);
@@ -384,6 +393,92 @@ export async function syncGuardianFinancialContractToContaAzul(
     await saveSyncFailure(supabase, guardianContractId, error);
     throw error;
   }
+}
+
+export async function backfillMissingGuardianContractItems() {
+  const supabase = createAdminClient();
+  const { data: enrollments, error: enrollmentsError } = await supabase
+    .from("enrollments")
+    .select(
+      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, end_date, first_due_date",
+    )
+    .eq("status", "active")
+    .not("financial_guardian_id", "is", null)
+    .not("monthly_amount", "is", null)
+    .not("start_date", "is", null)
+    .not("end_date", "is", null)
+    .not("first_due_date", "is", null);
+
+  if (enrollmentsError) {
+    throw new GuardianContractSyncError(
+      "backfill_load_enrollments",
+      enrollmentsError.message,
+      enrollmentsError,
+    );
+  }
+
+  const { data: existingItems, error: itemsError } = await supabase
+    .from("guardian_financial_contract_items")
+    .select("enrollment_id");
+
+  if (itemsError) {
+    throw new GuardianContractSyncError(
+      "backfill_load_items",
+      itemsError.message,
+      itemsError,
+    );
+  }
+
+  const enrollmentIdsWithItems = new Set(
+    (existingItems ?? [])
+      .map((item) => item.enrollment_id)
+      .filter((id): id is string => typeof id === "string"),
+  );
+  const missingEnrollments = ((enrollments ?? []) as unknown as EnrollmentSnapshot[])
+    .filter((enrollment) => !enrollmentIdsWithItems.has(enrollment.id))
+    .filter((enrollment) => {
+      const amount = normalizeAmount(enrollment.monthly_amount);
+
+      return Boolean(amount && amount > 0);
+    });
+  const results: Array<{
+    enrollmentId: string;
+    status: "created" | "failed";
+    guardianContractId?: string;
+    itemId?: string | null;
+    message?: string;
+  }> = [];
+
+  for (const enrollment of missingEnrollments) {
+    try {
+      const result = await addEnrollmentToGuardianFinancialContract(enrollment.id);
+      results.push({
+        enrollmentId: enrollment.id,
+        status: "created",
+        guardianContractId: result.guardianContractId,
+        itemId: result.itemId,
+      });
+    } catch (error) {
+      console.error("[GUARDIAN CONTRACT] backfill error", {
+        enrollmentId: enrollment.id,
+        stage: getErrorStage(error),
+        message: getErrorMessage(error),
+      });
+      results.push({
+        enrollmentId: enrollment.id,
+        status: "failed",
+        message: getErrorMessage(error),
+      });
+    }
+  }
+
+  return {
+    scanned: enrollments?.length ?? 0,
+    missing: missingEnrollments.length,
+    created: results.filter((result) => result.status === "created").length,
+    failed: results.filter((result) => result.status === "failed").length,
+    results,
+  };
 }
 
 export async function replaceGuardianContractOnContaAzul(
@@ -622,7 +717,7 @@ async function getEnrollmentSnapshot(
   const { data, error } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, class_id, financial_guardian_id, monthly_amount, start_date, end_date, first_due_date",
+      "id, student_id, class_id, financial_guardian_id, monthly_amount, status, start_date, end_date, first_due_date",
     )
     .eq("id", enrollmentId)
     .maybeSingle();
