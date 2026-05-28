@@ -23,6 +23,7 @@ type MatriculasPageProps = {
     created?: string;
     receivable?: string;
     contract?: string;
+    guardianContract?: string;
   }>;
 };
 
@@ -88,6 +89,13 @@ export default async function MatriculasPage({
         >
           {contractMessages[params.contract] ??
             "Não foi possível criar contrato no Conta Azul."}
+        </div>
+      ) : null}
+
+      {params?.guardianContract === "failed" ? (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Matrícula criada, mas não foi possível registrar o contrato financeiro
+          consolidado do responsável.
         </div>
       ) : null}
 

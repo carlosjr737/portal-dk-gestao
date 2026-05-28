@@ -10,6 +10,7 @@ import {
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
 import { createContaAzulContractForEnrollment } from "@/features/finance/conta-azul/enrollment-receivables";
+import { addEnrollmentToGuardianFinancialContract } from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -176,6 +177,22 @@ export async function createEnrollment(
     });
   }
 
+  const guardianContractStatus = await addEnrollmentToGuardianFinancialContract(
+    data.id as string,
+  )
+    .then(() => "created" as const)
+    .catch((guardianContractError) => {
+      console.error("[GUARDIAN CONTRACT] enrollment registration failed", {
+        enrollmentId: data.id,
+        message:
+          guardianContractError instanceof Error
+            ? guardianContractError.message
+            : guardianContractError,
+      });
+
+      return "failed" as const;
+    });
+
   let contractStatus: "created" | "failed" | "skipped" = "skipped";
 
   if (contaAzulSettings.shouldCreateContract) {
@@ -232,6 +249,10 @@ export async function createEnrollment(
     redirectParams.set("contract", "failed");
   } else {
     redirectParams.set("created", "1");
+  }
+
+  if (guardianContractStatus === "failed") {
+    redirectParams.set("guardianContract", "failed");
   }
 
   const redirectQuery = redirectParams.toString();
