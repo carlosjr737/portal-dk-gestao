@@ -134,7 +134,9 @@ export async function createEnrollment(
   const { data, error } = await supabase
     .from("enrollments")
     .insert(payload)
-    .select("id, student_id, class_id, status, start_date")
+    .select(
+      "id, student_id, class_id, status, financial_guardian_id, monthly_amount, start_date, end_date, first_due_date",
+    )
     .single();
 
   if (error || !data) {
@@ -149,8 +151,13 @@ export async function createEnrollment(
         : "Não foi possível criar a matrícula.",
     };
   }
-  console.log("[ENROLLMENT] enrollment created", {
+  console.log("[ENROLLMENT CREATED]", {
     enrollmentId: data.id,
+    financialGuardianId: data.financial_guardian_id,
+    monthlyAmount: data.monthly_amount,
+    startDate: data.start_date,
+    endDate: data.end_date,
+    firstDueDate: data.first_due_date,
   });
 
   if (data.status === "active") {
@@ -161,6 +168,8 @@ export async function createEnrollment(
       source: "enrollment_created",
     });
   }
+
+  console.log("[CALLING GUARDIAN CONTRACT]", data.id);
 
   const guardianContractResult =
     await addEnrollmentToGuardianFinancialContract(data.id as string);

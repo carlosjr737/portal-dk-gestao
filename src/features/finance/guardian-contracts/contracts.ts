@@ -170,13 +170,15 @@ export async function getOrCreateGuardianFinancialContractDraft(
 export async function addEnrollmentToGuardianFinancialContract(
   enrollmentId: string,
 ): Promise<AddEnrollmentToGuardianContractResult> {
-  const supabase = createAdminClient();
+  console.log("[GUARDIAN CONTRACT START]", { enrollmentId });
   console.info("[GUARDIAN CONTRACT] addEnrollment start");
   console.info("[GUARDIAN CONTRACT] enrollmentId", enrollmentId);
 
   let guardianContractId: string | null = null;
+  let supabase: ReturnType<typeof createAdminClient> | null = null;
 
   try {
+    supabase = createAdminClient();
     const enrollment = await getEnrollmentSnapshot(supabase, enrollmentId);
 
     if (!enrollment) {
@@ -185,6 +187,16 @@ export async function addEnrollmentToGuardianFinancialContract(
         "Matrícula não encontrada.",
       );
     }
+
+    console.log("[GUARDIAN CONTRACT ENROLLMENT LOADED]", {
+      enrollmentId: enrollment.id,
+      status: enrollment.status,
+      financialGuardianId: enrollment.financial_guardian_id,
+      monthlyAmount: enrollment.monthly_amount,
+      startDate: enrollment.start_date,
+      endDate: enrollment.end_date,
+      firstDueDate: enrollment.first_due_date,
+    });
 
     if (!enrollment.financial_guardian_id) {
       throw new GuardianContractSyncError(
@@ -252,6 +264,9 @@ export async function addEnrollmentToGuardianFinancialContract(
       firstDueDate: enrollment.first_due_date,
     });
     guardianContractId = guardianContract.id;
+    console.log("[GUARDIAN CONTRACT FOUND OR CREATED]", {
+      guardianContractId,
+    });
     console.info("[GUARDIAN CONTRACT] contractId", guardianContract.id);
     const existingItem = await getExistingContractItem(supabase, enrollment.id);
     let itemId = existingItem?.id ? String(existingItem.id) : null;
@@ -287,9 +302,11 @@ export async function addEnrollmentToGuardianFinancialContract(
         }
       } else {
         itemId = createdItem?.id ? String(createdItem.id) : null;
+        console.log("[GUARDIAN CONTRACT ITEM INSERTED]", { itemId });
         console.info("[GUARDIAN CONTRACT] itemCreated", true);
       }
     } else {
+      console.log("[GUARDIAN CONTRACT ITEM INSERTED]", { itemId });
       console.info("[GUARDIAN CONTRACT] itemCreated", false);
     }
     console.info("[GUARDIAN CONTRACT] itemId", itemId);
@@ -317,6 +334,7 @@ export async function addEnrollmentToGuardianFinancialContract(
     }
 
     console.info("[GUARDIAN CONTRACT] totalAmount", totalAmount);
+    console.log("[GUARDIAN CONTRACT TOTAL UPDATED]", { totalAmount });
 
     return {
       status: "created",
@@ -336,8 +354,14 @@ export async function addEnrollmentToGuardianFinancialContract(
       message,
       details,
     });
+    console.error("[GUARDIAN CONTRACT ERROR]", {
+      stage,
+      enrollmentId,
+      message,
+      details: error,
+    });
 
-    if (guardianContractId) {
+    if (supabase && guardianContractId) {
       await saveSyncFailure(supabase, guardianContractId, error);
     }
 
