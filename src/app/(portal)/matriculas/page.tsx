@@ -44,6 +44,19 @@ export default async function MatriculasPage({
   ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
 
+  console.log(
+    "[ENROLLMENTS LIST CONTRACT DEBUG]",
+    enrollments.slice(0, 5).map((enrollment) => ({
+      enrollmentId: enrollment.id,
+      guardianContractItemId: enrollment.guardianContractItemId,
+      guardianContractId: enrollment.guardianContractId,
+      guardianContractStatus: enrollment.guardianContractStatus,
+      guardianContractProviderContractId:
+        enrollment.guardianContractProviderContractId,
+      guardianContractTotalAmount: enrollment.guardianContractTotalAmount,
+    })),
+  );
+
   return (
     <div>
       <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
@@ -191,7 +204,7 @@ export default async function MatriculasPage({
                             <input
                               type="hidden"
                               name="guardianContractId"
-                              value={enrollment.guardianFinancialContract?.id}
+                              value={enrollment.guardianContractId ?? ""}
                             />
                             <button
                               type="submit"
@@ -200,8 +213,7 @@ export default async function MatriculasPage({
                               {getGuardianContractSyncButtonLabel(enrollment)}
                             </button>
                           </form>
-                        ) : enrollment.guardianFinancialContract?.status ===
-                          "active" ? (
+                        ) : enrollment.guardianContractStatus === "active" ? (
                           <span className="text-xs text-muted-foreground">
                             Contrato ativo
                           </span>
@@ -253,6 +265,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       { data: teachers, error: teachersError },
       { data: financialRecords, error: financialRecordsError },
       { data: guardianContractItems, error: guardianContractItemsError },
+      { data: guardianContracts, error: guardianContractsError },
     ] = await Promise.all([
       supabase
         .from("enrollments")
@@ -276,9 +289,10 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         .order("created_at", { ascending: false }),
       supabase
         .from("guardian_financial_contract_items")
-        .select(
-          "id, enrollment_id, guardian_contract_id, guardian_financial_contracts!inner(id, status, provider_contract_id, total_amount, version, error_message)",
-        ),
+        .select("id, enrollment_id, guardian_contract_id"),
+      supabase
+        .from("guardian_financial_contracts")
+        .select("id, status, provider_contract_id, total_amount, version, error_message"),
     ]);
 
     const firstError =
@@ -288,7 +302,8 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       guardiansError ??
       teachersError ??
       financialRecordsError ??
-      guardianContractItemsError;
+      guardianContractItemsError ??
+      guardianContractsError;
 
     if (firstError) {
       console.error("Enrollments list load error:", firstError.message);
@@ -336,9 +351,16 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       string,
       EnrollmentListRow["externalFinancialRecord"]
     >();
-    const guardianContractsByEnrollmentId = new Map<
+    const guardianContractItemsByEnrollmentId = new Map<
       string,
-      EnrollmentListRow["guardianFinancialContract"]
+      {
+        itemId: string;
+        guardianContractId: string;
+      }
+    >();
+    const guardianContractsById = new Map<
+      string,
+      Omit<NonNullable<EnrollmentListRow["guardianFinancialContract"]>, "item_id">
     >();
 
     for (const record of financialRecords ?? []) {
@@ -365,25 +387,15 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       }
     }
 
-    for (const item of guardianContractItems ?? []) {
-      const enrollmentId = item.enrollment_id as string | null;
-      const guardianContractId = item.guardian_contract_id as string | null;
-      const contract = item.guardian_financial_contracts as {
-        id?: string | null;
-        status?: string | null;
-        provider_contract_id?: string | null;
-        total_amount?: number | string | null;
-        version?: number | string | null;
-        error_message?: string | null;
-      } | null;
+    for (const contract of guardianContracts ?? []) {
+      const contractId = contract.id as string | null;
 
-      if (!enrollmentId || !guardianContractId || !contract) {
+      if (!contractId) {
         continue;
       }
 
-      guardianContractsByEnrollmentId.set(enrollmentId, {
-        id: guardianContractId,
-        item_id: (item.id as string | null) ?? null,
+      guardianContractsById.set(contractId, {
+        id: contractId,
         status: String(contract.status ?? ""),
         provider_contract_id:
           (contract.provider_contract_id as string | null) ?? null,
@@ -403,7 +415,29 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       });
     }
 
-    return (enrollments ?? []).map((enrollment) => ({
+    for (const item of guardianContractItems ?? []) {
+      const enrollmentId = item.enrollment_id as string | null;
+      const guardianContractId = item.guardian_contract_id as string | null;
+
+      if (!enrollmentId || !guardianContractId || !item.id) {
+        continue;
+      }
+
+      guardianContractItemsByEnrollmentId.set(enrollmentId, {
+        itemId: item.id as string,
+        guardianContractId,
+      });
+    }
+
+    return (enrollments ?? []).map((enrollment) => {
+      const contractItem = guardianContractItemsByEnrollmentId.get(
+        enrollment.id as string,
+      );
+      const contract = contractItem
+        ? guardianContractsById.get(contractItem.guardianContractId)
+        : null;
+
+      return {
       id: enrollment.id as string,
       status: enrollment.status as EnrollmentListRow["status"],
       start_date: (enrollment.start_date as string | null) ?? null,
@@ -427,6 +461,12 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       cancellation_reason:
         (enrollment.cancellation_reason as string | null) ?? null,
       cancelled_at: (enrollment.cancelled_at as string | null) ?? null,
+      guardianContractItemId: contractItem?.itemId ?? null,
+      guardianContractId: contractItem?.guardianContractId ?? null,
+      guardianContractStatus: contract?.status ?? null,
+      guardianContractProviderContractId:
+        contract?.provider_contract_id ?? null,
+      guardianContractTotalAmount: contract?.total_amount ?? null,
       student: studentsById.get(enrollment.student_id as string) ?? null,
       class: classesById.get(enrollment.class_id as string) ?? null,
       financialGuardian:
@@ -434,8 +474,14 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       externalFinancialRecord:
         financialRecordsByEnrollmentId.get(enrollment.id as string) ?? null,
       guardianFinancialContract:
-        guardianContractsByEnrollmentId.get(enrollment.id as string) ?? null,
-    }));
+        contract && contractItem
+          ? {
+              ...contract,
+              item_id: contractItem.itemId,
+            }
+          : null,
+      };
+    });
   } catch (error) {
     console.error(
       "Enrollments list load error:",
@@ -450,9 +496,7 @@ function ConsolidatedContractStatus({
 }: {
   enrollment: EnrollmentListRow;
 }) {
-  const contract = enrollment.guardianFinancialContract;
-
-  if (!contract) {
+  if (!enrollment.guardianContractId) {
     return (
       <span className="text-sm text-muted-foreground">
         Contrato consolidado não criado
@@ -461,32 +505,33 @@ function ConsolidatedContractStatus({
   }
 
   const statusLabel =
-    contract.status === "draft" && !contract.provider_contract_id
+    enrollment.guardianContractStatus === "draft" &&
+    !enrollment.guardianContractProviderContractId
       ? "Contrato consolidado pendente"
-      : contract.status === "active" && contract.provider_contract_id
-      ? "Contrato ativo"
-      : contract.status === "pending_replacement"
-        ? "Pendente de sincronização"
-        : contract.status === "sync_failed"
-          ? "Falha na sincronização"
-          : contract.status === "active"
-            ? "Contrato consolidado ativo"
-            : contract.status;
+      : enrollment.guardianContractStatus === "active" &&
+          enrollment.guardianContractProviderContractId
+        ? "Contrato consolidado ativo"
+        : enrollment.guardianContractStatus === "pending_replacement"
+          ? "Pendente de sincronização"
+          : enrollment.guardianContractStatus === "sync_failed"
+            ? "Falha na sincronização"
+            : enrollment.guardianContractStatus ?? "Contrato consolidado";
 
   return (
     <div className="space-y-1 text-sm">
       <div className="font-medium text-foreground">{statusLabel}</div>
-      {contract.provider_contract_id ? (
+      {enrollment.guardianContractProviderContractId ? (
         <div className="font-mono text-xs text-muted-foreground">
-          {contract.provider_contract_id}
+          {enrollment.guardianContractProviderContractId}
         </div>
       ) : null}
       <div className="text-xs text-muted-foreground">
-        {formatMoney(contract.total_amount)} · v{contract.version ?? 1}
+        {formatMoney(enrollment.guardianContractTotalAmount)} · v
+        {enrollment.guardianFinancialContract?.version ?? 1}
       </div>
-      {contract.error_message ? (
+      {enrollment.guardianFinancialContract?.error_message ? (
         <div className="max-w-[260px] text-xs text-red-600">
-          {contract.error_message}
+          {enrollment.guardianFinancialContract.error_message}
         </div>
       ) : null}
     </div>
@@ -494,17 +539,16 @@ function ConsolidatedContractStatus({
 }
 
 function shouldShowGuardianContractSync(enrollment: EnrollmentListRow) {
-  const contract = enrollment.guardianFinancialContract;
-
   return (
-    (contract?.status === "draft" && !contract.provider_contract_id) ||
-    contract?.status === "pending_replacement" ||
-    contract?.status === "sync_failed"
+    (enrollment.guardianContractStatus === "draft" &&
+      !enrollment.guardianContractProviderContractId) ||
+    enrollment.guardianContractStatus === "pending_replacement" ||
+    enrollment.guardianContractStatus === "sync_failed"
   );
 }
 
 function getGuardianContractSyncButtonLabel(enrollment: EnrollmentListRow) {
-  const status = enrollment.guardianFinancialContract?.status;
+  const status = enrollment.guardianContractStatus;
 
   if (status === "pending_replacement") {
     return "Sincronizar atualização";

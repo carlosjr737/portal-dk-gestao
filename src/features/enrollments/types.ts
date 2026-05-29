@@ -44,6 +44,11 @@ export type EnrollmentListRow = {
   cancellation_reason: string | null;
   cancelled_at: string | null;
   financial_guardian_id: string | null;
+  guardianContractItemId: string | null;
+  guardianContractId: string | null;
+  guardianContractStatus: string | null;
+  guardianContractProviderContractId: string | null;
+  guardianContractTotalAmount: number | null;
   student: {
     id: string;
     full_name: string;
