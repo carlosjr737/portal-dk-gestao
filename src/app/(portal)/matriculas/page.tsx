@@ -94,15 +94,15 @@ export default async function MatriculasPage({
       {params?.guardianContract === "failed" ||
       params?.guardianContract === "sync_failed" ? (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Não foi possível registrar ou sincronizar o contrato financeiro
-          consolidado do responsável. Verifique os logs e tente novamente.
+          Não foi possível sincronizar o contrato consolidado com o Conta
+          Azul. Verifique os logs.
         </div>
       ) : null}
 
       {params?.guardianContract === "synced" ||
       params?.guardianContract === "sync_success" ? (
         <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Contrato consolidado sincronizado com o Conta Azul.
+          Contrato consolidado sincronizado com o Conta Azul com sucesso.
         </div>
       ) : null}
 
@@ -207,7 +207,7 @@ export default async function MatriculasPage({
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">
-                            Aguardando contrato consolidado
+                            Sem contrato consolidado
                           </span>
                         )}
                       </td>
@@ -252,7 +252,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       { data: guardians, error: guardiansError },
       { data: teachers, error: teachersError },
       { data: financialRecords, error: financialRecordsError },
-      { data: guardianContracts, error: guardianContractsError },
+      { data: guardianContractItems, error: guardianContractItemsError },
     ] = await Promise.all([
       supabase
         .from("enrollments")
@@ -275,11 +275,10 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         .eq("provider", "conta_azul")
         .order("created_at", { ascending: false }),
       supabase
-        .from("guardian_financial_contracts")
+        .from("guardian_financial_contract_items")
         .select(
-          "id, guardian_id, year, status, provider_contract_id, total_amount, version, error_message",
-        )
-        .eq("provider", "conta_azul"),
+          "id, enrollment_id, guardian_contract_id, guardian_financial_contracts!inner(id, status, provider_contract_id, total_amount, version, error_message)",
+        ),
     ]);
 
     const firstError =
@@ -289,7 +288,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       guardiansError ??
       teachersError ??
       financialRecordsError ??
-      guardianContractsError;
+      guardianContractItemsError;
 
     if (firstError) {
       console.error("Enrollments list load error:", firstError.message);
@@ -337,7 +336,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       string,
       EnrollmentListRow["externalFinancialRecord"]
     >();
-    const guardianContractsByGuardianYear = new Map<
+    const guardianContractsByEnrollmentId = new Map<
       string,
       EnrollmentListRow["guardianFinancialContract"]
     >();
@@ -366,17 +365,26 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       }
     }
 
-    for (const contract of guardianContracts ?? []) {
-      const guardianId = contract.guardian_id as string | null;
-      const year = contract.year as number | null;
+    for (const item of guardianContractItems ?? []) {
+      const enrollmentId = item.enrollment_id as string | null;
+      const guardianContractId = item.guardian_contract_id as string | null;
+      const contract = item.guardian_financial_contracts as {
+        id?: string | null;
+        status?: string | null;
+        provider_contract_id?: string | null;
+        total_amount?: number | string | null;
+        version?: number | string | null;
+        error_message?: string | null;
+      } | null;
 
-      if (!guardianId || !year) {
+      if (!enrollmentId || !guardianContractId || !contract) {
         continue;
       }
 
-      guardianContractsByGuardianYear.set(`${guardianId}:${year}`, {
-        id: contract.id as string,
-        status: contract.status as string,
+      guardianContractsByEnrollmentId.set(enrollmentId, {
+        id: guardianContractId,
+        item_id: (item.id as string | null) ?? null,
+        status: String(contract.status ?? ""),
         provider_contract_id:
           (contract.provider_contract_id as string | null) ?? null,
         total_amount:
@@ -426,11 +434,7 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       externalFinancialRecord:
         financialRecordsByEnrollmentId.get(enrollment.id as string) ?? null,
       guardianFinancialContract:
-        guardianContractsByGuardianYear.get(
-          `${String(enrollment.financial_guardian_id ?? "")}:${getYear(
-            enrollment.start_date as string | null,
-          )}`,
-        ) ?? null,
+        guardianContractsByEnrollmentId.get(enrollment.id as string) ?? null,
     }));
   } catch (error) {
     console.error(
@@ -502,17 +506,13 @@ function shouldShowGuardianContractSync(enrollment: EnrollmentListRow) {
 function getGuardianContractSyncButtonLabel(enrollment: EnrollmentListRow) {
   const status = enrollment.guardianFinancialContract?.status;
 
+  if (status === "pending_replacement") {
+    return "Sincronizar atualização";
+  }
+
   if (status === "sync_failed") {
     return "Tentar novamente";
   }
 
   return "Sincronizar";
-}
-
-function getYear(date: string | null) {
-  if (!date) {
-    return "";
-  }
-
-  return String(date).slice(0, 4);
 }

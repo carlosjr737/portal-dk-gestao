@@ -68,6 +68,7 @@ export type EnrollmentListRow = {
   } | null;
   guardianFinancialContract: {
     id: string;
+    item_id: string | null;
     status: string;
     provider_contract_id: string | null;
     total_amount: number | null;
