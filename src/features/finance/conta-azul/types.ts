@@ -100,6 +100,7 @@ export type ContaAzulCreateContractResponse = {
 export type ContaAzulCloseContractResponse = {
   status: number;
   body: unknown;
+  ok: boolean;
 };
 
 export type ContaAzulService = {

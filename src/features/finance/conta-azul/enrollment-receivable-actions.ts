@@ -6,14 +6,10 @@ import {
   getAuthenticatedUser,
   getProfileByUserId,
 } from "@/features/auth/session";
-import {
-  createContaAzulContractFromGuardianContract,
-  replaceGuardianContractOnContaAzul,
-} from "@/features/finance/guardian-contracts/contracts";
+import { syncGuardianFinancialContractToContaAzul } from "@/features/finance/guardian-contracts/contracts";
 
-export async function syncGuardianFinancialContractAction(formData: FormData) {
+export async function syncGuardianContractAction(formData: FormData) {
   const guardianContractId = String(formData.get("guardianContractId") ?? "");
-  const mode = String(formData.get("mode") ?? "replace");
   const user = await getAuthenticatedUser();
   const profile = user ? await getProfileByUserId(user.id) : null;
 
@@ -28,19 +24,13 @@ export async function syncGuardianFinancialContractAction(formData: FormData) {
   let synced = false;
 
   try {
-    if (mode === "create") {
-      await createContaAzulContractFromGuardianContract(guardianContractId);
-    } else {
-      await replaceGuardianContractOnContaAzul(
-        guardianContractId,
-        "Atualização de matrículas/valores",
-      );
-    }
+    const result =
+      await syncGuardianFinancialContractToContaAzul(guardianContractId);
 
+    synced = result.status === "active";
     revalidatePath("/matriculas");
-    synced = true;
   } catch (error) {
-    console.error("[GUARDIAN CONTRACT REPLACE] action failed", {
+    console.error("[GUARDIAN CONTRACT SYNC] action failed", {
       guardianContractId,
       message: error instanceof Error ? error.message : error,
     });
@@ -50,7 +40,9 @@ export async function syncGuardianFinancialContractAction(formData: FormData) {
 
   redirect(
     synced
-      ? "/matriculas?guardianContract=synced"
-      : "/matriculas?guardianContract=failed",
+      ? "/matriculas?guardianContract=sync_success"
+      : "/matriculas?guardianContract=sync_failed",
   );
 }
+
+export const syncGuardianFinancialContractAction = syncGuardianContractAction;

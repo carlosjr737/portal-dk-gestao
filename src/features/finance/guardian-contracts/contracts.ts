@@ -48,6 +48,7 @@ type GuardianFinancialContract = {
   end_date: string;
   first_due_date: string;
   contract_payload?: unknown;
+  last_sync_payload?: unknown;
 };
 
 type GuardianContractItem = {
@@ -407,6 +408,9 @@ export async function syncGuardianFinancialContractToContaAzul(
   guardianContractId: string,
 ) {
   const supabase = createAdminClient();
+  let failurePersisted = false;
+  console.info("[GUARDIAN CONTRACT SYNC] start");
+  console.info("[GUARDIAN CONTRACT SYNC] guardianContractId", guardianContractId);
 
   try {
     const contract = await getGuardianContract(supabase, guardianContractId);
@@ -418,53 +422,169 @@ export async function syncGuardianFinancialContractToContaAzul(
       );
     }
 
-    if (contract.provider_contract_id) {
+    const syncData = await prepareContaAzulContractSync(supabase, contract);
+    const hasProviderContract = Boolean(contract.provider_contract_id);
+
+    console.info("[GUARDIAN CONTRACT SYNC] itemsCount", syncData.items.length);
+    console.info("[GUARDIAN CONTRACT SYNC] totalAmount", syncData.totalAmount);
+    console.info("[GUARDIAN CONTRACT SYNC] hasProviderContract", hasProviderContract);
+
+    if (!hasProviderContract) {
+      console.info("[GUARDIAN CONTRACT SYNC] creating contract");
+
+      const created = await createContaAzulContractForSync(syncData);
+      await updateGuardianContractAfterCreate(supabase, {
+        guardianContractId,
+        providerCustomerId: syncData.providerCustomerId,
+        providerContractId: created.providerContractId,
+        providerLegacyId: created.providerLegacyId,
+        totalAmount: syncData.totalAmount,
+        contractPayload: created.contractPayload,
+        lastSyncPayload: {
+          action: "created",
+          response: created.response,
+          sanitized_payload: created.contractPayload.sanitized_payload,
+        },
+      });
+
+      console.info("[GUARDIAN CONTRACT SYNC] success", {
+        guardianContractId,
+        providerContractId: created.providerContractId,
+      });
+
       return {
         status: "active" as const,
-        providerContractId: contract.provider_contract_id,
-        providerLegacyId: contract.provider_legacy_id,
-        response: null,
+        providerContractId: created.providerContractId,
+        providerLegacyId: created.providerLegacyId,
+        response: created.response,
       };
     }
 
-    const { response, contractPayload, providerContractId, providerLegacyId } =
-      await createProviderContractForCurrentItems(supabase, contract);
-    const { error } = await supabase
-      .from("guardian_financial_contracts")
-      .update({
-        provider_contract_id: providerContractId,
-        provider_legacy_id: providerLegacyId,
-        status: "active",
-        contract_payload: contractPayload,
-        error_message: null,
-        last_sync_payload: null,
-      })
-      .eq("id", guardianContractId);
+    const oldProviderContractId = contract.provider_contract_id as string;
+    await saveCurrentVersion(
+      supabase,
+      contract,
+      "Substituição por nova sincronização consolidada",
+      {
+        status: "replaced",
+        payload: contract.contract_payload ?? contract.last_sync_payload ?? null,
+      },
+    );
 
-    if (error) {
+    console.info("[GUARDIAN CONTRACT SYNC] closing old contract");
+    const closeResponse = await syncData.client.closeContaAzulContract(
+      oldProviderContractId,
+    );
+
+    if (!closeResponse.ok) {
+      const errorMessage = `Falha ao encerrar contrato antigo no Conta Azul: ${getRawResponseMessage(closeResponse.body)}`;
+      const { error } = await supabase
+        .from("guardian_financial_contracts")
+        .update({
+          status: "sync_failed",
+          error_message: errorMessage,
+          last_sync_payload: {
+            action: "close_failed",
+            old_provider_contract_id: oldProviderContractId,
+            status: closeResponse.status,
+            body: closeResponse.body,
+          },
+        })
+        .eq("id", guardianContractId);
+
+      if (error) {
+        throw new GuardianContractSyncError(
+          "save_close_failure",
+          error.message,
+          error,
+        );
+      }
+      failurePersisted = true;
+
       throw new GuardianContractSyncError(
-        "update_synced_contract",
-        error.message,
-        error,
+        "close_old_contract",
+        errorMessage,
+        closeResponse,
       );
     }
 
-    return {
-      status: "active" as const,
-      providerContractId,
-      providerLegacyId,
-      response,
-    };
-  } catch (error) {
-    console.error("[GUARDIAN CONTRACT SYNC] failed stage", getErrorStage(error));
-    console.error("[GUARDIAN CONTRACT SYNC] error message", getErrorMessage(error));
-    console.error(
-      "[GUARDIAN CONTRACT SYNC] response body",
-      getFailureResponseBody(error),
-    );
+    console.info("[GUARDIAN CONTRACT SYNC] creating replacement contract");
 
-    await saveSyncFailure(supabase, guardianContractId, error);
-    throw error;
+    try {
+      const created = await createContaAzulContractForSync(syncData);
+      const nextVersion = (contract.version ?? 1) + 1;
+      await updateGuardianContractAfterReplacement(supabase, {
+        guardianContractId,
+        providerCustomerId: syncData.providerCustomerId,
+        providerContractId: created.providerContractId,
+        providerLegacyId: created.providerLegacyId,
+        version: nextVersion,
+        totalAmount: syncData.totalAmount,
+        contractPayload: created.contractPayload,
+        lastSyncPayload: {
+          action: "replaced",
+          old_provider_contract_id: oldProviderContractId,
+          close_response: closeResponse,
+          new_response: created.response,
+          sanitized_payload: created.contractPayload.sanitized_payload,
+        },
+      });
+
+      console.info("[GUARDIAN CONTRACT SYNC] success", {
+        guardianContractId,
+        providerContractId: created.providerContractId,
+      });
+
+      return {
+        status: "active" as const,
+        providerContractId: created.providerContractId,
+        providerLegacyId: created.providerLegacyId,
+        response: created.response,
+      };
+    } catch (createError) {
+      const { error } = await supabase
+        .from("guardian_financial_contracts")
+        .update({
+          status: "sync_failed",
+          error_message:
+            "Contrato antigo encerrado, mas falhou ao criar novo contrato.",
+          last_sync_payload: {
+            action: "replacement_create_failed",
+            old_provider_contract_id: oldProviderContractId,
+            close_response: closeResponse,
+            error: buildFailurePayload(createError),
+          },
+        })
+        .eq("id", guardianContractId);
+
+      if (error) {
+        throw new GuardianContractSyncError(
+          "save_replacement_create_failure",
+          error.message,
+          error,
+        );
+      }
+      failurePersisted = true;
+
+      throw createError;
+    }
+  } catch (error) {
+    console.error("[GUARDIAN CONTRACT SYNC] failed", {
+      guardianContractId,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+      responseBody: getFailureResponseBody(error),
+    });
+
+    if (!failurePersisted) {
+      await saveSyncFailure(supabase, guardianContractId, error);
+    }
+
+    return {
+      status: "failed" as const,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+    };
   }
 }
 
@@ -860,6 +980,28 @@ async function createProviderContractForCurrentItems(
   supabase: ReturnType<typeof createAdminClient>,
   contract: GuardianFinancialContract,
 ) {
+  const syncData = await prepareContaAzulContractSync(supabase, contract);
+  const created = await createContaAzulContractForSync(syncData);
+
+  await syncContractCustomerAndTotal(
+    supabase,
+    contract.id,
+    syncData.providerCustomerId,
+    syncData.totalAmount,
+  );
+
+  return {
+    response: created.response,
+    contractPayload: created.contractPayload,
+    providerContractId: created.providerContractId,
+    providerLegacyId: created.providerLegacyId,
+  };
+}
+
+async function prepareContaAzulContractSync(
+  supabase: ReturnType<typeof createAdminClient>,
+  contract: GuardianFinancialContract,
+) {
   const [guardian, settings, items] = await Promise.all([
     getGuardian(supabase, contract.guardian_id),
     getContaAzulSettings(supabase),
@@ -908,6 +1050,11 @@ async function createProviderContractForCurrentItems(
     );
   }
 
+  const financialAccountId = settings.conta_azul_financial_account_id;
+  const revenueCategoryId = settings.conta_azul_revenue_category_id;
+  const serviceItemId = settings.conta_azul_service_item_id;
+  const defaultDueDay = settings.default_due_day;
+
   if (items.length === 0) {
     throw new GuardianContractSyncError(
       "validate_contract_items",
@@ -915,12 +1062,19 @@ async function createProviderContractForCurrentItems(
     );
   }
 
-  const totalAmount = sumItemAmounts(items);
+  const totalAmount = await recalculateContractTotal(supabase, contract.id);
 
   if (totalAmount <= 0) {
     throw new GuardianContractSyncError(
       "validate_contract_items",
       "Contrato consolidado sem itens ativos.",
+    );
+  }
+
+  if (!contract.start_date || !contract.end_date || !contract.first_due_date) {
+    throw new GuardianContractSyncError(
+      "validate_contract_dates",
+      "Contrato consolidado sem datas obrigatórias.",
     );
   }
 
@@ -931,9 +1085,8 @@ async function createProviderContractForCurrentItems(
     );
   }
 
-  const customerId = await ensureContaAzulCustomer(contract.guardian_id);
-  const serviceItemId = settings.conta_azul_service_item_id;
-  const client = new ContaAzulClient();
+  const providerCustomerId =
+    guardian.conta_azul_person_id ?? (await ensureContaAzulCustomer(contract.guardian_id));
   const todayString = toDateString(new Date());
   const firstDueDate = contract.first_due_date;
 
@@ -948,19 +1101,53 @@ async function createProviderContractForCurrentItems(
     );
   }
 
-  const response = await client.createContract({
-    customerId,
+  const { error: updateError } = await supabase
+    .from("guardian_financial_contracts")
+    .update({
+      total_amount: totalAmount,
+      provider_customer_id: providerCustomerId,
+    })
+    .eq("id", contract.id);
+
+  if (updateError) {
+    throw new GuardianContractSyncError(
+      "update_contract_total",
+      updateError.message,
+      updateError,
+    );
+  }
+
+  return {
+    client: new ContaAzulClient(),
+    contract,
+    guardian,
+    financialAccountId,
+    revenueCategoryId,
+    serviceItemId,
+    defaultDueDay,
+    items,
+    totalAmount,
+    providerCustomerId,
+    todayString,
+  };
+}
+
+async function createContaAzulContractForSync(
+  syncData: Awaited<ReturnType<typeof prepareContaAzulContractSync>>,
+) {
+  const response = await syncData.client.createContract({
+    customerId: syncData.providerCustomerId,
     contractNumber: buildUniqueContractNumber(),
-    issueDate: todayString,
-    startDate: contract.start_date,
-    endDate: contract.end_date,
-    firstDueDate,
-    dueDay: settings.default_due_day,
-    observations: buildContractObservation(guardian, contract),
-    financialAccountId: settings.conta_azul_financial_account_id,
-    revenueCategoryId: settings.conta_azul_revenue_category_id,
-    items: items.map((item) => ({
-      itemId: serviceItemId,
+    issueDate: syncData.todayString,
+    startDate: syncData.contract.start_date,
+    endDate: syncData.contract.end_date,
+    firstDueDate: syncData.contract.first_due_date,
+    dueDay: syncData.defaultDueDay,
+    observations: buildContractObservation(syncData.guardian, syncData.contract),
+    financialAccountId: syncData.financialAccountId,
+    revenueCategoryId: syncData.revenueCategoryId,
+    items: syncData.items.map((item) => ({
+      itemId: syncData.serviceItemId,
       description: item.description,
       amount: normalizeAmount(item.amount) ?? 0,
     })),
@@ -974,14 +1161,88 @@ async function createProviderContractForCurrentItems(
     throw new Error("create_contract failed: resposta sem id do contrato.");
   }
 
-  await syncContractCustomerAndTotal(supabase, contract.id, customerId, totalAmount);
-
   return {
     response,
     contractPayload,
     providerContractId,
     providerLegacyId,
   };
+}
+
+async function updateGuardianContractAfterCreate(
+  supabase: ReturnType<typeof createAdminClient>,
+  input: {
+    guardianContractId: string;
+    providerCustomerId: string;
+    providerContractId: string;
+    providerLegacyId: string | null;
+    totalAmount: number;
+    contractPayload: unknown;
+    lastSyncPayload: unknown;
+  },
+) {
+  const { error } = await supabase
+    .from("guardian_financial_contracts")
+    .update({
+      provider_contract_id: input.providerContractId,
+      provider_legacy_id: input.providerLegacyId,
+      provider_customer_id: input.providerCustomerId,
+      status: "active",
+      total_amount: input.totalAmount,
+      contract_payload: input.contractPayload,
+      last_sync_payload: input.lastSyncPayload,
+      error_message: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.guardianContractId);
+
+  if (error) {
+    throw new GuardianContractSyncError(
+      "update_synced_contract",
+      error.message,
+      error,
+    );
+  }
+}
+
+async function updateGuardianContractAfterReplacement(
+  supabase: ReturnType<typeof createAdminClient>,
+  input: {
+    guardianContractId: string;
+    providerCustomerId: string;
+    providerContractId: string;
+    providerLegacyId: string | null;
+    version: number;
+    totalAmount: number;
+    contractPayload: unknown;
+    lastSyncPayload: unknown;
+  },
+) {
+  const { error } = await supabase
+    .from("guardian_financial_contracts")
+    .update({
+      provider_contract_id: input.providerContractId,
+      provider_legacy_id: input.providerLegacyId,
+      provider_customer_id: input.providerCustomerId,
+      version: input.version,
+      status: "active",
+      total_amount: input.totalAmount,
+      provider_closed_at: null,
+      closed_reason: null,
+      contract_payload: input.contractPayload,
+      last_sync_payload: input.lastSyncPayload,
+      error_message: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.guardianContractId);
+
+  if (error) {
+    throw new GuardianContractSyncError(
+      "update_replaced_contract",
+      error.message,
+      error,
+    );
+  }
 }
 
 async function getEnrollmentSnapshot(
@@ -1145,21 +1406,26 @@ async function saveCurrentVersion(
   supabase: ReturnType<typeof createAdminClient>,
   contract: GuardianFinancialContract,
   reason: string,
+  options: {
+    status?: string;
+    payload?: unknown;
+  } = {},
 ) {
   const { error } = await supabase
     .from("guardian_financial_contract_versions")
     .insert({
       guardian_contract_id: contract.id,
+      provider: CONTA_AZUL_PROVIDER,
       provider_contract_id: contract.provider_contract_id,
       provider_legacy_id: contract.provider_legacy_id,
       version: contract.version ?? 1,
-      status: contract.status,
+      status: options.status ?? contract.status,
       total_amount: normalizeAmount(contract.total_amount) ?? 0,
       started_at: contract.start_date,
       ended_at: contract.end_date,
       closed_at: new Date().toISOString(),
       close_reason: reason,
-      payload: contract.contract_payload ?? null,
+      payload: options.payload ?? contract.contract_payload ?? null,
     });
 
   if (error) {
@@ -1225,6 +1491,7 @@ function buildGuardianContractSelect() {
     "end_date",
     "first_due_date",
     "contract_payload",
+    "last_sync_payload",
   ].join(", ");
 }
 
@@ -1343,6 +1610,32 @@ function getLegacyId(response: unknown) {
   return firstStringValue([body.id_legado, body.data?.id_legado, body.result?.id_legado]);
 }
 
+function getRawResponseMessage(body: unknown) {
+  if (!body) {
+    return "Resposta vazia.";
+  }
+
+  if (typeof body === "string") {
+    return body;
+  }
+
+  if (isRecord(body)) {
+    const message =
+      body.message ??
+      body.mensagem ??
+      body.error ??
+      body.erro ??
+      body.detail ??
+      body.detalhe;
+
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return "Erro retornado pelo Conta Azul.";
+}
+
 function firstStringValue(values: unknown[]) {
   for (const value of values) {
     if (
@@ -1361,16 +1654,12 @@ function buildContaAzulRequestPayload(
 ) {
   if (!diagnostics) {
     return {
-      stage: "create_contract",
-      reason: "Resposta Conta Azul sem diagnóstico de requisição.",
+      response: null,
+      sanitized_payload: null,
     };
   }
 
   return {
-    stage: diagnostics.stage ?? "create_contract",
-    endpoint: diagnostics.endpoint,
-    method: diagnostics.method,
-    status: diagnostics.status,
     response: diagnostics.body,
     sanitized_payload: diagnostics.sanitizedPayload,
   };

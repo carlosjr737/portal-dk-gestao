@@ -11,7 +11,7 @@ import {
   formatMoney,
 } from "@/features/enrollments/formatters";
 import type { EnrollmentListRow } from "@/features/enrollments/types";
-import { syncGuardianFinancialContractAction } from "@/features/finance/conta-azul/enrollment-receivable-actions";
+import { syncGuardianContractAction } from "@/features/finance/conta-azul/enrollment-receivable-actions";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
@@ -91,14 +91,16 @@ export default async function MatriculasPage({
         </div>
       ) : null}
 
-      {params?.guardianContract === "failed" ? (
+      {params?.guardianContract === "failed" ||
+      params?.guardianContract === "sync_failed" ? (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Não foi possível registrar ou sincronizar o contrato financeiro
           consolidado do responsável. Verifique os logs e tente novamente.
         </div>
       ) : null}
 
-      {params?.guardianContract === "synced" ? (
+      {params?.guardianContract === "synced" ||
+      params?.guardianContract === "sync_success" ? (
         <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Contrato consolidado sincronizado com o Conta Azul.
         </div>
@@ -185,32 +187,17 @@ export default async function MatriculasPage({
                     {canGenerateReceivable ? (
                       <td className="px-4 py-3">
                         {shouldShowGuardianContractSync(enrollment) ? (
-                          <form action={syncGuardianFinancialContractAction}>
+                          <form action={syncGuardianContractAction}>
                             <input
                               type="hidden"
                               name="guardianContractId"
                               value={enrollment.guardianFinancialContract?.id}
                             />
-                            <input
-                              type="hidden"
-                              name="mode"
-                              value={
-                                enrollment.guardianFinancialContract
-                                  ?.provider_contract_id
-                                  ? "replace"
-                                  : "create"
-                              }
-                            />
                             <button
                               type="submit"
                               className="h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:opacity-90"
                             >
-                              {enrollment.externalFinancialRecord?.status ===
-                                "failed" ||
-                              enrollment.guardianFinancialContract?.status ===
-                                "sync_failed"
-                                ? "Tentar sincronizar novamente"
-                                : "Sincronizar contrato consolidado"}
+                              {getGuardianContractSyncButtonLabel(enrollment)}
                             </button>
                           </form>
                         ) : enrollment.guardianFinancialContract?.status ===
@@ -470,14 +457,16 @@ function ConsolidatedContractStatus({
   }
 
   const statusLabel =
-    contract.status === "active"
+    contract.status === "draft" && !contract.provider_contract_id
+      ? "Contrato consolidado pendente"
+      : contract.status === "active" && contract.provider_contract_id
       ? "Contrato ativo"
       : contract.status === "pending_replacement"
-        ? "Contrato consolidado pendente de sincronização no Conta Azul."
+        ? "Pendente de sincronização"
         : contract.status === "sync_failed"
           ? "Falha na sincronização"
-          : contract.status === "draft"
-            ? "Contrato consolidado em rascunho"
+          : contract.status === "active"
+            ? "Contrato consolidado ativo"
             : contract.status;
 
   return (
@@ -504,10 +493,20 @@ function shouldShowGuardianContractSync(enrollment: EnrollmentListRow) {
   const contract = enrollment.guardianFinancialContract;
 
   return (
-    contract?.status === "draft" ||
+    (contract?.status === "draft" && !contract.provider_contract_id) ||
     contract?.status === "pending_replacement" ||
     contract?.status === "sync_failed"
   );
+}
+
+function getGuardianContractSyncButtonLabel(enrollment: EnrollmentListRow) {
+  const status = enrollment.guardianFinancialContract?.status;
+
+  if (status === "sync_failed") {
+    return "Tentar novamente";
+  }
+
+  return "Sincronizar";
 }
 
 function getYear(date: string | null) {

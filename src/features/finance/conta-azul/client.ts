@@ -84,7 +84,7 @@ const contaAzulResponseDiagnosticsSymbol = Symbol(
 export type ContaAzulResponseDiagnostics = {
   stage?: string;
   endpoint: string;
-  method: "POST";
+  method: "GET" | "POST";
   status: number;
   body: unknown;
   sanitizedPayload: unknown;
@@ -278,10 +278,14 @@ export class ContaAzulClient {
   }
 
   async createContract(input: ContaAzulCreateContractInput) {
+    return this.createContaAzulContract(buildCreateContractPayload(input));
+  }
+
+  async createContaAzulContract(payload: ContaAzulCreateContractPayload) {
     return this.post<
       ContaAzulCreateContractPayload,
       ContaAzulCreateContractResponse
-    >("/v1/contratos", buildCreateContractPayload(input), {
+    >("/v1/contratos", payload, {
       debugLabel: "createContract",
       stage: "create_contract",
     });
@@ -295,6 +299,18 @@ export class ContaAzulClient {
         stage: "close_contract",
       },
     );
+  }
+
+  async closeContaAzulContract(contractId: string) {
+    return this.requestRaw("POST", `/v1/contratos/${encodeURIComponent(contractId)}/encerrar`, {
+      stage: "close_contract",
+    });
+  }
+
+  async getContaAzulContract(contractId: string) {
+    return this.requestRaw("GET", `/v1/contratos/${encodeURIComponent(contractId)}`, {
+      stage: "get_contract",
+    });
   }
 
   async getNextContractNumber() {
@@ -618,6 +634,58 @@ export class ContaAzulClient {
     return {
       status: response.status,
       body: responseBody,
+      ok: response.ok,
+    };
+  }
+
+  private async requestRaw(
+    method: "GET" | "POST",
+    path: string,
+    options: {
+      stage?: string;
+    } = {},
+    retryOnUnauthorized = true,
+  ): Promise<ContaAzulCloseContractResponse> {
+    const url = new URL(path, this.baseUrl);
+
+    this.logRequest(url, {});
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+    const responseText = await response.text();
+    const responseBody = parseResponseBody(responseText);
+
+    this.logResponse(url, {}, response.status);
+
+    if (response.status === 401 && retryOnUnauthorized) {
+      this.logFailedRequest(url, {}, response.status, responseText, reconnectMessage);
+
+      if (await this.refreshAccessTokenAfterUnauthorized(url)) {
+        return this.requestRaw(method, path, options, false);
+      }
+    }
+
+    if (!response.ok) {
+      const message =
+        response.status === 401
+          ? reconnectMessage
+          : getErrorMessage(response.status, responseText);
+
+      this.logFailedRequest(url, {}, response.status, responseText, message);
+    }
+
+    return {
+      status: response.status,
+      body: sanitizeLogBody(responseBody),
+      ok: response.ok,
     };
   }
 
