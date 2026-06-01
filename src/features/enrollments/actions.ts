@@ -3,14 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
 import {
-  autoSyncGuardianFinancialContractAfterEnrollment,
   cancelEnrollmentGuardianFinancialContractItem,
+  syncGuardianFinancialContractToContaAzul,
 } from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
@@ -54,6 +55,11 @@ export async function createEnrollment(
   _previousState: EnrollmentActionState,
   formData: FormData,
 ): Promise<EnrollmentActionState> {
+  console.log("[REAL CREATE ENROLLMENT ACTION RUNNING]", {
+    version: "auto-sync-debug-v4",
+    timestamp: new Date().toISOString(),
+  });
+
   const parsed = enrollmentFormSchema.safeParse(
     enrollmentFormDataToObject(formData),
   );
@@ -160,6 +166,9 @@ export async function createEnrollment(
     endDate: enrollment.end_date,
     firstDueDate: enrollment.first_due_date,
   });
+  console.log("[REAL CREATE ENROLLMENT INSERTED]", {
+    enrollmentId: enrollment.id,
+  });
 
   let guardianContractFailed = false;
   let contaAzulAutoSyncFailed = false;
@@ -201,10 +210,9 @@ export async function createEnrollment(
       });
     } else {
       console.log("[GUARDIAN CONTRACT RPC] success", { itemId });
-      const autoSyncResult =
-        await autoSyncGuardianFinancialContractAfterEnrollment(
-          enrollment.id as string,
-        );
+      const autoSyncResult = await syncEnrollmentGuardianContractAfterRpc(
+        enrollment.id as string,
+      );
 
       if (autoSyncResult.status === "failed") {
         contaAzulAutoSyncFailed = true;
@@ -235,6 +243,171 @@ export async function createEnrollment(
   redirect(
     redirectQuery ? `/matriculas?${redirectQuery}` : "/matriculas",
   );
+}
+
+async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
+  const adminSupabase = createAdminClient();
+  const markerTimestamp = new Date().toISOString();
+  const { data: item, error: itemError } = await adminSupabase
+    .from("guardian_financial_contract_items")
+    .select("id, guardian_contract_id")
+    .eq("enrollment_id", enrollmentId)
+    .maybeSingle();
+
+  if (itemError) {
+    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+      enrollmentId,
+      stage: "load_guardian_contract",
+      message: itemError.message,
+    });
+
+    return { status: "failed" as const };
+  }
+
+  const guardianContractId = item?.guardian_contract_id as string | null;
+
+  if (!guardianContractId) {
+    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+      enrollmentId,
+      stage: "load_guardian_contract",
+      message:
+        "RPC executada, mas nenhum guardian_contract_id foi encontrado para a matrícula.",
+    });
+
+    return { status: "failed" as const };
+  }
+
+  const markerPayload = {
+    stage: "after_rpc_before_sync",
+    enrollmentId,
+    guardianContractId,
+    timestamp: markerTimestamp,
+  };
+  const { error: markerError } = await adminSupabase
+    .from("guardian_financial_contracts")
+    .update({
+      status: "pending_sync",
+      last_sync_payload: markerPayload,
+      updated_at: markerTimestamp,
+    })
+    .eq("id", guardianContractId);
+
+  if (markerError) {
+    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+      enrollmentId,
+      guardianContractId,
+      stage: "after_rpc_before_sync",
+      message: markerError.message,
+    });
+
+    return { status: "failed" as const };
+  }
+
+  console.log("[ENROLLMENT CONTRACT AUTO SYNC] marker saved", {
+    enrollmentId,
+    guardianContractId,
+  });
+
+  const { data: guardianContract, error: contractError } = await adminSupabase
+    .from("guardian_financial_contracts")
+    .select("id, provider_contract_id")
+    .eq("id", guardianContractId)
+    .maybeSingle();
+
+  if (contractError || !guardianContract) {
+    await markEnrollmentContractAutoSyncFailure({
+      guardianContractId,
+      enrollmentId,
+      stage: "load_guardian_contract",
+      message:
+        contractError?.message ??
+        "Contrato consolidado interno não encontrado após marker.",
+    });
+
+    return { status: "failed" as const };
+  }
+
+  if (guardianContract.provider_contract_id) {
+    const reason =
+      "Contrato já existe no Conta Azul. Nova matrícula adicionada internamente e pendente de sincronização.";
+    const { error: pendingError } = await adminSupabase
+      .from("guardian_financial_contracts")
+      .update({
+        status: "pending_replacement",
+        error_message: null,
+        last_sync_payload: {
+          action: "pending_replacement",
+          reason,
+          enrollmentId,
+          guardianContractId,
+          provider_contract_id: guardianContract.provider_contract_id,
+          timestamp: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", guardianContractId);
+
+    if (pendingError) {
+      await markEnrollmentContractAutoSyncFailure({
+        guardianContractId,
+        enrollmentId,
+        stage: "load_guardian_contract",
+        message: pendingError.message,
+      });
+
+      return { status: "failed" as const };
+    }
+
+    console.info("[ENROLLMENT CONTRACT AUTO SYNC] markedPendingReplacement");
+
+    return { status: "pending_replacement" as const };
+  }
+
+  const syncResult =
+    await syncGuardianFinancialContractToContaAzul(guardianContractId);
+
+  if (syncResult.status === "failed") {
+    await markEnrollmentContractAutoSyncFailure({
+      guardianContractId,
+      enrollmentId,
+      stage: syncResult.stage,
+      message: syncResult.message,
+    });
+
+    return { status: "failed" as const };
+  }
+
+  return { status: "synced" as const };
+}
+
+async function markEnrollmentContractAutoSyncFailure({
+  guardianContractId,
+  enrollmentId,
+  stage,
+  message,
+}: {
+  guardianContractId: string;
+  enrollmentId: string;
+  stage: string;
+  message: string;
+}) {
+  const adminSupabase = createAdminClient();
+  const timestamp = new Date().toISOString();
+  await adminSupabase
+    .from("guardian_financial_contracts")
+    .update({
+      status: "sync_failed",
+      error_message: message,
+      last_sync_payload: {
+        stage,
+        message,
+        enrollmentId,
+        guardianContractId,
+        timestamp,
+      },
+      updated_at: timestamp,
+    })
+    .eq("id", guardianContractId);
 }
 
 export async function cancelEnrollment(
