@@ -68,6 +68,11 @@ async function getSheetsForPrint(filters: AttendanceFilters) {
 
 async function getFilteredSheets(filters: AttendanceFilters) {
   const classes = await getAttendanceClasses(filters);
+  console.log("[ATTENDANCE BULK DEBUG]", {
+    selectedProfessorId: filters.teacherId ?? null,
+    classesCount: classes.length,
+    classIds: classes.map((danceClass) => danceClass.id),
+  });
   const sheets = await Promise.all(
     classes.map((danceClass) => getAttendanceClassSheet(danceClass.id, filters.month)),
   );

@@ -253,7 +253,7 @@ export async function getAttendanceClassSheet(
   month = getCurrentMonthValue(),
 ): Promise<AttendanceClassSheet | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     console.log("[attendance-sheet] classId recebido:", classId);
 
     const [
@@ -312,7 +312,7 @@ export async function getAttendanceClassSheet(
       ((levels ?? []) as CatalogOption[]).map((level) => [level.id, level]),
     );
     const classData = danceClass as DanceClass;
-    const students = await getAttendanceStudents(classId);
+    const students = await getAttendanceStudents(classId, classData.name);
     const attendanceDates = getAttendanceDatesForMonth(classSchedules, month);
 
     console.log(
@@ -365,21 +365,34 @@ export async function getAllAttendanceClassSheets(
   AttendanceClassSheet[]
 > {
   const classes = await getAttendanceClasses({ status: "active" });
+  console.log("[ATTENDANCE BULK DEBUG]", {
+    selectedProfessorId: null,
+    classesCount: classes.length,
+    classIds: classes.map((danceClass) => danceClass.id),
+  });
   const sheets = await Promise.all(
-    classes.map(async (danceClass) => ({
-      ...danceClass,
-      students: await getAttendanceStudents(danceClass.id),
-      attendanceDates: getAttendanceDatesForMonth(danceClass.schedules, month),
-      monthLabel: formatMonthLabel(month),
-    })),
+    classes.map(async (danceClass) => {
+      const students = await getAttendanceStudents(danceClass.id, danceClass.name);
+
+      return {
+        ...danceClass,
+        activeStudentsCount: students.length,
+        students,
+        attendanceDates: getAttendanceDatesForMonth(danceClass.schedules, month),
+        monthLabel: formatMonthLabel(month),
+      };
+    }),
   );
 
   return sheets;
 }
 
-async function getAttendanceStudents(classId: string): Promise<AttendanceStudent[]> {
+async function getAttendanceStudents(
+  classId: string,
+  className?: string,
+): Promise<AttendanceStudent[]> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: enrollments, error: enrollmentsError } = await supabase
       .from("enrollments")
       .select("id, student_id")
@@ -414,7 +427,7 @@ async function getAttendanceStudents(classId: string): Promise<AttendanceStudent
       ]),
     );
 
-    return (enrollments ?? [])
+    const attendanceStudents = (enrollments ?? [])
       .map((enrollment) => {
         const studentId = enrollment.student_id as string | null;
 
@@ -426,6 +439,15 @@ async function getAttendanceStudents(classId: string): Promise<AttendanceStudent
         };
       })
       .sort((a, b) => a.studentName.localeCompare(b.studentName, "pt-BR"));
+
+    console.log("[ATTENDANCE CLASS STUDENTS DEBUG]", {
+      classId,
+      className: className ?? null,
+      activeEnrollmentsCount: enrollments?.length ?? 0,
+      studentsCount: attendanceStudents.length,
+    });
+
+    return attendanceStudents;
   } catch (error) {
     console.error("Attendance students load error:", error);
     return [];
