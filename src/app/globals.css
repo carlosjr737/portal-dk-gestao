@@ -57,8 +57,17 @@ a {
   }
 
   .print-class-page {
+    break-before: page;
     break-after: page;
+    break-inside: avoid-page;
+    page-break-before: always;
     page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .print-class-page:first-child {
+    break-before: auto;
+    page-break-before: auto;
   }
 
   .print-class-page:last-child {

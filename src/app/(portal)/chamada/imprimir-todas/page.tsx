@@ -4,6 +4,7 @@ import {
   getAllAttendanceClassSheets,
   getAttendanceClasses,
   getAttendanceClassSheet,
+  getProfessorAttendanceClassSheets,
   normalizeAttendanceMonth,
   type AttendanceFilters,
   weekdayOptions,
@@ -29,9 +30,7 @@ export default async function ImprimirTodasPage({
 }: ImprimirTodasPageProps) {
   const params = await searchParams;
   const filters = parseFilters(params);
-  const sheets = hasFilters(filters)
-    ? await getFilteredSheets(filters)
-    : await getAllAttendanceClassSheets(filters.month);
+  const sheets = await getSheetsForPrint(filters);
 
   return (
     <div className="bg-white">
@@ -42,7 +41,13 @@ export default async function ImprimirTodasPage({
         >
           Voltar para chamada
         </Link>
-        <PrintButton label="Imprimir todas" />
+        <PrintButton
+          label={
+            filters.teacherId
+              ? "Imprimir chamadas do professor"
+              : "Imprimir todas"
+          }
+        />
       </div>
 
       <div className="space-y-10 print:space-y-0">
@@ -50,12 +55,29 @@ export default async function ImprimirTodasPage({
           sheets.map((sheet) => <AttendanceSheet key={sheet.id} sheet={sheet} />)
         ) : (
           <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma turma ativa encontrada para impressão.
+            {filters.teacherId
+              ? "Este professor não possui turmas cadastradas."
+              : "Nenhuma turma ativa encontrada para impressão."}
           </div>
         )}
       </div>
     </div>
   );
+}
+
+async function getSheetsForPrint(filters: AttendanceFilters) {
+  if (filters.teacherId) {
+    return getProfessorAttendanceClassSheets({
+      teacherId: filters.teacherId,
+      month: filters.month,
+    });
+  }
+
+  if (hasFilters(filters)) {
+    return getFilteredSheets(filters);
+  }
+
+  return getAllAttendanceClassSheets(filters.month);
 }
 
 async function getFilteredSheets(filters: AttendanceFilters) {

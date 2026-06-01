@@ -93,7 +93,7 @@ export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
                     colSpan={sheet.attendanceDates.length + 2}
                     className="border border-black px-2 py-6 text-center"
                   >
-                    Nenhum aluno ativo nesta turma.
+                    Não há alunos ativos nesta turma.
                   </td>
                 </tr>
               )}

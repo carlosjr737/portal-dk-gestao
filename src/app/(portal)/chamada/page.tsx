@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { PrintProfessorButton } from "@/features/attendance/print-professor-button";
 import {
   getAttendanceClasses,
   getAttendanceFilterOptions,
@@ -29,24 +30,34 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
     getAttendanceFilterOptions(),
     getAttendanceClasses(filters),
   ]);
-  const printAllHref = `/chamada/imprimir-todas${buildQueryString(filters)}`;
+  const printProfessorHref = `/chamada/imprimir-todas${buildQueryString({
+    teacherId: filters.teacherId,
+    month: filters.month,
+  })}`;
 
   return (
     <div>
       <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <PageHeader
           title="Lista de chamada"
-          description="Gere e imprima listas de chamada por turma."
+          description="Gere e imprima listas de chamada por professor ou por turma."
         />
-        <Link
-          href={printAllHref}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          Imprimir todas
-        </Link>
+        <PrintProfessorButton
+          href={printProfessorHref}
+          hasTeacher={Boolean(filters.teacherId)}
+        />
       </div>
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
+        <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>
+          <option value="">Selecione um professor</option>
+          {filterOptions.teachers.map((teacher) => (
+            <option key={teacher.id} value={teacher.id}>
+              {teacher.artistic_name?.trim() || teacher.full_name}
+            </option>
+          ))}
+        </Select>
+
         <label className="block">
           <span className="text-sm font-medium text-foreground">Mês/Ano</span>
           <input
@@ -62,15 +73,6 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
           {classes.map((danceClass) => (
             <option key={danceClass.id} value={danceClass.id}>
               {danceClass.name}
-            </option>
-          ))}
-        </Select>
-
-        <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>
-          <option value="">Todos</option>
-          {filterOptions.teachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.artistic_name?.trim() || teacher.full_name}
             </option>
           ))}
         </Select>
@@ -169,7 +171,9 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
           ))
         ) : (
           <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma turma encontrada para os filtros selecionados.
+            {filters.teacherId
+              ? "Este professor não possui turmas cadastradas."
+              : "Nenhuma turma encontrada para os filtros selecionados."}
           </div>
         )}
       </section>

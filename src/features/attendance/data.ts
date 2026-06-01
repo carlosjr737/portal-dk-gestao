@@ -218,7 +218,8 @@ export async function getAttendanceClasses(
               (schedule) => schedule.weekday === filters.weekday,
             )
           : true,
-      );
+      )
+      .sort(compareAttendanceClasses);
   } catch (error) {
     console.error("Attendance classes load error:", error);
     return [];
@@ -354,6 +355,25 @@ export async function getAllAttendanceClassSheets(
   return sheets;
 }
 
+export async function getProfessorAttendanceClassSheets({
+  teacherId,
+  month = getCurrentMonthValue(),
+}: {
+  teacherId: string;
+  month?: string;
+}): Promise<AttendanceClassSheet[]> {
+  const classes = await getAttendanceClasses({
+    teacherId,
+    month,
+    status: "active",
+  });
+  const sheets = await Promise.all(
+    classes.map((danceClass) => getAttendanceClassSheet(danceClass.id, month)),
+  );
+
+  return sheets.filter((sheet): sheet is AttendanceClassSheet => Boolean(sheet));
+}
+
 async function getAttendanceStudents(classId: string): Promise<AttendanceStudent[]> {
   try {
     const supabase = await createClient();
@@ -420,6 +440,35 @@ function groupSchedules(schedules: ClassSchedule[]) {
   return schedulesByClass;
 }
 
+function compareAttendanceClasses(
+  first: AttendanceClassSummary,
+  second: AttendanceClassSummary,
+) {
+  const firstSchedule = getFirstScheduleSortValue(first.schedules);
+  const secondSchedule = getFirstScheduleSortValue(second.schedules);
+
+  if (firstSchedule !== secondSchedule) {
+    return firstSchedule.localeCompare(secondSchedule);
+  }
+
+  return first.name.localeCompare(second.name, "pt-BR");
+}
+
+function getFirstScheduleSortValue(schedules: AttendanceSchedule[]) {
+  const sortedSchedules = sortAttendanceSchedules(schedules);
+  const firstSchedule = sortedSchedules[0];
+
+  if (!firstSchedule) {
+    return "9-99:99";
+  }
+
+  const weekdayOrder = new Map(
+    classScheduleWeekdayOptions.map((option, index) => [option.value, index]),
+  );
+
+  return `${weekdayOrder.get(firstSchedule.weekday) ?? 9}-${firstSchedule.start_time}`;
+}
+
 function formatAttendanceSchedules(schedules: AttendanceSchedule[]) {
   if (schedules.length === 0) {
     return "-";
@@ -428,27 +477,30 @@ function formatAttendanceSchedules(schedules: AttendanceSchedule[]) {
   const weekdayLabels = new Map(
     classScheduleWeekdayOptions.map((option) => [option.value, option.label]),
   );
-  const weekdayOrder = new Map(
-    classScheduleWeekdayOptions.map((option, index) => [option.value, index]),
-  );
-
-  return [...schedules]
-    .sort((a, b) => {
-      const weekdayDiff =
-        (weekdayOrder.get(a.weekday) ?? 0) - (weekdayOrder.get(b.weekday) ?? 0);
-
-      if (weekdayDiff !== 0) {
-        return weekdayDiff;
-      }
-
-      return a.start_time.localeCompare(b.start_time);
-    })
+  return sortAttendanceSchedules(schedules)
     .map((schedule) => {
       const weekday = weekdayLabels.get(schedule.weekday) ?? schedule.weekday;
 
       return `${weekday} ${formatScheduleTime(schedule.start_time)}-${formatScheduleTime(schedule.end_time)}`;
     })
     .join(" | ");
+}
+
+function sortAttendanceSchedules(schedules: AttendanceSchedule[]) {
+  const weekdayOrder = new Map(
+    classScheduleWeekdayOptions.map((option, index) => [option.value, index]),
+  );
+
+  return [...schedules].sort((a, b) => {
+    const weekdayDiff =
+      (weekdayOrder.get(a.weekday) ?? 0) - (weekdayOrder.get(b.weekday) ?? 0);
+
+    if (weekdayDiff !== 0) {
+      return weekdayDiff;
+    }
+
+    return a.start_time.localeCompare(b.start_time);
+  });
 }
 
 function toAttendanceClassSummary({
