@@ -287,7 +287,7 @@ export class ContaAzulClient {
       ContaAzulCreateContractResponse
     >("/v1/contratos", payload, {
       debugLabel: "createContract",
-      stage: "create_contract",
+      stage: "create_conta_azul_contract",
     });
   }
 
