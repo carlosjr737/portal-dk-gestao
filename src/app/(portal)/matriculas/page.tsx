@@ -112,6 +112,13 @@ export default async function MatriculasPage({
         </div>
       ) : null}
 
+      {params?.guardianContract === "auto_sync_failed" ? (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Matrícula criada, mas houve falha ao sincronizar o contrato com o
+          Conta Azul.
+        </div>
+      ) : null}
+
       {params?.guardianContract === "synced" ||
       params?.guardianContract === "sync_success" ? (
         <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

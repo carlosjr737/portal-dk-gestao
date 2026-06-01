@@ -8,7 +8,10 @@ import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
 } from "@/features/enrollments/schemas";
-import { cancelEnrollmentGuardianFinancialContractItem } from "@/features/finance/guardian-contracts/contracts";
+import {
+  autoSyncGuardianFinancialContractAfterEnrollment,
+  cancelEnrollmentGuardianFinancialContractItem,
+} from "@/features/finance/guardian-contracts/contracts";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
@@ -159,8 +162,26 @@ export async function createEnrollment(
   });
 
   let guardianContractFailed = false;
+  let contaAzulAutoSyncFailed = false;
 
   if (enrollment.status === "active") {
+    await ensureGrowthChurnEvent({
+      enrollmentId: enrollment.id as string,
+      eventType: "entrada",
+      eventDate: (enrollment.start_date as string | null) ?? null,
+      source: "enrollment_created",
+    });
+  }
+
+  const shouldEnsureGuardianContract =
+    enrollment.status === "active" &&
+    Boolean(enrollment.financial_guardian_id) &&
+    Number(enrollment.monthly_amount) > 0 &&
+    Boolean(enrollment.start_date) &&
+    Boolean(enrollment.end_date) &&
+    Boolean(enrollment.first_due_date);
+
+  if (shouldEnsureGuardianContract) {
     console.log("[GUARDIAN CONTRACT RPC] calling", {
       enrollmentId: enrollment.id,
     });
@@ -180,16 +201,15 @@ export async function createEnrollment(
       });
     } else {
       console.log("[GUARDIAN CONTRACT RPC] success", { itemId });
-    }
-  }
+      const autoSyncResult =
+        await autoSyncGuardianFinancialContractAfterEnrollment(
+          enrollment.id as string,
+        );
 
-  if (enrollment.status === "active") {
-    await ensureGrowthChurnEvent({
-      enrollmentId: enrollment.id as string,
-      eventType: "entrada",
-      eventDate: (enrollment.start_date as string | null) ?? null,
-      source: "enrollment_created",
-    });
+      if (autoSyncResult.status === "failed") {
+        contaAzulAutoSyncFailed = true;
+      }
+    }
   }
 
   revalidatePath("/matriculas");
@@ -204,6 +224,10 @@ export async function createEnrollment(
 
   if (guardianContractFailed) {
     redirectParams.set("guardianContract", "failed");
+  }
+
+  if (contaAzulAutoSyncFailed) {
+    redirectParams.set("guardianContract", "auto_sync_failed");
   }
 
   const redirectQuery = redirectParams.toString();

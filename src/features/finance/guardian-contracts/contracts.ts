@@ -120,6 +120,28 @@ type CancelEnrollmentGuardianContractItemResult =
       message: string;
     };
 
+type AutoSyncGuardianContractResult =
+  | {
+      status: "created";
+      guardianContractId: string;
+      providerContractId: string;
+    }
+  | {
+      status: "pending_replacement";
+      guardianContractId: string;
+    }
+  | {
+      status: "skipped";
+      enrollmentId: string;
+      reason: string;
+    }
+  | {
+      status: "failed";
+      guardianContractId: string | null;
+      stage: string;
+      message: string;
+    };
+
 class GuardianContractSyncError extends Error {
   constructor(
     public readonly stage: string,
@@ -582,6 +604,110 @@ export async function syncGuardianFinancialContractToContaAzul(
 
     return {
       status: "failed" as const,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+    };
+  }
+}
+
+export async function autoSyncGuardianFinancialContractAfterEnrollment(
+  enrollmentId: string,
+): Promise<AutoSyncGuardianContractResult> {
+  const supabase = createAdminClient();
+  console.info("[ENROLLMENT CONTRACT AUTO SYNC] start");
+  console.info("[ENROLLMENT CONTRACT AUTO SYNC] enrollmentId", enrollmentId);
+
+  try {
+    const contract = await getGuardianContractByEnrollmentId(supabase, enrollmentId);
+
+    if (!contract) {
+      return {
+        status: "skipped",
+        enrollmentId,
+        reason: "Contrato consolidado interno não encontrado para a matrícula.",
+      };
+    }
+
+    const hasProviderContract = Boolean(contract.provider_contract_id);
+    console.info(
+      "[ENROLLMENT CONTRACT AUTO SYNC] guardianContractId",
+      contract.id,
+    );
+    console.info(
+      "[ENROLLMENT CONTRACT AUTO SYNC] hasProviderContract",
+      hasProviderContract,
+    );
+
+    if (hasProviderContract) {
+      const reason =
+        "Contrato já existe no Conta Azul. Nova matrícula adicionada internamente e pendente de sincronização.";
+      const { error } = await supabase
+        .from("guardian_financial_contracts")
+        .update({
+          status: "pending_replacement",
+          error_message: null,
+          last_sync_payload: {
+            action: "pending_replacement",
+            reason,
+            enrollment_id: enrollmentId,
+            provider_contract_id: contract.provider_contract_id,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contract.id);
+
+      if (error) {
+        throw new GuardianContractSyncError(
+          "mark_pending_replacement",
+          error.message,
+          error,
+        );
+      }
+
+      console.info("[ENROLLMENT CONTRACT AUTO SYNC] markedPendingReplacement");
+      console.info("[ENROLLMENT CONTRACT AUTO SYNC] success");
+
+      return {
+        status: "pending_replacement",
+        guardianContractId: contract.id,
+      };
+    }
+
+    console.info("[ENROLLMENT CONTRACT AUTO SYNC] creatingContaAzulContract");
+    const syncResult = await syncGuardianFinancialContractToContaAzul(contract.id);
+
+    if (syncResult.status === "active") {
+      console.info("[ENROLLMENT CONTRACT AUTO SYNC] success");
+
+      return {
+        status: "created",
+        guardianContractId: contract.id,
+        providerContractId: syncResult.providerContractId,
+      };
+    }
+
+    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+      guardianContractId: contract.id,
+      stage: syncResult.stage,
+      message: syncResult.message,
+    });
+
+    return {
+      status: "failed",
+      guardianContractId: contract.id,
+      stage: syncResult.stage,
+      message: syncResult.message,
+    };
+  } catch (error) {
+    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+      enrollmentId,
+      stage: getErrorStage(error),
+      message: getErrorMessage(error),
+    });
+
+    return {
+      status: "failed",
+      guardianContractId: null,
       stage: getErrorStage(error),
       message: getErrorMessage(error),
     };
@@ -1281,6 +1407,33 @@ async function getGuardianContract(
   return (data as unknown as GuardianFinancialContract | null) ?? null;
 }
 
+async function getGuardianContractByEnrollmentId(
+  supabase: ReturnType<typeof createAdminClient>,
+  enrollmentId: string,
+) {
+  const { data: item, error } = await supabase
+    .from("guardian_financial_contract_items")
+    .select("guardian_contract_id")
+    .eq("enrollment_id", enrollmentId)
+    .maybeSingle();
+
+  if (error) {
+    throw new GuardianContractSyncError(
+      "load_contract_item",
+      error.message,
+      error,
+    );
+  }
+
+  const guardianContractId = item?.guardian_contract_id;
+
+  if (typeof guardianContractId !== "string") {
+    return null;
+  }
+
+  return getGuardianContract(supabase, guardianContractId);
+}
+
 async function getExistingContractItem(
   supabase: ReturnType<typeof createAdminClient>,
   enrollmentId: string,
@@ -1529,9 +1682,7 @@ function buildContractObservation(
   guardian: GuardianRecord,
   contract: GuardianFinancialContract,
 ) {
-  return `Contrato consolidado DK Studio - ${guardian.full_name ?? "Responsável"} - ${
-    contract.year
-  }`;
+  return `Contrato DK Studio ${contract.year} - ${guardian.full_name ?? "Responsável"}`;
 }
 
 async function ensureContaAzulCustomer(guardianId: string) {
