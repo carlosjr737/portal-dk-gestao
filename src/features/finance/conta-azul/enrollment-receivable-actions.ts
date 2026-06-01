@@ -14,11 +14,11 @@ export async function syncGuardianContractAction(formData: FormData) {
   const profile = user ? await getProfileByUserId(user.id) : null;
 
   if (!profile?.active || profile.role !== "admin") {
-    redirect("/matriculas?contract=unauthorized");
+    redirect("/matriculas?guardianContract=sync_failed");
   }
 
   if (!guardianContractId) {
-    redirect("/matriculas?guardianContract=failed");
+    redirect("/matriculas?guardianContract=sync_failed");
   }
 
   let synced = false;

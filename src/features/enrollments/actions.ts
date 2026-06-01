@@ -56,7 +56,7 @@ export async function createEnrollment(
   formData: FormData,
 ): Promise<EnrollmentActionState> {
   console.log("[REAL CREATE ENROLLMENT ACTION RUNNING]", {
-    version: "auto-sync-debug-v4",
+    version: "auto-sync-final-debug-v1",
     timestamp: new Date().toISOString(),
   });
 
@@ -171,6 +171,8 @@ export async function createEnrollment(
   });
 
   let guardianContractFailed = false;
+  let guardianContractLinkNotFound = false;
+  let contaAzulAutoSyncSucceeded = false;
   let contaAzulAutoSyncFailed = false;
 
   if (enrollment.status === "active") {
@@ -195,26 +197,36 @@ export async function createEnrollment(
       enrollmentId: enrollment.id,
     });
 
-    const { data: itemId, error: guardianContractError } = await supabase.rpc(
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
       "ensure_guardian_financial_contract_item",
       {
         p_enrollment_id: enrollment.id,
       },
     );
 
-    if (guardianContractError) {
+    console.log("[GUARDIAN CONTRACT RPC] result", {
+      enrollmentId: enrollment.id,
+      rpcData,
+      hasError: Boolean(rpcError),
+      errorMessage: rpcError?.message,
+    });
+
+    if (rpcError) {
       guardianContractFailed = true;
       console.error("[GUARDIAN CONTRACT RPC] error", {
         enrollmentId: enrollment.id,
-        error: guardianContractError,
+        error: rpcError,
       });
     } else {
-      console.log("[GUARDIAN CONTRACT RPC] success", { itemId });
       const autoSyncResult = await syncEnrollmentGuardianContractAfterRpc(
         enrollment.id as string,
       );
 
-      if (autoSyncResult.status === "failed") {
+      if (autoSyncResult.status === "synced") {
+        contaAzulAutoSyncSucceeded = true;
+      } else if (autoSyncResult.status === "contract_link_not_found") {
+        guardianContractLinkNotFound = true;
+      } else if (autoSyncResult.status === "failed") {
         contaAzulAutoSyncFailed = true;
       }
     }
@@ -232,6 +244,14 @@ export async function createEnrollment(
 
   if (guardianContractFailed) {
     redirectParams.set("guardianContract", "failed");
+  }
+
+  if (guardianContractLinkNotFound) {
+    redirectParams.set("guardianContract", "contract_link_not_found");
+  }
+
+  if (contaAzulAutoSyncSucceeded) {
+    redirectParams.set("guardianContract", "auto_sync_success");
   }
 
   if (contaAzulAutoSyncFailed) {
@@ -267,15 +287,21 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
   const guardianContractId = item?.guardian_contract_id as string | null;
 
   if (!guardianContractId) {
-    console.error("[ENROLLMENT CONTRACT AUTO SYNC] failed", {
+    console.error("[AUTO SYNC ERROR] guardianContractId not found after RPC", {
       enrollmentId,
       stage: "load_guardian_contract",
       message:
         "RPC executada, mas nenhum guardian_contract_id foi encontrado para a matrícula.",
     });
 
-    return { status: "failed" as const };
+    return { status: "contract_link_not_found" as const };
   }
+
+  console.log("[ENROLLMENT CONTRACT AUTO SYNC] contract item found", {
+    enrollmentId,
+    guardianContractItemId: item?.id,
+    guardianContractId,
+  });
 
   const markerPayload = {
     stage: "after_rpc_before_sync",
@@ -310,7 +336,9 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
 
   const { data: guardianContract, error: contractError } = await adminSupabase
     .from("guardian_financial_contracts")
-    .select("id, provider_contract_id")
+    .select(
+      "id, status, provider_contract_id, provider_customer_id, total_amount, start_date, end_date, first_due_date, guardian_id, year",
+    )
     .eq("id", guardianContractId)
     .maybeSingle();
 
@@ -327,20 +355,27 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
     return { status: "failed" as const };
   }
 
+  console.log("[ENROLLMENT CONTRACT AUTO SYNC] providerContractId", {
+    enrollmentId,
+    guardianContractId,
+    providerContractId:
+      (guardianContract.provider_contract_id as string | null) ?? null,
+  });
+
   if (guardianContract.provider_contract_id) {
     const reason =
-      "Contrato já existe no Conta Azul. Nova matrícula adicionada internamente e pendente de sincronização.";
+      "Contrato já existe no Conta Azul. Nova matrícula pendente de sincronização.";
     const { error: pendingError } = await adminSupabase
       .from("guardian_financial_contracts")
       .update({
         status: "pending_replacement",
         error_message: null,
         last_sync_payload: {
-          action: "pending_replacement",
-          reason,
+          stage: "provider_contract_exists",
+          message: reason,
           enrollmentId,
           guardianContractId,
-          provider_contract_id: guardianContract.provider_contract_id,
+          providerContractId: guardianContract.provider_contract_id,
           timestamp: new Date().toISOString(),
         },
         updated_at: new Date().toISOString(),
@@ -363,17 +398,18 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
     return { status: "pending_replacement" as const };
   }
 
+  console.log(
+    "[ENROLLMENT CONTRACT AUTO SYNC] calling syncGuardianFinancialContractToContaAzul",
+    {
+      enrollmentId,
+      guardianContractId,
+    },
+  );
+
   const syncResult =
     await syncGuardianFinancialContractToContaAzul(guardianContractId);
 
   if (syncResult.status === "failed") {
-    await markEnrollmentContractAutoSyncFailure({
-      guardianContractId,
-      enrollmentId,
-      stage: syncResult.stage,
-      message: syncResult.message,
-    });
-
     return { status: "failed" as const };
   }
 

@@ -15,6 +15,7 @@ import { syncGuardianContractAction } from "@/features/finance/conta-azul/enroll
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,46 @@ const contractMessages: Record<string, string> = {
   unauthorized: "Acesso não autorizado.",
 };
 
+const guardianContractMessages: Record<
+  string,
+  { message: string; tone: "success" | "warning" }
+> = {
+  auto_sync_success: {
+    message:
+      "Matrícula criada e contrato consolidado sincronizado com o Conta Azul.",
+    tone: "success",
+  },
+  auto_sync_failed: {
+    message:
+      "Matrícula criada, mas houve falha ao sincronizar o contrato com o Conta Azul. Verifique os logs.",
+    tone: "warning",
+  },
+  contract_link_not_found: {
+    message:
+      "Matrícula criada, mas não foi possível localizar o contrato consolidado interno.",
+    tone: "warning",
+  },
+  sync_success: {
+    message: "Contrato consolidado sincronizado com sucesso.",
+    tone: "success",
+  },
+  sync_failed: {
+    message: "Não foi possível sincronizar o contrato consolidado.",
+    tone: "warning",
+  },
+  failed: {
+    message: "Não foi possível sincronizar o contrato consolidado.",
+    tone: "warning",
+  },
+};
+
 export default async function MatriculasPage({
   searchParams,
 }: MatriculasPageProps) {
   const params = await searchParams;
+  const guardianContractMessage = params?.guardianContract
+    ? guardianContractMessages[params.guardianContract]
+    : null;
   const [enrollments, profile] = await Promise.all([
     getEnrollments(),
     getCurrentProfile(),
@@ -104,25 +141,15 @@ export default async function MatriculasPage({
         </div>
       ) : null}
 
-      {params?.guardianContract === "failed" ||
-      params?.guardianContract === "sync_failed" ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Não foi possível sincronizar o contrato consolidado com o Conta
-          Azul. Verifique os logs.
-        </div>
-      ) : null}
-
-      {params?.guardianContract === "auto_sync_failed" ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Matrícula criada, mas houve falha ao sincronizar o contrato com o
-          Conta Azul.
-        </div>
-      ) : null}
-
-      {params?.guardianContract === "synced" ||
-      params?.guardianContract === "sync_success" ? (
-        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Contrato consolidado sincronizado com o Conta Azul com sucesso.
+      {guardianContractMessage ? (
+        <div
+          className={`mt-4 rounded-md border px-4 py-3 text-sm ${
+            guardianContractMessage.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}
+        >
+          {guardianContractMessage.message}
         </div>
       ) : null}
 
@@ -264,6 +291,7 @@ async function getCurrentProfile() {
 async function getEnrollments(): Promise<EnrollmentListRow[]> {
   try {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const [
       { data: enrollments, error },
       { data: students, error: studentsError },
@@ -294,10 +322,10 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         )
         .eq("provider", "conta_azul")
         .order("created_at", { ascending: false }),
-      supabase
+      adminSupabase
         .from("guardian_financial_contract_items")
         .select("id, enrollment_id, guardian_contract_id"),
-      supabase
+      adminSupabase
         .from("guardian_financial_contracts")
         .select("id, status, provider_contract_id, total_amount, version, error_message"),
     ]);
@@ -512,17 +540,19 @@ function ConsolidatedContractStatus({
   }
 
   const statusLabel =
-    enrollment.guardianContractStatus === "draft" &&
-    !enrollment.guardianContractProviderContractId
-      ? "Contrato consolidado pendente"
-      : enrollment.guardianContractStatus === "active" &&
-          enrollment.guardianContractProviderContractId
-        ? "Contrato consolidado ativo"
-        : enrollment.guardianContractStatus === "pending_replacement"
-          ? "Pendente de sincronização"
-          : enrollment.guardianContractStatus === "sync_failed"
-            ? "Falha na sincronização"
-            : enrollment.guardianContractStatus ?? "Contrato consolidado";
+    enrollment.guardianContractStatus === "pending_sync"
+      ? "Sincronização em andamento"
+      : enrollment.guardianContractStatus === "draft" &&
+          !enrollment.guardianContractProviderContractId
+        ? "Contrato consolidado pendente"
+        : enrollment.guardianContractStatus === "active" &&
+            enrollment.guardianContractProviderContractId
+          ? "Contrato consolidado ativo"
+          : enrollment.guardianContractStatus === "pending_replacement"
+            ? "Pendente de sincronização"
+            : enrollment.guardianContractStatus === "sync_failed"
+              ? "Falha na sincronização"
+              : enrollment.guardianContractStatus ?? "Contrato consolidado";
 
   return (
     <div className="space-y-1 text-sm">

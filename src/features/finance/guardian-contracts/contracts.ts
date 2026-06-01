@@ -39,7 +39,7 @@ type GuardianFinancialContract = {
   provider_customer_id: string | null;
   provider_contract_id: string | null;
   provider_legacy_id: string | null;
-  provider_sale_id: string | null;
+  provider_sale_id?: string | null;
   year: number;
   version: number | null;
   status: string;
@@ -461,7 +461,7 @@ export async function syncGuardianFinancialContractToContaAzul(
     console.info("[GUARDIAN CONTRACT SYNC] hasProviderContract", hasProviderContract);
 
     if (!hasProviderContract) {
-      console.info("[GUARDIAN CONTRACT SYNC] creating contract");
+      console.info("[GUARDIAN CONTRACT SYNC] creating Conta Azul contract");
 
       const created = await createContaAzulContractForSync(syncData);
       await updateGuardianContractAfterCreate(supabase, {
@@ -472,6 +472,7 @@ export async function syncGuardianFinancialContractToContaAzul(
         totalAmount: syncData.totalAmount,
         contractPayload: created.contractPayload,
         lastSyncPayload: {
+          stage: "success",
           action: "created_on_enrollment",
           response: created.response,
           sanitized_payload: created.contractPayload.sanitized_payload,
@@ -1150,6 +1151,13 @@ async function prepareContaAzulContractSync(
 ) {
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] stage", "load_finance_settings");
   const settings = await getContaAzulSettings(supabase);
+  console.info("[GUARDIAN CONTRACT SYNC] settings loaded", {
+    active: Boolean(settings?.active),
+    hasServiceItemId: Boolean(settings?.conta_azul_service_item_id),
+    hasRevenueCategoryId: Boolean(settings?.conta_azul_revenue_category_id),
+    hasFinancialAccountId: Boolean(settings?.conta_azul_financial_account_id),
+    hasDefaultDueDay: Boolean(settings?.default_due_day),
+  });
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] stage", "load_active_items");
   const [guardian, items] = await Promise.all([
     getGuardian(supabase, contract.guardian_id),
@@ -1209,6 +1217,10 @@ async function prepareContaAzulContractSync(
       "Contrato consolidado sem itens ativos.",
     );
   }
+  console.info("[GUARDIAN CONTRACT SYNC] items loaded", {
+    guardianContractId: contract.id,
+    activeItemsCount: items.length,
+  });
 
   const totalAmount = await recalculateContractTotal(supabase, contract.id);
 
@@ -1236,19 +1248,16 @@ async function prepareContaAzulContractSync(
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] stage", "ensure_conta_azul_customer");
   const providerCustomerId =
     guardian.conta_azul_person_id ?? (await ensureContaAzulCustomer(contract.guardian_id));
+  console.info("[GUARDIAN CONTRACT SYNC] customer resolved", {
+    guardianContractId: contract.id,
+    providerCustomerId,
+  });
   const todayString = toDateString(new Date());
-  const firstDueDate = contract.first_due_date;
-
-  if (firstDueDate < todayString) {
-    throw new GuardianContractSyncError(
-      "build_contract_payload",
-      "Primeiro vencimento anterior à data atual.",
-      {
-        firstDueDate,
-        today: todayString,
-      },
-    );
-  }
+  const firstDueDate = getValidFirstDueDate(
+    contract.first_due_date,
+    defaultDueDay,
+    new Date(),
+  );
 
   if (!providerCustomerId) {
     throw new GuardianContractSyncError(
@@ -1285,6 +1294,7 @@ async function prepareContaAzulContractSync(
     totalAmount,
     providerCustomerId,
     todayString,
+    firstDueDate,
   };
 }
 
@@ -1292,13 +1302,21 @@ async function createContaAzulContractForSync(
   syncData: Awaited<ReturnType<typeof prepareContaAzulContractSync>>,
 ) {
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] stage", "build_contract_payload");
+  console.info("[GUARDIAN CONTRACT SYNC] payload built", {
+    guardianContractId: syncData.contract.id,
+    itemsCount: syncData.items.length,
+    firstDueDate: syncData.firstDueDate,
+  });
+  console.info("[GUARDIAN CONTRACT SYNC] creating Conta Azul contract", {
+    guardianContractId: syncData.contract.id,
+  });
   const response = await syncData.client.createContract({
     customerId: syncData.providerCustomerId,
     contractNumber: buildUniqueContractNumber(),
     issueDate: syncData.todayString,
     startDate: syncData.contract.start_date,
     endDate: syncData.contract.end_date,
-    firstDueDate: syncData.contract.first_due_date,
+    firstDueDate: syncData.firstDueDate,
     dueDay: syncData.defaultDueDay,
     observations: buildContractObservation(syncData.guardian, syncData.contract),
     financialAccountId: syncData.financialAccountId,
@@ -1688,7 +1706,6 @@ function buildGuardianContractSelect() {
     "provider_customer_id",
     "provider_contract_id",
     "provider_legacy_id",
-    "provider_sale_id",
     "year",
     "version",
     "status",
@@ -1760,6 +1777,48 @@ function toDateString(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getValidFirstDueDate(
+  firstDueDate: string,
+  defaultDueDay: number,
+  baseDate: Date,
+) {
+  const todayString = toDateString(baseDate);
+
+  if (firstDueDate >= todayString) {
+    return firstDueDate;
+  }
+
+  const today = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate(),
+  );
+  let dueDate = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    clampDay(baseDate.getFullYear(), baseDate.getMonth(), defaultDueDay),
+  );
+
+  if (dueDate < today) {
+    const nextMonth = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth() + 1,
+      1,
+    );
+    dueDate = new Date(
+      nextMonth.getFullYear(),
+      nextMonth.getMonth(),
+      clampDay(nextMonth.getFullYear(), nextMonth.getMonth(), defaultDueDay),
+    );
+  }
+
+  return toDateString(dueDate);
+}
+
+function clampDay(year: number, month: number, day: number) {
+  return Math.min(day, new Date(year, month + 1, 0).getDate());
 }
 
 function getContractId(response: unknown) {
@@ -1879,6 +1938,7 @@ function buildFailurePayload(error: unknown) {
       sanitized_payload: getFailureSanitizedPayload(error.details),
       response_body: sanitizeSyncPayload(getFailureResponseBody(error.details)),
       status: getFailureStatus(error.details),
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -1894,6 +1954,7 @@ function buildFailurePayload(error: unknown) {
       status: error.details.status ?? error.status ?? null,
       response_body: sanitizeSyncPayload(error.details.body ?? null),
       sanitized_payload: sanitizeSyncPayload(error.details.payload ?? null),
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -1905,6 +1966,7 @@ function buildFailurePayload(error: unknown) {
     sanitized_payload: null,
     response_body: null,
     status: null,
+    timestamp: new Date().toISOString(),
   };
 }
 
