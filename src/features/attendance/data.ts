@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   classScheduleWeekdayOptions,
   type ClassScheduleWeekday,
@@ -58,7 +59,7 @@ export type AttendanceClassSheet = AttendanceClassSummary & {
 };
 
 export async function getAttendanceFilterOptions(): Promise<AttendanceFilterOptions> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const [
     { data: teachers, error: teachersError },
     { data: modalities, error: modalitiesError },
@@ -87,6 +88,20 @@ export async function getAttendanceFilterOptions(): Promise<AttendanceFilterOpti
   if (teachersError) {
     console.error("Attendance teachers filter load error:", teachersError);
   }
+
+  console.log("[ATTENDANCE PROFESSORS DEBUG]", {
+    professorsCount: teachers?.length ?? 0,
+    firstProfessors: (teachers ?? []).slice(0, 3).map((teacher) => ({
+      id: teacher.id,
+      fullNameLength:
+        typeof teacher.full_name === "string" ? teacher.full_name.length : 0,
+      hasArtisticName: Boolean(
+        typeof teacher.artistic_name === "string" &&
+          teacher.artistic_name.trim(),
+      ),
+    })),
+    sourceTable: "staff_members",
+  });
 
   if (modalitiesError) {
     console.error("Attendance modalities filter load error:", modalitiesError);
@@ -195,7 +210,7 @@ export async function getAttendanceClasses(
       ((levels ?? []) as CatalogOption[]).map((level) => [level.id, level]),
     );
 
-    return ((classes ?? []) as DanceClass[])
+    const filteredClasses = ((classes ?? []) as DanceClass[])
       .map((danceClass) =>
         toAttendanceClassSummary({
           danceClass,
@@ -220,6 +235,13 @@ export async function getAttendanceClasses(
           : true,
       )
       .sort(compareAttendanceClasses);
+
+    console.log("[ATTENDANCE FILTER DEBUG]", {
+      selectedProfessorId: filters.teacherId ?? null,
+      classesCount: filteredClasses.length,
+    });
+
+    return filteredClasses;
   } catch (error) {
     console.error("Attendance classes load error:", error);
     return [];
@@ -353,25 +375,6 @@ export async function getAllAttendanceClassSheets(
   );
 
   return sheets;
-}
-
-export async function getProfessorAttendanceClassSheets({
-  teacherId,
-  month = getCurrentMonthValue(),
-}: {
-  teacherId: string;
-  month?: string;
-}): Promise<AttendanceClassSheet[]> {
-  const classes = await getAttendanceClasses({
-    teacherId,
-    month,
-    status: "active",
-  });
-  const sheets = await Promise.all(
-    classes.map((danceClass) => getAttendanceClassSheet(danceClass.id, month)),
-  );
-
-  return sheets.filter((sheet): sheet is AttendanceClassSheet => Boolean(sheet));
 }
 
 async function getAttendanceStudents(classId: string): Promise<AttendanceStudent[]> {

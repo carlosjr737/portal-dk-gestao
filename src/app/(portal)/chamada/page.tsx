@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { PrintProfessorButton } from "@/features/attendance/print-professor-button";
 import {
   getAttendanceClasses,
   getAttendanceFilterOptions,
@@ -30,32 +29,37 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
     getAttendanceFilterOptions(),
     getAttendanceClasses(filters),
   ]);
-  const printProfessorHref = `/chamada/imprimir-todas${buildQueryString({
-    teacherId: filters.teacherId,
-    month: filters.month,
-  })}`;
+  const printAllHref = `/chamada/imprimir-todas${buildQueryString(filters)}`;
 
   return (
     <div>
       <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <PageHeader
           title="Lista de chamada"
-          description="Gere e imprima listas de chamada por professor ou por turma."
+          description="Gere e imprima listas de chamada por turma ou por professor."
         />
-        <PrintProfessorButton
-          href={printProfessorHref}
-          hasTeacher={Boolean(filters.teacherId)}
-        />
+        <Link
+          href={printAllHref}
+          className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
+        >
+          Imprimir todas
+        </Link>
       </div>
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
         <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>
-          <option value="">Selecione um professor</option>
-          {filterOptions.teachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.artistic_name?.trim() || teacher.full_name}
+          <option value="">Todos</option>
+          {filterOptions.teachers.length > 0 ? (
+            filterOptions.teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.artistic_name?.trim() || teacher.full_name}
+              </option>
+            ))
+          ) : (
+            <option value="" disabled>
+              Nenhum professor cadastrado
             </option>
-          ))}
+          )}
         </Select>
 
         <label className="block">

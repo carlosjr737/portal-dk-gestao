@@ -4,7 +4,6 @@ import {
   getAllAttendanceClassSheets,
   getAttendanceClasses,
   getAttendanceClassSheet,
-  getProfessorAttendanceClassSheets,
   normalizeAttendanceMonth,
   type AttendanceFilters,
   weekdayOptions,
@@ -41,13 +40,7 @@ export default async function ImprimirTodasPage({
         >
           Voltar para chamada
         </Link>
-        <PrintButton
-          label={
-            filters.teacherId
-              ? "Imprimir chamadas do professor"
-              : "Imprimir todas"
-          }
-        />
+        <PrintButton label="Imprimir todas" />
       </div>
 
       <div className="space-y-10 print:space-y-0">
@@ -66,13 +59,6 @@ export default async function ImprimirTodasPage({
 }
 
 async function getSheetsForPrint(filters: AttendanceFilters) {
-  if (filters.teacherId) {
-    return getProfessorAttendanceClassSheets({
-      teacherId: filters.teacherId,
-      month: filters.month,
-    });
-  }
-
   if (hasFilters(filters)) {
     return getFilteredSheets(filters);
   }
