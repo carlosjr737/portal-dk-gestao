@@ -45,7 +45,11 @@ export default async function ImprimirTodasPage({
 
       <div className="space-y-10 print:space-y-0">
         {sheets.length > 0 ? (
-          sheets.map((sheet) => <AttendanceSheet key={sheet.id} sheet={sheet} />)
+          sheets.map((sheet) => (
+            <div key={sheet.id} className="attendance-print-page">
+              <AttendanceSheet sheet={sheet} />
+            </div>
+          ))
         ) : (
           <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
             {filters.teacherId

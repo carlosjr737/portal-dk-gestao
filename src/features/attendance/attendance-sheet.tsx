@@ -6,7 +6,7 @@ type AttendanceSheetProps = {
 
 export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
   return (
-    <section className="print-class-page bg-white text-black">
+    <section className="attendance-print-sheet bg-white text-black">
       <header className="attendance-print-header border-b border-black pb-4">
         <div className="flex items-start justify-between gap-6">
           <div>

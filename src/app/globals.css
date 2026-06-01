@@ -39,7 +39,12 @@ a {
 
   .no-print,
   aside,
-  header.sticky {
+  nav,
+  button,
+  header.sticky,
+  .sidebar,
+  .app-sidebar,
+  .print-hidden {
     display: none !important;
   }
 
@@ -56,23 +61,22 @@ a {
     padding-left: 0 !important;
   }
 
-  .print-class-page {
-    break-before: page;
+  .attendance-print-page {
     break-after: page;
     break-inside: avoid-page;
-    page-break-before: always;
+    min-height: calc(210mm - 16mm);
     page-break-after: always;
     page-break-inside: avoid;
+    width: 100%;
   }
 
-  .print-class-page:first-child {
-    break-before: auto;
-    page-break-before: auto;
-  }
-
-  .print-class-page:last-child {
+  .attendance-print-page:last-child {
     break-after: auto;
     page-break-after: auto;
+  }
+
+  .attendance-print-sheet {
+    width: 100% !important;
   }
 
   .attendance-print-header {
