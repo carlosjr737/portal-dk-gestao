@@ -6,6 +6,7 @@ const protectedPrefixes = [
   "/alunos",
   "/responsaveis",
   "/turmas",
+  "/rodizio-salas",
   "/professores",
   "/modalidades",
   "/niveis",

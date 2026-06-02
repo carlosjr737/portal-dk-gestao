@@ -134,4 +134,31 @@ a {
     width: 28px !important;
     text-align: center !important;
   }
+
+  .rotation-print-area {
+    width: 100% !important;
+    background: white !important;
+    border: 0 !important;
+  }
+
+  .rotation-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    font-size: 10px !important;
+  }
+
+  .rotation-grid tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .rotation-grid th,
+  .rotation-grid td {
+    border-color: #111 !important;
+    padding: 5px !important;
+  }
+
+  .rotation-print-label {
+    display: block !important;
+  }
 }

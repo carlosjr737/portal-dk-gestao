@@ -19,6 +19,7 @@ export const navigationItems = [
   { href: "/alunos", label: "Alunos" },
   { href: "/responsaveis", label: "Responsáveis" },
   { href: "/turmas", label: "Turmas" },
+  { href: "/rodizio-salas", label: "Rodízio de Salas" },
   { href: "/professores", label: "Professores" },
   { href: "/modalidades", label: "Modalidades" },
   { href: "/niveis", label: "Níveis" },
@@ -42,6 +43,7 @@ const roleRoutePrefixes: Record<UserRole, string[]> = {
     "/alunos",
     "/responsaveis",
     "/turmas",
+    "/rodizio-salas",
     "/matriculas",
     "/chamada",
     "/calendario",
@@ -57,12 +59,13 @@ const roleNavigationPrefixes: Record<UserRole, string[]> = {
     "/alunos",
     "/responsaveis",
     "/turmas",
+    "/rodizio-salas",
     "/matriculas",
     "/chamada",
     "/calendario",
     "/importar-alunos",
   ],
-  professor: ["/chamada", "/calendario", "/turmas"],
+  professor: ["/chamada", "/calendario", "/turmas", "/rodizio-salas"],
 };
 
 export function isUserRole(value: string | null | undefined): value is UserRole {

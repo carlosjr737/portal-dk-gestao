@@ -29,7 +29,14 @@ const navigationGroups = [
   {
     title: "Turmas e aulas",
     accordion: true,
-    items: ["/turmas", "/chamada", "/professores", "/modalidades", "/niveis"],
+    items: [
+      "/turmas",
+      "/rodizio-salas",
+      "/chamada",
+      "/professores",
+      "/modalidades",
+      "/niveis",
+    ],
   },
   {
     title: "Operação",
