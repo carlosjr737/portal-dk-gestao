@@ -17,7 +17,10 @@ import { formatText } from "@/features/students/formatters";
 export const dynamic = "force-dynamic";
 
 export default async function ProfessoresPage() {
-  const staffMembers = await getStaffMembers();
+  const [staffMembers, classCountByTeacher] = await Promise.all([
+    getStaffMembers(),
+    getClassCountByTeacher(),
+  ]);
 
   return (
     <div>
@@ -51,9 +54,11 @@ export default async function ProfessoresPage() {
                 staffMember.id,
               );
 
+              const classCount = classCountByTeacher.get(staffMember.id) ?? 0;
+
               return (
                 <details key={staffMember.id} className="group">
-                  <summary className="grid cursor-pointer gap-3 px-5 py-4 text-sm marker:hidden md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-center">
+                  <summary className="grid cursor-pointer gap-3 px-5 py-4 text-sm marker:hidden md:grid-cols-[1.6fr_0.9fr_1.2fr_0.7fr_0.7fr_auto] md:items-center">
                     <div className="flex items-center gap-3">
                       <TeacherAvatar
                         name={getStaffDisplayName(staffMember)}
@@ -67,12 +72,19 @@ export default async function ProfessoresPage() {
                         <p className="text-xs text-muted-foreground">
                           {staffMember.artistic_name
                             ? staffMember.full_name
-                            : formatText(staffMember.email)}
+                            : formatStaffRole(staffMember.role)}
                         </p>
                       </div>
                     </div>
                     <span className="text-muted-foreground">
                       {formatStaffRole(staffMember.role)}
+                    </span>
+                    <div className="text-xs text-muted-foreground">
+                      <p>{formatText(staffMember.email)}</p>
+                      <p>{formatText(staffMember.phone)}</p>
+                    </div>
+                    <span className="text-muted-foreground">
+                      {classCount} {classCount === 1 ? "turma" : "turmas"}
                     </span>
                     <span className="text-muted-foreground">
                       {formatStaffStatus(staffMember.status)}
@@ -125,5 +137,36 @@ async function getStaffMembers(): Promise<StaffMember[]> {
       error instanceof Error ? error.message : error,
     );
     return [];
+  }
+}
+
+async function getClassCountByTeacher(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("classes")
+      .select("teacher_id")
+      .not("teacher_id", "is", null);
+
+    if (error) {
+      console.error("Class count by teacher load error:", error.message);
+      return counts;
+    }
+
+    for (const row of (data ?? []) as Array<{ teacher_id: string | null }>) {
+      if (row.teacher_id) {
+        counts.set(row.teacher_id, (counts.get(row.teacher_id) ?? 0) + 1);
+      }
+    }
+
+    return counts;
+  } catch (error) {
+    console.error(
+      "Class count by teacher load error:",
+      error instanceof Error ? error.message : error,
+    );
+    return counts;
   }
 }
