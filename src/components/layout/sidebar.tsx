@@ -42,7 +42,7 @@ const navigationGroups = [
   {
     title: "Operação",
     accordion: true,
-    items: ["/calendario"],
+    items: ["/calendario", "/dna-professores"],
   },
   {
     title: "Financeiro",
