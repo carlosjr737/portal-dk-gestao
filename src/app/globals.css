@@ -31,6 +31,10 @@ a {
   text-decoration: none;
 }
 
+.print-only {
+  display: none;
+}
+
 .rotation-scheduler {
   display: grid;
   grid-template-rows: 42px auto;
@@ -114,14 +118,23 @@ a {
     box-shadow 120ms ease;
 }
 
+.room-class-card,
+.room-class-card *,
 .draggable-class-card,
 .draggable-class-card * {
   -webkit-user-select: none;
   user-select: none;
 }
 
+.room-class-card,
 .draggable-class-card {
   touch-action: none;
+}
+
+.room-class-card.is-dragging,
+.draggable-class-card.is-dragging,
+.rotation-class-block.is-dragging {
+  opacity: 0.65;
 }
 
 .rotation-slot.is-over {
@@ -174,6 +187,7 @@ a {
   }
 
   .no-print,
+  .screen-only,
   aside,
   nav,
   button,
@@ -182,6 +196,10 @@ a {
   .app-sidebar,
   .print-hidden {
     display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
   }
 
   body {

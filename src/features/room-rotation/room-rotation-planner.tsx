@@ -78,6 +78,13 @@ export function RoomRotationPlanner({
     setAssignments(data.assignments);
   }, [data.assignments]);
 
+  useEffect(() => {
+    console.log("[ROOM ROTATION COMPONENT LIVE]", {
+      version: "dnd-fix-v1",
+      timestamp: new Date().toISOString(),
+    });
+  }, []);
+
   function handleDragStart(classId: string) {
     dropHandledRef.current = false;
     setDraggedClassId(classId);
@@ -233,7 +240,7 @@ export function RoomRotationPlanner({
           result.assignment as RoomRotationAssignment,
         ]);
       } else {
-        console.log("[ROOM ROTATION DND] save failed", {
+        console.error("[ROOM ROTATION DND] save failed", {
           classId,
           roomId,
           startTime,
@@ -400,6 +407,13 @@ export function RoomRotationPlanner({
         </div>
       ) : null}
 
+      <div className="no-print rounded-md border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+        roomsCount: {data.rooms.length} · classesCount: {data.classes.length} ·
+        currentPlanId: {data.selectedPlan?.id ?? "none"} · assignmentsCount:{" "}
+        {assignments.length} · dndEnabled:{" "}
+        {data.selectedPlan && data.rooms.length > 0 ? "true" : "false"}
+      </div>
+
       {!data.selectedPlan ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
           Crie um novo rodízio para começar a montar as salas.
@@ -425,7 +439,8 @@ export function RoomRotationPlanner({
                 <AvailableClassCard
                   key={danceClass.id}
                   danceClass={danceClass}
-                  draggable={Boolean(data.selectedPlan)}
+                  draggable
+                  dndEnabled={Boolean(data.selectedPlan)}
                   onDragStart={() => handleDragStart(danceClass.id)}
                   onDragEnd={handleDragEnd}
                 />
@@ -664,6 +679,8 @@ function RoomScheduleColumn({
         return (
           <div
             key={cellKey}
+            data-room-id={room.id}
+            data-start-time={timeSlot}
             className={[
               "rotation-slot",
               activeCell === cellKey ? "is-over" : "",
@@ -671,11 +688,14 @@ function RoomScheduleColumn({
               hasTeacherOverlap && !hasRoomOverlap ? "has-warning" : "",
             ].join(" ")}
             onDragOver={(event) => {
-              if (!selectedPlanExists) {
-                return;
-              }
-
               event.preventDefault();
+              event.dataTransfer.dropEffect = selectedPlanExists ? "move" : "none";
+              console.log("[ROOM ROTATION DND] drag over", {
+                overId: `slot:${room.id}:${timeSlot}`,
+                roomId: room.id,
+                startTime: timeSlot,
+                currentPlanId: selectedPlanExists ? "loaded" : null,
+              });
               onActiveCellChange(cellKey);
             }}
             onDragLeave={() => onActiveCellChange(null)}
@@ -744,11 +764,13 @@ function RoomScheduleColumn({
 function AvailableClassCard({
   danceClass,
   draggable,
+  dndEnabled,
   onDragStart,
   onDragEnd,
 }: {
   danceClass: RoomRotationClassCard;
   draggable: boolean;
+  dndEnabled: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
@@ -757,6 +779,7 @@ function AvailableClassCard({
   return (
     <article
       draggable={draggable && duration > 0}
+      data-class-id={danceClass.id}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         const payload = JSON.stringify({
@@ -767,10 +790,14 @@ function AvailableClassCard({
           payload,
         );
         event.dataTransfer.setData("text/plain", payload);
+        event.currentTarget.classList.add("is-dragging");
         onDragStart();
       }}
-      onDragEnd={onDragEnd}
-      className={`draggable-class-card rounded-md border bg-white p-2.5 shadow-sm transition ${
+      onDragEnd={(event) => {
+        event.currentTarget.classList.remove("is-dragging");
+        onDragEnd();
+      }}
+      className={`room-class-card draggable-class-card rounded-md border bg-white p-2.5 shadow-sm transition ${
         duration > 0
           ? "cursor-grab hover:border-primary/50 hover:shadow-md active:cursor-grabbing"
           : "cursor-not-allowed border-amber-200 bg-amber-50"
@@ -796,9 +823,9 @@ function AvailableClassCard({
           {danceClass.activeStudentsCount} alunos
         </span>
       </div>
-      {draggable && duration > 0 ? (
+      {duration > 0 ? (
         <p className="mt-1 text-[10px] font-medium text-muted-foreground">
-          Arraste para a grade
+          {dndEnabled ? "Arraste para a grade" : "Crie um rodízio para alocar"}
         </p>
       ) : null}
       {duration <= 0 ? (
@@ -832,6 +859,7 @@ function AssignedClassBlock({
   return (
     <div
       draggable
+      data-class-id={danceClass.id}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         const payload = JSON.stringify({
@@ -842,10 +870,14 @@ function AssignedClassBlock({
           payload,
         );
         event.dataTransfer.setData("text/plain", payload);
+        event.currentTarget.classList.add("is-dragging");
         onDragStart(danceClass.id);
       }}
-      onDragEnd={onDragEnd}
-      className={`rotation-class-block group ${
+      onDragEnd={(event) => {
+        event.currentTarget.classList.remove("is-dragging");
+        onDragEnd();
+      }}
+      className={`room-class-card rotation-class-block group ${
         hasWarning ? "has-warning" : ""
       }`}
       style={{
