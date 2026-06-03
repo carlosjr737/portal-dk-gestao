@@ -214,11 +214,22 @@ export function RoomRotationPlanner({
       });
 
       if (result.status === "saved") {
+        console.log("[ROOM ROTATION DND] save success", {
+          classId,
+          roomId,
+          startTime,
+        });
         setAssignments((current) => [
           ...current.filter((assignment) => assignment.class_id !== classId),
           result.assignment as RoomRotationAssignment,
         ]);
       } else {
+        console.log("[ROOM ROTATION DND] save failed", {
+          classId,
+          roomId,
+          startTime,
+          message: result.message,
+        });
         setNotice({
           tone: "error",
           message: result.message,
@@ -380,13 +391,6 @@ export function RoomRotationPlanner({
         </div>
       ) : null}
 
-      {data.rooms.some((room) => room.isFallback) ? (
-        <div className="no-print rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Salas padrão exibidas em modo fallback. Para salvar alocações, rode o
-          SQL de criação das salas no Supabase remoto.
-        </div>
-      ) : null}
-
       {!data.selectedPlan ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
           Crie um novo rodízio para começar a montar as salas.
@@ -492,8 +496,17 @@ function RotationScheduleBoard({
 }) {
   if (rooms.length === 0) {
     return (
-      <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-        Preparando salas padrão do rodízio.
+      <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">Nenhuma sala cadastrada.</p>
+        <p className="mt-1">
+          Cadastre as salas em Turmas e Aulas &gt; Salas para montar o rodízio.
+        </p>
+        <a
+          href="/salas"
+          className="mt-4 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+        >
+          Cadastrar salas
+        </a>
       </div>
     );
   }

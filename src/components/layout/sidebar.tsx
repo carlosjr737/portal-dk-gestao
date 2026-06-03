@@ -31,6 +31,7 @@ const navigationGroups = [
     accordion: true,
     items: [
       "/turmas",
+      "/salas",
       "/rodizio-salas",
       "/chamada",
       "/professores",

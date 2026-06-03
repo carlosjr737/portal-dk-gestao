@@ -167,12 +167,25 @@ export async function getRoomRotationPageData(
     activeRooms = await ensureDefaultRooms();
   }
 
+  console.log("[ROOMS] loaded", {
+    roomsCount: activeRooms.length,
+    roomNames: activeRooms.map((room) => room.name),
+    source: roomsError ? "ensure_failed_or_missing_table" : "rooms",
+  });
+
   const typedPlans = ((plans ?? []) as RoomRotationPlan[]).filter((plan) =>
     filters.status ? plan.status === filters.status : true,
   );
   const selectedPlan =
     typedPlans.find((plan) => plan.rotation_label === filters.rotationLabel) ??
     null;
+
+  console.log("[ROOM ROTATION] current plan", {
+    selectedPlanId: selectedPlan?.id ?? null,
+    status: selectedPlan?.status ?? null,
+    filters,
+  });
+
   const assignments = selectedPlan
     ? await getAssignments(selectedPlan.id)
     : [];
@@ -222,25 +235,12 @@ async function ensureDefaultRooms() {
       "[ROOM ROTATION ROOMS ERROR] failed to ensure default rooms",
       error,
     );
-    return getFallbackRooms();
+    return [];
   }
 
   const activeRooms = (data ?? []) as Room[];
 
-  return activeRooms.length > 0 ? activeRooms : getFallbackRooms();
-}
-
-function getFallbackRooms(): Room[] {
-  return defaultRooms.map((room) => ({
-    id: `fallback-${room.slug}`,
-    name: room.name,
-    slug: room.slug,
-    capacity: null,
-    color: room.color,
-    sort_order: room.sort_order,
-    active: true,
-    isFallback: true,
-  }));
+  return activeRooms;
 }
 
 export function buildRoomRotationQuery(filters: RoomRotationFilters) {
