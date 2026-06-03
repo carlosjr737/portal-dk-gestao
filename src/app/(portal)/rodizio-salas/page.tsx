@@ -14,6 +14,7 @@ type RodizioSalasPageProps = {
     dayGroup?: string;
     rotationLabel?: string;
     status?: string;
+    planId?: string;
   }>;
 };
 

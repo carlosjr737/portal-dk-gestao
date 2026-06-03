@@ -39,6 +39,7 @@ type RoomRotationFilters = {
   dayGroup: RoomRotationDayGroup;
   rotationLabel: string;
   status?: "draft" | "published" | "";
+  planId?: string;
 };
 
 type ClassRecord = {
@@ -77,6 +78,7 @@ export function normalizeRoomRotationFilters(params?: {
   dayGroup?: string;
   rotationLabel?: string;
   status?: string;
+  planId?: string;
 }): RoomRotationFilters {
   const defaults = getCurrentRoomRotationDefaults();
   const year = Number(params?.year);
@@ -103,6 +105,7 @@ export function normalizeRoomRotationFilters(params?: {
       params?.status === "draft" || params?.status === "published"
         ? params.status
         : "draft",
+    planId: isUuid(params?.planId) ? params?.planId : undefined,
   };
 }
 
@@ -174,6 +177,14 @@ export async function getRoomRotationPageData(
   });
 
   const allPlans = (plans ?? []) as RoomRotationPlan[];
+  console.log("[ROOM ROTATION PLAN] loading", {
+    year: filters.year,
+    month: filters.month,
+    dayGroup: filters.dayGroup,
+    rotationLabel: filters.rotationLabel,
+    planId: filters.planId ?? null,
+    plansCount: allPlans.length,
+  });
   const typedPlans = allPlans.filter((plan) =>
     filters.status ? plan.status === filters.status : true,
   );
@@ -181,10 +192,25 @@ export async function getRoomRotationPageData(
     (plan) => plan.rotation_label === filters.rotationLabel,
   );
   const selectedPlan =
+    allPlans.find((plan) => plan.id === filters.planId) ??
     matchingPlans.find((plan) => plan.status === "draft") ??
     matchingPlans.find((plan) => plan.status === filters.status) ??
     matchingPlans[0] ??
     null;
+
+  if (selectedPlan) {
+    console.log("[ROOM ROTATION PLAN] found", {
+      planId: selectedPlan.id,
+      status: selectedPlan.status,
+    });
+  } else {
+    console.log("[ROOM ROTATION PLAN] not found", {
+      year: filters.year,
+      month: filters.month,
+      dayGroup: filters.dayGroup,
+      rotationLabel: filters.rotationLabel,
+    });
+  }
 
   console.log("[ROOM ROTATION] current plan", {
     selectedPlanId: selectedPlan?.id ?? null,
@@ -223,6 +249,15 @@ export async function getRoomRotationPageData(
   };
 }
 
+function isUuid(value: string | undefined) {
+  return Boolean(
+    value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        value,
+      ),
+  );
+}
+
 async function ensureDefaultRooms() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -258,6 +293,10 @@ export function buildRoomRotationQuery(filters: RoomRotationFilters) {
 
   if (filters.status) {
     params.set("status", filters.status);
+  }
+
+  if (filters.planId) {
+    params.set("planId", filters.planId);
   }
 
   return params.toString();

@@ -32,6 +32,7 @@ type PlannerFilters = {
   dayGroup: RoomRotationDayGroup;
   rotationLabel: string;
   status?: string;
+  planId?: string;
 };
 
 type RoomRotationPlannerProps = {
@@ -587,16 +588,6 @@ function RotationScheduleBoard({
             onRemove={onRemove}
           />
         ))}
-        {!selectedPlanExists ? (
-          <div className="rotation-board-disabled no-print">
-            <p className="font-semibold text-foreground">
-              Crie um rodízio antes de alocar turmas.
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Use o botão Novo rodízio para liberar o arrastar e soltar.
-            </p>
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -1038,6 +1029,9 @@ function HiddenFilters({ filters }: { filters: PlannerFilters }) {
       <input type="hidden" name="dayGroup" value={filters.dayGroup} />
       <input type="hidden" name="rotationLabel" value={filters.rotationLabel} />
       <input type="hidden" name="status" value={filters.status ?? ""} />
+      {filters.planId ? (
+        <input type="hidden" name="planId" value={filters.planId} />
+      ) : null}
     </>
   );
 }

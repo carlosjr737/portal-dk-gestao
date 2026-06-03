@@ -23,6 +23,7 @@ const filterSchema = z.object({
   dayGroup: dayGroupSchema,
   rotationLabel: rotationLabelSchema,
   status: z.enum(["", "draft", "published"]).optional(),
+  planId: z.string().uuid().optional().or(z.literal("")),
 });
 
 const assignmentSchema = filterSchema.extend({
@@ -40,15 +41,21 @@ function parseFilters(formData: FormData) {
     dayGroup: formData.get("dayGroup"),
     rotationLabel: formData.get("rotationLabel"),
     status: String(formData.get("status") ?? ""),
+    planId: String(formData.get("planId") ?? "") || undefined,
   });
 }
 
 export async function createRoomRotationPlan(formData: FormData) {
   const filters = parseFilters(formData);
-  const draftFilters = { ...filters, status: "draft" as const };
   const supabase = createAdminClient();
   const name = `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`;
-  const { error } = await supabase.from("room_rotation_plans").upsert(
+  console.log("[ROOM ROTATION PLAN] create start", {
+    year: filters.year,
+    month: filters.month,
+    dayGroup: filters.dayGroup,
+    rotationLabel: filters.rotationLabel,
+  });
+  const { data, error } = await supabase.from("room_rotation_plans").upsert(
     {
       name,
       year: filters.year,
@@ -61,11 +68,31 @@ export async function createRoomRotationPlan(formData: FormData) {
     {
       onConflict: "year,month,day_group,rotation_label",
     },
-  );
+  )
+    .select("id")
+    .single();
 
   if (error) {
-    console.error("[ROOM ROTATION] create plan error", error);
+    console.error("[ROOM ROTATION PLAN] create failed", error);
+    revalidatePath("/rodizio-salas");
+    redirect(
+      `/rodizio-salas?${buildRoomRotationQuery({
+        ...filters,
+        status: "draft",
+        planId: undefined,
+      })}&planError=create_failed`,
+    );
   }
+
+  console.log("[ROOM ROTATION PLAN] create success", {
+    planId: data?.id ?? null,
+  });
+
+  const draftFilters = {
+    ...filters,
+    status: "draft" as const,
+    planId: data?.id,
+  };
 
   revalidatePath("/rodizio-salas");
   redirect(`/rodizio-salas?${buildRoomRotationQuery(draftFilters)}`);
@@ -115,6 +142,13 @@ export async function saveRoomRotationAssignmentDrop(input: {
   endTime?: string | null;
   dayGroup: "SEG_QUA" | "TER_QUI" | "SEX" | "SAB";
 }) {
+  console.log("[ROOM ROTATION ASSIGNMENT] save start", {
+    rotationPlanId: input.rotationPlanId,
+    classId: input.classId,
+    roomId: input.roomId,
+    startTime: input.startTime,
+    dayGroup: input.dayGroup,
+  });
   const parsed = z
     .object({
       rotationPlanId: z.string().uuid(),
@@ -131,6 +165,10 @@ export async function saveRoomRotationAssignmentDrop(input: {
     .parse(input);
 
   if (!uuidSchema.safeParse(parsed.roomId).success) {
+    console.error("[ROOM ROTATION ASSIGNMENT] save failed", {
+      stage: "validate_room_id",
+      roomId: parsed.roomId,
+    });
     return {
       status: "failed" as const,
       message:
@@ -143,6 +181,11 @@ export async function saveRoomRotationAssignmentDrop(input: {
   const endMinutes = parsed.endTime ? timeToMinutes(parsed.endTime) : null;
 
   if (!endMinutes || endMinutes <= startMinutes) {
+    console.error("[ROOM ROTATION ASSIGNMENT] save failed", {
+      stage: "validate_time",
+      startTime: parsed.startTime,
+      endTime: parsed.endTime ?? null,
+    });
     return {
       status: "failed" as const,
       message: "Turma sem horário válido para alocação.",
@@ -157,6 +200,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
 
   if (existingError) {
     console.error("[ROOM ROTATION] drop validation error", existingError);
+    console.error("[ROOM ROTATION ASSIGNMENT] save failed", existingError);
     return {
       status: "failed" as const,
       message: existingError.message,
@@ -177,6 +221,12 @@ export async function saveRoomRotationAssignmentDrop(input: {
   });
 
   if (hasRoomOverlap) {
+    console.error("[ROOM ROTATION ASSIGNMENT] save failed", {
+      stage: "room_overlap",
+      roomId: parsed.roomId,
+      startTime: parsed.startTime,
+      endTime: parsed.endTime ?? null,
+    });
     return {
       status: "failed" as const,
       message: "Já existe uma turma nessa sala durante este horário.",
@@ -203,6 +253,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
 
   if (error || !data) {
     console.error("[ROOM ROTATION] drop save error", error);
+    console.error("[ROOM ROTATION ASSIGNMENT] save failed", error);
     return {
       status: "failed" as const,
       message: error?.message ?? "Não foi possível salvar a alocação.",
@@ -210,6 +261,13 @@ export async function saveRoomRotationAssignmentDrop(input: {
   }
 
   revalidatePath("/rodizio-salas");
+
+  console.log("[ROOM ROTATION ASSIGNMENT] save success", {
+    assignmentId: data.id,
+    rotationPlanId: data.rotation_plan_id,
+    classId: data.class_id,
+    roomId: data.room_id,
+  });
 
   return {
     status: "saved" as const,
