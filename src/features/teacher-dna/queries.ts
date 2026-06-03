@@ -55,7 +55,7 @@ export async function getTeacherDnaDashboardData(
   ] = await Promise.all([
     supabase
       .from("staff_members")
-      .select("id, full_name, artistic_name, status")
+      .select("id, full_name, artistic_name, photo_path, status")
       .eq("role", "professor")
       .order("full_name", { ascending: true }),
     supabase

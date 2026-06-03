@@ -1,4 +1,5 @@
 import { teacherDnaPillars } from "@/features/teacher-dna/constants";
+import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import { getHeatmapColor } from "@/features/teacher-dna/scoring";
 import { getTeacherName } from "@/features/teacher-dna/queries";
 import type { TeacherDnaTeacherScore } from "@/features/teacher-dna/types";
@@ -36,7 +37,14 @@ export function TeacherDnaPillarsHeatmap({
             {scores.map((score) => (
               <tr key={score.teacher.id}>
                 <td className="sticky left-0 z-10 bg-white px-4 py-3 font-semibold text-foreground">
-                  {getTeacherName(score.teacher)}
+                  <div className="flex items-center gap-2">
+                    <TeacherAvatar
+                      name={getTeacherName(score.teacher)}
+                      photoPath={score.teacher.photo_path}
+                      size="sm"
+                    />
+                    <span>{getTeacherName(score.teacher)}</span>
+                  </div>
                 </td>
                 {teacherDnaPillars.map((pillar) => {
                   const value = score.pillarScores[pillar.key];

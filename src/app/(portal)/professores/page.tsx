@@ -10,6 +10,7 @@ import {
   getStaffDisplayName,
 } from "@/features/staff/formatters";
 import { StaffMemberForm } from "@/features/staff/staff-member-form";
+import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import type { StaffMember } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
 
@@ -53,15 +54,22 @@ export default async function ProfessoresPage() {
               return (
                 <details key={staffMember.id} className="group">
                   <summary className="grid cursor-pointer gap-3 px-5 py-4 text-sm marker:hidden md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-center">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {getStaffDisplayName(staffMember)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {staffMember.artistic_name
-                          ? staffMember.full_name
-                          : formatText(staffMember.email)}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <TeacherAvatar
+                        name={getStaffDisplayName(staffMember)}
+                        photoPath={staffMember.photo_path}
+                        size="md"
+                      />
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {getStaffDisplayName(staffMember)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {staffMember.artistic_name
+                            ? staffMember.full_name
+                            : formatText(staffMember.email)}
+                        </p>
+                      </div>
                     </div>
                     <span className="text-muted-foreground">
                       {formatStaffRole(staffMember.role)}
@@ -101,7 +109,7 @@ async function getStaffMembers(): Promise<StaffMember[]> {
     const { data, error } = await supabase
       .from("staff_members")
       .select(
-        "id, full_name, artistic_name, email, phone, role, status, created_at, updated_at",
+        "id, full_name, artistic_name, email, phone, photo_path, role, status, created_at, updated_at",
       )
       .order("full_name", { ascending: true });
 

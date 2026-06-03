@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
+import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import { teacherDnaPillars } from "@/features/teacher-dna/constants";
 import { TeacherDnaEvolution } from "@/features/teacher-dna/components/teacher-dna-evolution";
 import { TeacherDnaPillarBars } from "@/features/teacher-dna/components/teacher-dna-pillar-bars";
@@ -59,10 +60,33 @@ export default async function TeacherDnaDetailPage({
         </Link>
       </div>
 
-      <PageHeader
-        title={teacherName}
-        description="Detalhe da pontuação do professor nos 12 pilares do padrão DK."
-      />
+      <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center">
+          <TeacherAvatar
+            name={teacherName}
+            photoPath={score.teacher.photo_path}
+            size="xl"
+          />
+          <div className="min-w-0 flex-1">
+            <PageHeader
+              title={teacherName}
+              description="Detalhe da pontuação do professor nos 12 pilares do padrão DK."
+            />
+          </div>
+          <div className="grid gap-3 text-sm sm:grid-cols-2 md:min-w-[360px]">
+            <MiniMetric label="Pontuação geral" value={formatScore(score.overallScore)} />
+            <MiniMetric label="Aulas avaliadas" value={String(score.evaluatedLessons)} />
+            <MiniMetric
+              label="Melhor pilar"
+              value={score.bestPillar?.name ?? "-"}
+            />
+            <MiniMetric
+              label="Pilar de atenção"
+              value={score.attentionPillar?.name ?? "-"}
+            />
+          </div>
+        </div>
+      </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-4">
         <DetailCard
@@ -114,6 +138,17 @@ export default async function TeacherDnaDetailPage({
           <AiNotes score={score} />
         </div>
       )}
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted/60 px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 line-clamp-2 font-bold text-foreground">{value}</p>
     </div>
   );
 }

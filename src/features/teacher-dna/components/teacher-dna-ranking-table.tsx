@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import {
   formatScore,
   getPerformanceLabel,
@@ -49,7 +50,14 @@ export function TeacherDnaRankingTable({
                   {index + 1}
                 </td>
                 <td className="px-4 py-3 font-medium text-foreground">
-                  {getTeacherName(score.teacher)}
+                  <div className="flex items-center gap-2">
+                    <TeacherAvatar
+                      name={getTeacherName(score.teacher)}
+                      photoPath={score.teacher.photo_path}
+                      size="sm"
+                    />
+                    <span>{getTeacherName(score.teacher)}</span>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <ScoreBadge score={score.overallScore} />

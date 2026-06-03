@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { StaffActionState } from "@/features/staff/actions";
+import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import {
   staffRoleOptions,
   staffStatusOptions,
@@ -13,7 +14,9 @@ type StaffMemberFormProps = {
     previousState: StaffActionState,
     formData: FormData,
   ) => Promise<StaffActionState>;
-  defaultValues?: Partial<StaffMemberFormData>;
+  defaultValues?: Partial<StaffMemberFormData> & {
+    photo_path?: string | null;
+  };
   submitLabel: string;
   compact?: boolean;
 };
@@ -27,6 +30,11 @@ export function StaffMemberForm({
   compact,
 }: StaffMemberFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const displayName =
+    defaultValues?.artistic_name || defaultValues?.full_name || "Professor";
+  const currentPhotoPath = defaultValues?.photo_path ?? null;
+  const acceptedTypesLabel = useMemo(() => "JPG, PNG ou WEBP ate 5MB", []);
 
   return (
     <form
@@ -38,6 +46,48 @@ export function StaffMemberForm({
           {state.message}
         </div>
       ) : null}
+
+      <div className="rounded-md border border-border bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center gap-4">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt="Preview da foto"
+              className="h-16 w-16 rounded-full border border-border object-cover"
+            />
+          ) : (
+            <TeacherAvatar
+              name={displayName}
+              photoPath={currentPhotoPath}
+              size="lg"
+            />
+          )}
+          <label className="min-w-[240px] flex-1">
+            <span className="text-sm font-medium text-foreground">
+              Foto do professor
+            </span>
+            <input
+              name="photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="mt-1 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                setPreviewUrl(file ? URL.createObjectURL(file) : null);
+              }}
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              {acceptedTypesLabel}
+            </span>
+            {state.errors?.photo?.[0] ? (
+              <span className="mt-1 block text-xs text-red-600">
+                {state.errors.photo[0]}
+              </span>
+            ) : null}
+          </label>
+        </div>
+      </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <Field

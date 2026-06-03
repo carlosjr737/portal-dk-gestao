@@ -16,6 +16,7 @@ export type TeacherDnaTeacher = {
   id: string;
   full_name: string;
   artistic_name: string | null;
+  photo_path: string | null;
   status: string;
 };
 
