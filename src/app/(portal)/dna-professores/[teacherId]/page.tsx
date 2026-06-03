@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import { teacherDnaPillars } from "@/features/teacher-dna/constants";
+import { TeacherDnaAssessmentHistory } from "@/features/teacher-dna/components/teacher-dna-assessment-history";
 import { TeacherDnaEvolution } from "@/features/teacher-dna/components/teacher-dna-evolution";
 import { TeacherDnaPillarBars } from "@/features/teacher-dna/components/teacher-dna-pillar-bars";
 import {
@@ -134,7 +135,10 @@ export default async function TeacherDnaDetailPage({
             </section>
           </div>
           <TeacherDnaEvolution rows={data.monthlyEvolution} />
-          <AssessmentHistory score={score} />
+          <TeacherDnaAssessmentHistory
+            teacherName={teacherName}
+            assessments={score.assessments}
+          />
           <AiNotes score={score} />
         </div>
       )}
@@ -195,52 +199,6 @@ function PillarList({
         ))}
       </div>
     </div>
-  );
-}
-
-function AssessmentHistory({
-  score,
-}: {
-  score: TeacherDnaTeacherScore;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
-      <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">
-          Histórico de avaliações
-        </h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[760px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Data</th>
-              <th className="px-4 py-3">Origem</th>
-              <th className="px-4 py-3">Pontuação geral</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Relatório</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {score.assessments.map((assessment) => (
-              <tr key={assessment.id}>
-                <td className="px-4 py-3">{formatDate(assessment.lesson_date)}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {assessment.source}
-                </td>
-                <td className="px-4 py-3 font-semibold">
-                  {formatScore(Math.round(Number(assessment.overall_score)))}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {getPerformanceLabel(Math.round(Number(assessment.overall_score)))}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">-</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
   );
 }
 

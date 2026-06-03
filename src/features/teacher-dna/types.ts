@@ -31,6 +31,7 @@ export type TeacherDnaAssessment = {
   strengths: string[] | null;
   improvements: string[] | null;
   summary: string | null;
+  report_path: string | null;
   created_at: string;
 };
 

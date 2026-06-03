@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TeacherAvatar } from "@/features/staff/teacher-avatar";
+import { TeacherDnaLessonsDialog } from "@/features/teacher-dna/components/teacher-dna-lessons-dialog";
 import {
   formatScore,
   getPerformanceLabel,
@@ -56,7 +57,12 @@ export function TeacherDnaRankingTable({
                       photoPath={score.teacher.photo_path}
                       size="sm"
                     />
-                    <span>{getTeacherName(score.teacher)}</span>
+                    <TeacherDnaLessonsDialog
+                      teacherName={getTeacherName(score.teacher)}
+                      assessments={score.assessments}
+                    >
+                      {getTeacherName(score.teacher)}
+                    </TeacherDnaLessonsDialog>
                   </div>
                 </td>
                 <td className="px-4 py-3">

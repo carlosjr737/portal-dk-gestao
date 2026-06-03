@@ -191,7 +191,7 @@ function getTrend(assessments: TeacherDnaAssessment[]) {
   return newest > previous ? "up" : "down";
 }
 
-function getAssessmentOverallScore(assessment: TeacherDnaAssessment) {
+export function getAssessmentOverallScore(assessment: TeacherDnaAssessment) {
   if (Number.isFinite(assessment.overall_score) && assessment.overall_score > 0) {
     return Number(assessment.overall_score);
   }
