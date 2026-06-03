@@ -6,6 +6,7 @@ import {
   copyPreviousRoomRotationPlan,
   createRoomRotationPlan,
   deleteRoomRotationAssignmentDrop,
+  ensureRoomRotationPlanForDrop,
   publishRoomRotationPlan,
   saveRoomRotationAssignmentDrop,
 } from "@/features/room-rotation/actions";
@@ -21,6 +22,7 @@ import type {
   RoomRotationClassCard,
   RoomRotationDayGroup,
   RoomRotationPageData,
+  RoomRotationPlan,
 } from "@/features/room-rotation/types";
 
 const slotHeight = 34;
@@ -57,6 +59,9 @@ export function RoomRotationPlanner({
   const [isPending, startTransition] = useTransition();
   const [draggedClassId, setDraggedClassId] = useState<string | null>(null);
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<RoomRotationPlan | null>(
+    data.selectedPlan,
+  );
   const [assignments, setAssignments] = useState(data.assignments);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dropHandledRef = useRef(false);
@@ -69,7 +74,7 @@ export function RoomRotationPlanner({
     [assignments],
   );
   const sourcePlans = data.plans.filter(
-    (plan) => plan.id !== data.selectedPlan?.id,
+    (plan) => plan.id !== currentPlan?.id,
   );
   const availableClasses = data.classes.filter(
     (danceClass) => !assignmentsByClassId.has(danceClass.id),
@@ -78,6 +83,10 @@ export function RoomRotationPlanner({
   useEffect(() => {
     setAssignments(data.assignments);
   }, [data.assignments]);
+
+  useEffect(() => {
+    setCurrentPlan(data.selectedPlan);
+  }, [data.selectedPlan]);
 
   useEffect(() => {
     console.log("[ROOM ROTATION COMPONENT LIVE]", {
@@ -114,21 +123,18 @@ export function RoomRotationPlanner({
 
   async function saveDrop(classId: string, roomId: string, startTime: string) {
     dropHandledRef.current = true;
-    console.log("[ROOM ROTATION DND] dropped", {
+    console.log("[ROOM ROTATION DND] drop received", {
       activeId: `class:${classId}`,
       overId: `slot:${roomId}:${startTime}`,
       classId,
       roomId,
       startTime,
+      currentPlanId: currentPlan?.id ?? null,
+      selectedYear: filters.year,
+      selectedMonth: filters.month,
+      selectedDayGroup: filters.dayGroup,
+      selectedRotationLabel: filters.rotationLabel,
     });
-
-    if (!data.selectedPlan) {
-      setNotice({
-        tone: "warning",
-        message: "Crie um rodízio antes de alocar turmas.",
-      });
-      return;
-    }
 
     const targetRoom = data.rooms.find((room) => room.id === roomId);
 
@@ -139,6 +145,48 @@ export function RoomRotationPlanner({
           "Salas padrão não foram encontradas no banco. Rode o SQL de criação das salas.",
       });
       return;
+    }
+
+    let plan = currentPlan;
+
+    if (!plan) {
+      const planResult = await ensureRoomRotationPlanForDrop({
+        year: filters.year,
+        month: filters.month,
+        dayGroup: filters.dayGroup,
+        rotationLabel: filters.rotationLabel as
+          | "Rodízio 1"
+          | "Rodízio 2"
+          | "Rodízio 3"
+          | "Rodízio 4"
+          | "Rodízio 5",
+      });
+
+      if (planResult.status !== "created") {
+        console.error("[ROOM ROTATION PLAN] create failed", {
+          message: planResult.message,
+        });
+        setNotice({
+          tone: "error",
+          message: planResult.message,
+        });
+        return;
+      }
+
+      plan = planResult.plan as RoomRotationPlan;
+      setCurrentPlan(plan);
+      window.history.replaceState(
+        null,
+        "",
+        `/rodizio-salas?${new URLSearchParams({
+          year: String(filters.year),
+          month: String(filters.month),
+          dayGroup: filters.dayGroup,
+          rotationLabel: filters.rotationLabel,
+          status: "draft",
+          planId: plan.id,
+        }).toString()}`,
+      );
     }
 
     const danceClass = classById.get(classId);
@@ -199,12 +247,12 @@ export function RoomRotationPlanner({
 
     const optimisticAssignment: RoomRotationAssignment = {
       id: currentAssignment?.id ?? `pending-${classId}`,
-      rotation_plan_id: data.selectedPlan.id,
+      rotation_plan_id: plan.id,
       class_id: classId,
       room_id: roomId,
       start_time: startTime,
       end_time: endTime,
-      day_group: filters.dayGroup,
+      day_group: plan.day_group,
       sort_order: 0,
       notes: null,
     };
@@ -222,12 +270,12 @@ export function RoomRotationPlanner({
 
     startTransition(async () => {
       const result = await saveRoomRotationAssignmentDrop({
-        rotationPlanId: data.selectedPlan?.id ?? "",
+        rotationPlanId: plan.id,
         classId,
         roomId,
         startTime,
         endTime,
-        dayGroup: filters.dayGroup,
+        dayGroup: plan.day_group,
       });
 
       if (result.status === "saved") {
@@ -328,7 +376,7 @@ export function RoomRotationPlanner({
             </button>
           </PlanActionForm>
 
-          {data.selectedPlan ? (
+          {currentPlan ? (
             <>
               <button
                 type="button"
@@ -345,7 +393,7 @@ export function RoomRotationPlanner({
               <PlanActionForm
                 filters={filters}
                 action={publishRoomRotationPlan}
-                rotationPlanId={data.selectedPlan.id}
+                rotationPlanId={currentPlan.id}
               >
                 <button className="h-10 rounded-md border border-border px-4 text-sm font-medium">
                   Publicar
@@ -364,7 +412,7 @@ export function RoomRotationPlanner({
                   <input
                     type="hidden"
                     name="rotationPlanId"
-                    value={data.selectedPlan.id}
+                    value={currentPlan.id}
                   />
                   <select
                     name="sourcePlanId"
@@ -382,7 +430,7 @@ export function RoomRotationPlanner({
                 </form>
               ) : null}
               <span className="inline-flex h-10 items-center rounded-md bg-muted px-3 text-sm font-medium">
-                {data.selectedPlan.status === "published"
+                {currentPlan.status === "published"
                   ? "Publicado"
                   : "Rascunho"}
               </span>
@@ -409,13 +457,14 @@ export function RoomRotationPlanner({
       ) : null}
 
       <div className="no-print rounded-md border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-        roomsCount: {data.rooms.length} · classesCount: {data.classes.length} ·
-        currentPlanId: {data.selectedPlan?.id ?? "none"} · assignmentsCount:{" "}
+        currentPlanId: {currentPlan?.id ?? "none"} · currentPlanStatus:{" "}
+        {currentPlan?.status ?? "none"} · roomsCount: {data.rooms.length} ·
+        availableClassesCount: {availableClasses.length} · assignmentsCount:{" "}
         {assignments.length} · dndEnabled:{" "}
-        {data.selectedPlan && data.rooms.length > 0 ? "true" : "false"}
+        {data.rooms.length > 0 ? "true" : "false"}
       </div>
 
-      {!data.selectedPlan ? (
+      {!currentPlan ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
           Crie um novo rodízio para começar a montar as salas.
         </div>
@@ -441,7 +490,7 @@ export function RoomRotationPlanner({
                   key={danceClass.id}
                   danceClass={danceClass}
                   draggable
-                  dndEnabled={Boolean(data.selectedPlan)}
+                  dndEnabled={Boolean(currentPlan)}
                   onDragStart={() => handleDragStart(danceClass.id)}
                   onDragEnd={handleDragEnd}
                 />
@@ -460,7 +509,7 @@ export function RoomRotationPlanner({
               {getRoomRotationDayGroupLabel(filters.dayGroup)}
             </p>
             <h2 className="text-lg font-bold text-foreground">
-              {data.selectedPlan?.name ??
+              {currentPlan?.name ??
                 `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`}
             </h2>
             <p className="no-print mt-1 text-xs text-muted-foreground">
@@ -479,7 +528,8 @@ export function RoomRotationPlanner({
             classById={classById}
             draggedClassId={draggedClassId}
             activeCell={activeCell}
-            selectedPlanExists={Boolean(data.selectedPlan)}
+            selectedPlanExists={Boolean(currentPlan)}
+            currentPlanId={currentPlan?.id ?? null}
             onActiveCellChange={setActiveCell}
             onDrop={saveDrop}
             onDragStart={handleDragStart}
@@ -500,6 +550,7 @@ function RotationScheduleBoard({
   draggedClassId,
   activeCell,
   selectedPlanExists,
+  currentPlanId,
   onActiveCellChange,
   onDrop,
   onDragStart,
@@ -513,6 +564,7 @@ function RotationScheduleBoard({
   draggedClassId: string | null;
   activeCell: string | null;
   selectedPlanExists: boolean;
+  currentPlanId: string | null;
   onActiveCellChange: (value: string | null) => void;
   onDrop: (classId: string, roomId: string, startTime: string) => void;
   onDragStart: (classId: string) => void;
@@ -580,7 +632,7 @@ function RotationScheduleBoard({
             classById={classById}
             draggedClassId={draggedClassId}
             activeCell={activeCell}
-            selectedPlanExists={selectedPlanExists}
+            currentPlanId={currentPlanId}
             onActiveCellChange={onActiveCellChange}
             onDrop={onDrop}
             onDragStart={onDragStart}
@@ -602,7 +654,7 @@ function RoomScheduleColumn({
   classById,
   draggedClassId,
   activeCell,
-  selectedPlanExists,
+  currentPlanId,
   onActiveCellChange,
   onDrop,
   onDragStart,
@@ -617,7 +669,7 @@ function RoomScheduleColumn({
   classById: Map<string, RoomRotationClassCard>;
   draggedClassId: string | null;
   activeCell: string | null;
-  selectedPlanExists: boolean;
+  currentPlanId: string | null;
   onActiveCellChange: (value: string | null) => void;
   onDrop: (classId: string, roomId: string, startTime: string) => void;
   onDragStart: (classId: string) => void;
@@ -680,12 +732,12 @@ function RoomScheduleColumn({
             ].join(" ")}
             onDragOver={(event) => {
               event.preventDefault();
-              event.dataTransfer.dropEffect = selectedPlanExists ? "move" : "none";
+              event.dataTransfer.dropEffect = "move";
               console.log("[ROOM ROTATION DND] drag over", {
                 overId: `slot:${room.id}:${timeSlot}`,
                 roomId: room.id,
                 startTime: timeSlot,
-                currentPlanId: selectedPlanExists ? "loaded" : null,
+                currentPlanId,
               });
               onActiveCellChange(cellKey);
             }}
@@ -816,7 +868,7 @@ function AvailableClassCard({
       </div>
       {duration > 0 ? (
         <p className="mt-1 text-[10px] font-medium text-muted-foreground">
-          {dndEnabled ? "Arraste para a grade" : "Crie um rodízio para alocar"}
+          {dndEnabled ? "Arraste para a grade" : "Arraste para criar e alocar"}
         </p>
       ) : null}
       {duration <= 0 ? (

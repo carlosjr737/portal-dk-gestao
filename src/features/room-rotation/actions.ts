@@ -98,6 +98,73 @@ export async function createRoomRotationPlan(formData: FormData) {
   redirect(`/rodizio-salas?${buildRoomRotationQuery(draftFilters)}`);
 }
 
+export async function ensureRoomRotationPlanForDrop(input: {
+  year: number;
+  month: number;
+  dayGroup: "SEG_QUA" | "TER_QUI" | "SEX" | "SAB";
+  rotationLabel: "Rodízio 1" | "Rodízio 2" | "Rodízio 3" | "Rodízio 4" | "Rodízio 5";
+}) {
+  const parsed = z
+    .object({
+      year: z.number().int().min(2000),
+      month: z.number().int().min(1).max(12),
+      dayGroup: dayGroupSchema,
+      rotationLabel: rotationLabelSchema,
+    })
+    .parse(input);
+  const supabase = createAdminClient();
+  const name = `RODIZIO DE SALA ${parsed.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(parsed.year, parsed.month).toUpperCase()}`;
+
+  console.log("[ROOM ROTATION PLAN] create start", {
+    year: parsed.year,
+    month: parsed.month,
+    dayGroup: parsed.dayGroup,
+    rotationLabel: parsed.rotationLabel,
+    source: "drop",
+  });
+
+  const { data, error } = await supabase
+    .from("room_rotation_plans")
+    .upsert(
+      {
+        name,
+        year: parsed.year,
+        month: parsed.month,
+        day_group: parsed.dayGroup,
+        rotation_label: parsed.rotationLabel,
+        status: "draft",
+        notes: null,
+      },
+      {
+        onConflict: "year,month,day_group,rotation_label",
+      },
+    )
+    .select("id, name, year, month, day_group, rotation_label, status, notes")
+    .single();
+
+  if (error || !data) {
+    console.error("[ROOM ROTATION PLAN] create failed", error);
+    return {
+      status: "failed" as const,
+      message:
+        error?.message ??
+        "Não foi possível criar o plano de rodízio. Verifique a tabela room_rotation_plans.",
+    };
+  }
+
+  console.log("[ROOM ROTATION PLAN] create success", {
+    planId: data.id,
+    source: "drop",
+  });
+
+  revalidatePath("/rodizio-salas");
+
+  return {
+    status: "created" as const,
+    plan: data,
+  };
+}
+
 export async function saveRoomRotationAssignment(formData: FormData) {
   const parsed = assignmentSchema.parse({
     year: formData.get("year"),
