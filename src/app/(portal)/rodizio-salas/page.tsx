@@ -29,7 +29,7 @@ export default async function RodizioSalasPage({
       <div className="no-print border-b border-border pb-6">
         <PageHeader
           title="Rodízio de Salas"
-          description="Monte a grade operacional de salas por mês, grupo de dias e semana."
+          description="Monte visualmente a distribuição das turmas por sala e horário."
         />
       </div>
 

@@ -105,6 +105,63 @@ export async function saveRoomRotationAssignment(formData: FormData) {
   redirect(`/rodizio-salas?${buildRoomRotationQuery(parsed)}`);
 }
 
+export async function saveRoomRotationAssignmentDrop(input: {
+  rotationPlanId: string;
+  classId: string;
+  roomId: string;
+  startTime: string;
+  endTime?: string | null;
+  dayGroup: "SEG_QUA" | "TER_QUI" | "SEX" | "SAB";
+}) {
+  const parsed = z
+    .object({
+      rotationPlanId: z.string().uuid(),
+      classId: z.string().uuid(),
+      roomId: z.string().uuid(),
+      startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      endTime: z
+        .string()
+        .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+        .nullable()
+        .optional(),
+      dayGroup: dayGroupSchema,
+    })
+    .parse(input);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("room_rotation_assignments")
+    .upsert(
+      {
+        rotation_plan_id: parsed.rotationPlanId,
+        class_id: parsed.classId,
+        room_id: parsed.roomId,
+        start_time: parsed.startTime,
+        end_time: parsed.endTime || null,
+        day_group: parsed.dayGroup,
+      },
+      {
+        onConflict: "rotation_plan_id,class_id",
+      },
+    )
+    .select("id, rotation_plan_id, class_id, room_id, start_time, end_time, day_group, sort_order, notes")
+    .single();
+
+  if (error || !data) {
+    console.error("[ROOM ROTATION] drop save error", error);
+    return {
+      status: "failed" as const,
+      message: error?.message ?? "Não foi possível salvar a alocação.",
+    };
+  }
+
+  revalidatePath("/rodizio-salas");
+
+  return {
+    status: "saved" as const,
+    assignment: data,
+  };
+}
+
 export async function deleteRoomRotationAssignment(formData: FormData) {
   const filters = parseFilters(formData);
   const assignmentId = String(formData.get("assignmentId") ?? "");
@@ -123,6 +180,28 @@ export async function deleteRoomRotationAssignment(formData: FormData) {
 
   revalidatePath("/rodizio-salas");
   redirect(`/rodizio-salas?${buildRoomRotationQuery(filters)}`);
+}
+
+export async function deleteRoomRotationAssignmentDrop(assignmentId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("room_rotation_assignments")
+    .delete()
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error("[ROOM ROTATION] drop delete error", error);
+    return {
+      status: "failed" as const,
+      message: error.message,
+    };
+  }
+
+  revalidatePath("/rodizio-salas");
+
+  return {
+    status: "deleted" as const,
+  };
 }
 
 export async function publishRoomRotationPlan(formData: FormData) {

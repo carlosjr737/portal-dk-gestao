@@ -31,6 +31,58 @@ a {
   text-decoration: none;
 }
 
+.rotation-board {
+  display: grid;
+  grid-auto-rows: minmax(84px, auto);
+}
+
+.room-header {
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 12px;
+  text-transform: uppercase;
+}
+
+.rotation-time-header,
+.rotation-time-cell {
+  background: hsl(var(--muted));
+}
+
+.rotation-time-cell {
+  align-items: flex-start;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  display: flex;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px;
+}
+
+.rotation-cell {
+  background: white;
+  border: 1px solid hsl(var(--border));
+  min-height: 84px;
+  padding: 8px;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.rotation-cell.is-over {
+  background: #ecfdf5;
+  border-color: #10b981;
+  box-shadow: inset 0 0 0 1px #10b981;
+}
+
+.rotation-cell.has-conflict {
+  background: #fff7ed;
+  border-color: #f97316;
+}
+
 @media print {
   @page {
     size: A4 landscape;
@@ -147,11 +199,19 @@ a {
     font-size: 10px !important;
   }
 
+  .rotation-board {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .rotation-grid tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
+  .room-header,
+  .rotation-time-cell,
+  .rotation-cell,
   .rotation-grid th,
   .rotation-grid td {
     border-color: #111 !important;
