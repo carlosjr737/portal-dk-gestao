@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   copyPreviousRoomRotationPlan,
@@ -58,6 +58,7 @@ export function RoomRotationPlanner({
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const [assignments, setAssignments] = useState(data.assignments);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const dropHandledRef = useRef(false);
   const classById = useMemo(
     () => new Map(data.classes.map((danceClass) => [danceClass.id, danceClass])),
     [data.classes],
@@ -77,11 +78,48 @@ export function RoomRotationPlanner({
     setAssignments(data.assignments);
   }, [data.assignments]);
 
+  function handleDragStart(classId: string) {
+    dropHandledRef.current = false;
+    setDraggedClassId(classId);
+    console.log("[ROOM ROTATION DND] drag start", { classId });
+  }
+
+  function handleDragEnd() {
+    console.log("[ROOM ROTATION DND] drag end", { classId: draggedClassId });
+
+    if (!dropHandledRef.current) {
+      console.log("[ROOM ROTATION DND] no drop target", {
+        classId: draggedClassId,
+      });
+    }
+
+    setDraggedClassId(null);
+    setActiveCell(null);
+  }
+
   async function saveDrop(classId: string, roomId: string, startTime: string) {
+    dropHandledRef.current = true;
+    console.log("[ROOM ROTATION DND] dropped", {
+      classId,
+      roomId,
+      startTime,
+    });
+
     if (!data.selectedPlan) {
       setNotice({
         tone: "warning",
         message: "Crie um rodízio antes de alocar turmas.",
+      });
+      return;
+    }
+
+    const targetRoom = data.rooms.find((room) => room.id === roomId);
+
+    if (!targetRoom || targetRoom.isFallback || !isUuid(roomId)) {
+      setNotice({
+        tone: "error",
+        message:
+          "Salas padrão não foram encontradas no banco. Rode o SQL de criação das salas.",
       });
       return;
     }
@@ -342,6 +380,13 @@ export function RoomRotationPlanner({
         </div>
       ) : null}
 
+      {data.rooms.some((room) => room.isFallback) ? (
+        <div className="no-print rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Salas padrão exibidas em modo fallback. Para salvar alocações, rode o
+          SQL de criação das salas no Supabase remoto.
+        </div>
+      ) : null}
+
       {!data.selectedPlan ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
           Crie um novo rodízio para começar a montar as salas.
@@ -368,11 +413,8 @@ export function RoomRotationPlanner({
                   key={danceClass.id}
                   danceClass={danceClass}
                   draggable={Boolean(data.selectedPlan)}
-                  onDragStart={() => setDraggedClassId(danceClass.id)}
-                  onDragEnd={() => {
-                    setDraggedClassId(null);
-                    setActiveCell(null);
-                  }}
+                  onDragStart={() => handleDragStart(danceClass.id)}
+                  onDragEnd={handleDragEnd}
                 />
               ))
             ) : (
@@ -411,11 +453,8 @@ export function RoomRotationPlanner({
             selectedPlanExists={Boolean(data.selectedPlan)}
             onActiveCellChange={setActiveCell}
             onDrop={saveDrop}
-            onDragStart={setDraggedClassId}
-            onDragEnd={() => {
-              setDraggedClassId(null);
-              setActiveCell(null);
-            }}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
             onRemove={removeAssignment}
           />
         </div>
@@ -880,6 +919,12 @@ function formatDuration(minutes: number) {
   }
 
   return `${remainder}min`;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function PlanActionForm({

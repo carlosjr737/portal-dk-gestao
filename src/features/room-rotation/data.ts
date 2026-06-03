@@ -102,7 +102,7 @@ export function normalizeRoomRotationFilters(params?: {
     status:
       params?.status === "draft" || params?.status === "published"
         ? params.status
-        : "",
+        : "draft",
   };
 }
 
@@ -163,7 +163,7 @@ export async function getRoomRotationPageData(
 
   let activeRooms = (rooms ?? []) as Room[];
 
-  if (!roomsError && activeRooms.length === 0) {
+  if (roomsError || activeRooms.length === 0) {
     activeRooms = await ensureDefaultRooms();
   }
 
@@ -218,11 +218,29 @@ async function ensureDefaultRooms() {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[ROOM ROTATION] default rooms error", error);
-    return [];
+    console.error(
+      "[ROOM ROTATION ROOMS ERROR] failed to ensure default rooms",
+      error,
+    );
+    return getFallbackRooms();
   }
 
-  return (data ?? []) as Room[];
+  const activeRooms = (data ?? []) as Room[];
+
+  return activeRooms.length > 0 ? activeRooms : getFallbackRooms();
+}
+
+function getFallbackRooms(): Room[] {
+  return defaultRooms.map((room) => ({
+    id: `fallback-${room.slug}`,
+    name: room.name,
+    slug: room.slug,
+    capacity: null,
+    color: room.color,
+    sort_order: room.sort_order,
+    active: true,
+    isFallback: true,
+  }));
 }
 
 export function buildRoomRotationQuery(filters: RoomRotationFilters) {

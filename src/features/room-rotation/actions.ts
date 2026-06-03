@@ -15,6 +15,7 @@ const rotationLabelSchema = z.enum([
   "Rodízio 4",
   "Rodízio 5",
 ]);
+const uuidSchema = z.string().uuid();
 
 const filterSchema = z.object({
   year: z.coerce.number().int().min(2000),
@@ -44,6 +45,7 @@ function parseFilters(formData: FormData) {
 
 export async function createRoomRotationPlan(formData: FormData) {
   const filters = parseFilters(formData);
+  const draftFilters = { ...filters, status: "draft" as const };
   const supabase = createAdminClient();
   const name = `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`;
   const { error } = await supabase.from("room_rotation_plans").upsert(
@@ -66,7 +68,7 @@ export async function createRoomRotationPlan(formData: FormData) {
   }
 
   revalidatePath("/rodizio-salas");
-  redirect(`/rodizio-salas?${buildRoomRotationQuery(filters)}`);
+  redirect(`/rodizio-salas?${buildRoomRotationQuery(draftFilters)}`);
 }
 
 export async function saveRoomRotationAssignment(formData: FormData) {
@@ -117,7 +119,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
     .object({
       rotationPlanId: z.string().uuid(),
       classId: z.string().uuid(),
-      roomId: z.string().uuid(),
+      roomId: z.string().min(1),
       startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
       endTime: z
         .string()
@@ -127,6 +129,15 @@ export async function saveRoomRotationAssignmentDrop(input: {
       dayGroup: dayGroupSchema,
     })
     .parse(input);
+
+  if (!uuidSchema.safeParse(parsed.roomId).success) {
+    return {
+      status: "failed" as const,
+      message:
+        "Salas padrão não foram encontradas no banco. Rode o SQL de criação das salas.",
+    };
+  }
+
   const supabase = createAdminClient();
   const startMinutes = timeToMinutes(parsed.startTime);
   const endMinutes = parsed.endTime ? timeToMinutes(parsed.endTime) : null;

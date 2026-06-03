@@ -11,6 +11,7 @@ export type Room = {
   color: string | null;
   sort_order: number;
   active: boolean;
+  isFallback?: boolean;
 };
 
 export type RoomRotationPlan = {
