@@ -173,11 +173,17 @@ export async function getRoomRotationPageData(
     source: roomsError ? "ensure_failed_or_missing_table" : "rooms",
   });
 
-  const typedPlans = ((plans ?? []) as RoomRotationPlan[]).filter((plan) =>
+  const allPlans = (plans ?? []) as RoomRotationPlan[];
+  const typedPlans = allPlans.filter((plan) =>
     filters.status ? plan.status === filters.status : true,
   );
+  const matchingPlans = allPlans.filter(
+    (plan) => plan.rotation_label === filters.rotationLabel,
+  );
   const selectedPlan =
-    typedPlans.find((plan) => plan.rotation_label === filters.rotationLabel) ??
+    matchingPlans.find((plan) => plan.status === "draft") ??
+    matchingPlans.find((plan) => plan.status === filters.status) ??
+    matchingPlans[0] ??
     null;
 
   console.log("[ROOM ROTATION] current plan", {

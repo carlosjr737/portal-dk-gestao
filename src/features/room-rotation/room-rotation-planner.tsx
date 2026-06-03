@@ -81,11 +81,18 @@ export function RoomRotationPlanner({
   function handleDragStart(classId: string) {
     dropHandledRef.current = false;
     setDraggedClassId(classId);
-    console.log("[ROOM ROTATION DND] drag start", { classId });
+    console.log("[ROOM ROTATION DND] drag start", {
+      event: "native-dragstart",
+      activeId: `class:${classId}`,
+      classId,
+    });
   }
 
   function handleDragEnd() {
-    console.log("[ROOM ROTATION DND] drag end", { classId: draggedClassId });
+    console.log("[ROOM ROTATION DND] drag end", {
+      activeId: draggedClassId ? `class:${draggedClassId}` : null,
+      overId: activeCell ? `slot:${activeCell}` : null,
+    });
 
     if (!dropHandledRef.current) {
       console.log("[ROOM ROTATION DND] no drop target", {
@@ -100,6 +107,8 @@ export function RoomRotationPlanner({
   async function saveDrop(classId: string, roomId: string, startTime: string) {
     dropHandledRef.current = true;
     console.log("[ROOM ROTATION DND] dropped", {
+      activeId: `class:${classId}`,
+      overId: `slot:${roomId}:${startTime}`,
       classId,
       roomId,
       startTime,
@@ -439,7 +448,7 @@ export function RoomRotationPlanner({
                 `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`}
             </h2>
             <p className="no-print mt-1 text-xs text-muted-foreground">
-              Salas padrão carregadas automaticamente: Subway, Pequena, Aquário e Mirante.
+              Salas carregadas do cadastro em Turmas e Aulas &gt; Salas.
             </p>
           </div>
 
@@ -516,7 +525,9 @@ function RotationScheduleBoard({
   return (
     <div className="overflow-x-auto">
       <div
-        className="rotation-scheduler min-w-[980px]"
+        className={`rotation-scheduler min-w-[980px] ${
+          selectedPlanExists ? "" : "is-disabled"
+        }`}
         style={{
           gridTemplateColumns: `86px repeat(${rooms.length}, minmax(170px, 1fr))`,
         }}
@@ -561,6 +572,16 @@ function RotationScheduleBoard({
             onRemove={onRemove}
           />
         ))}
+        {!selectedPlanExists ? (
+          <div className="rotation-board-disabled no-print">
+            <p className="font-semibold text-foreground">
+              Crie um rodízio antes de alocar turmas.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use o botão Novo rodízio para liberar o arrastar e soltar.
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -660,7 +681,9 @@ function RoomScheduleColumn({
             onDragLeave={() => onActiveCellChange(null)}
             onDrop={(event) => {
               event.preventDefault();
-              const rawPayload = event.dataTransfer.getData("application/json");
+              const rawPayload =
+                event.dataTransfer.getData("application/json") ||
+                event.dataTransfer.getData("text/plain");
               const payload = safeParseDragPayload(rawPayload);
               onActiveCellChange(null);
 
@@ -736,14 +759,18 @@ function AvailableClassCard({
       draggable={draggable && duration > 0}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
+        const payload = JSON.stringify({
+          classId: danceClass.id,
+        } satisfies DragPayload);
         event.dataTransfer.setData(
           "application/json",
-          JSON.stringify({ classId: danceClass.id } satisfies DragPayload),
+          payload,
         );
+        event.dataTransfer.setData("text/plain", payload);
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      className={`rounded-md border bg-white p-2.5 shadow-sm transition ${
+      className={`draggable-class-card rounded-md border bg-white p-2.5 shadow-sm transition ${
         duration > 0
           ? "cursor-grab hover:border-primary/50 hover:shadow-md active:cursor-grabbing"
           : "cursor-not-allowed border-amber-200 bg-amber-50"
@@ -769,6 +796,11 @@ function AvailableClassCard({
           {danceClass.activeStudentsCount} alunos
         </span>
       </div>
+      {draggable && duration > 0 ? (
+        <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+          Arraste para a grade
+        </p>
+      ) : null}
       {duration <= 0 ? (
         <p className="mt-1 text-[11px] font-medium text-amber-800">
           Cadastre horário para alocar.
@@ -802,10 +834,14 @@ function AssignedClassBlock({
       draggable
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
+        const payload = JSON.stringify({
+          classId: danceClass.id,
+        } satisfies DragPayload);
         event.dataTransfer.setData(
           "application/json",
-          JSON.stringify({ classId: danceClass.id } satisfies DragPayload),
+          payload,
         );
+        event.dataTransfer.setData("text/plain", payload);
         onDragStart(danceClass.id);
       }}
       onDragEnd={onDragEnd}
