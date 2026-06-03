@@ -26,6 +26,13 @@ import type {
 
 const defaultTimeSlots = buildDefaultTimeSlots();
 
+const defaultRooms = [
+  { name: "Subway", slug: "subway", color: "#dbeafe", sort_order: 1 },
+  { name: "Pequena", slug: "pequena", color: "#dcfce7", sort_order: 2 },
+  { name: "Aquário", slug: "aquario", color: "#fef3c7", sort_order: 3 },
+  { name: "Mirante", slug: "mirante", color: "#fce7f3", sort_order: 4 },
+];
+
 type RoomRotationFilters = {
   year: number;
   month: number;
@@ -154,6 +161,12 @@ export async function getRoomRotationPageData(
     console.error("[ROOM ROTATION] load error", firstError);
   }
 
+  let activeRooms = (rooms ?? []) as Room[];
+
+  if (!roomsError && activeRooms.length === 0) {
+    activeRooms = await ensureDefaultRooms();
+  }
+
   const typedPlans = ((plans ?? []) as RoomRotationPlan[]).filter((plan) =>
     filters.status ? plan.status === filters.status : true,
   );
@@ -176,12 +189,12 @@ export async function getRoomRotationPageData(
   const conflicts = buildConflicts({
     assignments,
     classes: classCards,
-    rooms: (rooms ?? []) as Room[],
+    rooms: activeRooms,
     timeSlots,
   });
 
   return {
-    rooms: (rooms ?? []) as Room[],
+    rooms: activeRooms,
     plans: typedPlans,
     selectedPlan,
     assignments,
@@ -189,6 +202,27 @@ export async function getRoomRotationPageData(
     timeSlots,
     conflicts,
   };
+}
+
+async function ensureDefaultRooms() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("rooms")
+    .upsert(
+      defaultRooms.map((room) => ({ ...room, active: true })),
+      { onConflict: "slug" },
+    )
+    .select("id, name, slug, capacity, color, sort_order, active")
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[ROOM ROTATION] default rooms error", error);
+    return [];
+  }
+
+  return (data ?? []) as Room[];
 }
 
 export function buildRoomRotationQuery(filters: RoomRotationFilters) {
@@ -314,19 +348,38 @@ function buildTimeSlots(
   classes: RoomRotationClassCard[],
   assignments: RoomRotationAssignment[],
 ) {
-  const slots = new Set<string>();
+  const boundaries = [
+    timeToMinutes(defaultTimeSlots[0] ?? "09:00"),
+    timeToMinutes("21:30"),
+  ];
 
   for (const danceClass of classes) {
     if (danceClass.primaryStartTime) {
-      slots.add(danceClass.primaryStartTime);
+      boundaries.push(timeToMinutes(danceClass.primaryStartTime));
+    }
+
+    if (danceClass.primaryEndTime) {
+      boundaries.push(timeToMinutes(danceClass.primaryEndTime));
     }
   }
 
   for (const assignment of assignments) {
-    slots.add(assignment.start_time.slice(0, 5));
+    boundaries.push(timeToMinutes(assignment.start_time.slice(0, 5)));
+
+    if (assignment.end_time) {
+      boundaries.push(timeToMinutes(assignment.end_time.slice(0, 5)));
+    }
   }
 
-  return slots.size > 0 ? [...slots].sort() : defaultTimeSlots;
+  const start = Math.floor(Math.min(...boundaries) / 30) * 30;
+  const end = Math.max(...boundaries);
+  const slots: string[] = [];
+
+  for (let minutes = start; minutes < end; minutes += 30) {
+    slots.push(minutesToTime(minutes));
+  }
+
+  return slots.length > 0 ? slots : defaultTimeSlots;
 }
 
 function buildConflicts({
@@ -458,13 +511,20 @@ function formatSchedules(schedules: ScheduleRecord[]) {
 function buildDefaultTimeSlots() {
   const slots: string[] = [];
 
-  for (let hour = 14; hour <= 21; hour += 1) {
-    slots.push(`${String(hour).padStart(2, "0")}:00`);
-
-    if (hour < 21) {
-      slots.push(`${String(hour).padStart(2, "0")}:30`);
-    }
+  for (let minutes = 9 * 60; minutes < 21 * 60 + 30; minutes += 30) {
+    slots.push(minutesToTime(minutes));
   }
 
   return slots;
+}
+
+function timeToMinutes(time: string) {
+  const [hour = "0", minute = "0"] = time.split(":");
+  return Number(hour) * 60 + Number(minute);
+}
+
+function minutesToTime(minutes: number) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }

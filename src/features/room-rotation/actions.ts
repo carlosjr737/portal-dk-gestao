@@ -128,6 +128,50 @@ export async function saveRoomRotationAssignmentDrop(input: {
     })
     .parse(input);
   const supabase = createAdminClient();
+  const startMinutes = timeToMinutes(parsed.startTime);
+  const endMinutes = parsed.endTime ? timeToMinutes(parsed.endTime) : null;
+
+  if (!endMinutes || endMinutes <= startMinutes) {
+    return {
+      status: "failed" as const,
+      message: "Turma sem horário válido para alocação.",
+    };
+  }
+
+  const { data: existingAssignments, error: existingError } = await supabase
+    .from("room_rotation_assignments")
+    .select("id, class_id, start_time, end_time")
+    .eq("rotation_plan_id", parsed.rotationPlanId)
+    .eq("room_id", parsed.roomId);
+
+  if (existingError) {
+    console.error("[ROOM ROTATION] drop validation error", existingError);
+    return {
+      status: "failed" as const,
+      message: existingError.message,
+    };
+  }
+
+  const hasRoomOverlap = (existingAssignments ?? []).some((assignment) => {
+    if (assignment.class_id === parsed.classId) {
+      return false;
+    }
+
+    const existingStart = timeToMinutes(String(assignment.start_time).slice(0, 5));
+    const existingEnd = assignment.end_time
+      ? timeToMinutes(String(assignment.end_time).slice(0, 5))
+      : existingStart + 30;
+
+    return startMinutes < existingEnd && endMinutes > existingStart;
+  });
+
+  if (hasRoomOverlap) {
+    return {
+      status: "failed" as const,
+      message: "Já existe uma turma nessa sala durante este horário.",
+    };
+  }
+
   const { data, error } = await supabase
     .from("room_rotation_assignments")
     .upsert(
@@ -202,6 +246,11 @@ export async function deleteRoomRotationAssignmentDrop(assignmentId: string) {
   return {
     status: "deleted" as const,
   };
+}
+
+function timeToMinutes(time: string) {
+  const [hour = "0", minute = "0"] = time.split(":");
+  return Number(hour) * 60 + Number(minute);
 }
 
 export async function publishRoomRotationPlan(formData: FormData) {
