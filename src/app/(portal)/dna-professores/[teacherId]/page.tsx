@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import { teacherDnaPillars } from "@/features/teacher-dna/constants";
+import { TeacherBusinessMetrics } from "@/features/teacher-dna/components/teacher-business-metrics";
 import { TeacherDnaAssessmentHistory } from "@/features/teacher-dna/components/teacher-dna-assessment-history";
 import { TeacherDnaEvolution } from "@/features/teacher-dna/components/teacher-dna-evolution";
 import { TeacherDnaPillarBars } from "@/features/teacher-dna/components/teacher-dna-pillar-bars";
@@ -16,6 +17,7 @@ import {
   getTeacherName,
   normalizeTeacherDnaFilters,
 } from "@/features/teacher-dna/queries";
+import { getTeacherBusinessMetrics } from "@/features/teacher-dna/teacher-metrics";
 import type { TeacherDnaTeacherScore } from "@/features/teacher-dna/types";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +41,10 @@ export default async function TeacherDnaDetailPage({
     ...(await searchParams),
     teacherId,
   });
-  const data = await getTeacherDnaDetailData(teacherId, filters);
+  const [data, businessMetrics] = await Promise.all([
+    getTeacherDnaDetailData(teacherId, filters),
+    getTeacherBusinessMetrics(teacherId),
+  ]);
 
   if (!data.teacherScore) {
     notFound();
@@ -111,6 +116,19 @@ export default async function TeacherDnaDetailPage({
           detail="Comparada à avaliação anterior"
         />
       </section>
+
+      <div className="mt-6">
+        <TeacherBusinessMetrics
+          metrics={businessMetrics}
+          dnaScore={score.overallScore}
+          modalityNames={Object.fromEntries(
+            data.modalities.map((modality) => [modality.id, modality.name]),
+          )}
+          levelNames={Object.fromEntries(
+            data.levels.map((level) => [level.id, level.name]),
+          )}
+        />
+      </div>
 
       {score.evaluatedLessons === 0 ? (
         <section className="mt-6 rounded-lg border border-dashed border-border bg-white px-6 py-12 text-center shadow-sm">
