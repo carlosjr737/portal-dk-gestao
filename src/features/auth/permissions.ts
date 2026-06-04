@@ -16,6 +16,7 @@ export const roleLabels: Record<UserRole, string> = {
 
 export const navigationItems = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/metricas-escola", label: "Métricas da escola" },
   { href: "/alunos", label: "Alunos" },
   { href: "/responsaveis", label: "Responsáveis" },
   { href: "/turmas", label: "Turmas" },
@@ -42,6 +43,7 @@ const roleRoutePrefixes: Record<UserRole, string[]> = {
   admin: ["/"],
   equipe: [
     "/dashboard",
+    "/metricas-escola",
     "/alunos",
     "/responsaveis",
     "/turmas",
@@ -60,6 +62,7 @@ const roleNavigationPrefixes: Record<UserRole, string[]> = {
   admin: ["/"],
   equipe: [
     "/dashboard",
+    "/metricas-escola",
     "/alunos",
     "/responsaveis",
     "/turmas",
