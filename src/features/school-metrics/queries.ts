@@ -53,6 +53,8 @@ export type SchoolMetrics = {
   teachersActive: number;
   totalCapacity: number;
   monthlyRevenue: number;
+  grossRevenue: number;
+  totalDiscount: number;
   averageTicketPerEnrollment: number | null;
   averageTicketPerStudent: number | null;
   occupancyRate: number | null;
@@ -116,6 +118,8 @@ function emptyMetrics(available: boolean): SchoolMetrics {
     teachersActive: 0,
     totalCapacity: 0,
     monthlyRevenue: 0,
+    grossRevenue: 0,
+    totalDiscount: 0,
     averageTicketPerEnrollment: null,
     averageTicketPerStudent: null,
     occupancyRate: null,
@@ -455,6 +459,14 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       (sum, enrollment) => sum + netAmount(enrollment),
       0,
     );
+    const grossRevenue = activeEnrollments.reduce(
+      (sum, enrollment) => sum + Number(enrollment.monthly_amount ?? 0),
+      0,
+    );
+    const totalDiscount = activeEnrollments.reduce(
+      (sum, enrollment) => sum + Number(enrollment.discount_amount ?? 0),
+      0,
+    );
     const activeEnrollmentsWithoutClass = activeEnrollments.filter(
       (enrollment) =>
         !enrollment.class_id || !classById.has(enrollment.class_id),
@@ -510,6 +522,8 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       teachersActive: linkedActiveTeachers.size || dna.teachersActive,
       totalCapacity,
       monthlyRevenue,
+      grossRevenue,
+      totalDiscount,
       averageTicketPerEnrollment:
         activeEnrollments.length > 0
           ? monthlyRevenue / activeEnrollments.length

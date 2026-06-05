@@ -71,6 +71,16 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
           detail="Mensalidade menos descontos · matrículas ativas"
         />
         <MetricCard
+          label="Receita bruta contratada"
+          value={formatCurrencyBRL(metrics.grossRevenue)}
+          detail="Mensalidade cheia · sem aplicar descontos"
+        />
+        <MetricCard
+          label="Descontos concedidos"
+          value={formatCurrencyBRL(metrics.totalDiscount)}
+          detail="Bolsas e descontos das matrículas ativas"
+        />
+        <MetricCard
           label="Ticket médio por matrícula"
           value={
             metrics.averageTicketPerEnrollment !== null
