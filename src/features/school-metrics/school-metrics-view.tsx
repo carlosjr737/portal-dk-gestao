@@ -455,7 +455,7 @@ function ClassRevenueTable({
       "Alunos distintos": row.activeStudents,
       Capacidade: row.capacity ?? "",
       "Ocupação (%)": formatPercentValue(row.occupancyRate) ?? "",
-      "Receita mensal contratada": row.monthlyRevenue,
+      "Receita mensal líquida": row.monthlyRevenue,
       "Ticket por matrícula": row.averageTicketPerEnrollment,
       "Matrículas sem valor": row.enrollmentsWithoutAmount,
     }));
@@ -471,7 +471,7 @@ function ClassRevenueTable({
       "Alunos distintos": totalDistinctStudents,
       Capacidade: "",
       "Ocupação (%)": "",
-      "Receita mensal contratada": totalRevenue,
+      "Receita mensal líquida": totalRevenue,
       "Ticket por matrícula":
         totalEnrollments > 0 ? totalRevenue / totalEnrollments : 0,
       "Matrículas sem valor": totalWithoutAmount,

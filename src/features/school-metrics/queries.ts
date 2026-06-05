@@ -183,7 +183,7 @@ function aggregateGroups(
 
     const bucket = bucketFor(groupOf(danceClass));
     bucket.activeEnrollments += 1;
-    bucket.monthlyRevenue += contractedAmount(enrollment);
+    bucket.monthlyRevenue += netAmount(enrollment);
   }
 
   return [...groups.values()].sort(
@@ -191,8 +191,13 @@ function aggregateGroups(
   );
 }
 
-function contractedAmount(enrollment: EnrollmentRow) {
-  return Number(enrollment.monthly_amount ?? 0);
+// MRR líquido por matrícula: mensalidade menos desconto, nunca negativo.
+// Esta é a definição oficial de receita do projeto e reconcilia com o Conta Azul.
+function netAmount(enrollment: EnrollmentRow) {
+  const gross = Number(enrollment.monthly_amount ?? 0);
+  const discount = Number(enrollment.discount_amount ?? 0);
+
+  return Math.max(0, gross - discount);
 }
 
 function missingContractedAmount(enrollment: EnrollmentRow) {
@@ -304,7 +309,7 @@ function buildClassRevenueMetrics({
     .map<SchoolClassRevenueMetric>((danceClass) => {
       const classEnrollments = enrollmentsByClass.get(danceClass.id) ?? [];
       const monthlyRevenue = classEnrollments.reduce(
-        (sum, enrollment) => sum + contractedAmount(enrollment),
+        (sum, enrollment) => sum + netAmount(enrollment),
         0,
       );
       const totalDiscount = classEnrollments.reduce(
@@ -447,7 +452,7 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       activeEnrollments.map((enrollment) => enrollment.student_id),
     );
     const monthlyRevenue = activeEnrollments.reduce(
-      (sum, enrollment) => sum + contractedAmount(enrollment),
+      (sum, enrollment) => sum + netAmount(enrollment),
       0,
     );
     const activeEnrollmentsWithoutClass = activeEnrollments.filter(
