@@ -62,17 +62,27 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
           value={String(metrics.teachersActive)}
         />
         <MetricCard
-          label="Receita mensal"
+          label="Receita mensal contratada"
           value={formatCurrencyBRL(metrics.monthlyRevenue)}
-          detail="MRR das matrículas ativas"
+          detail="Soma do valor mensal das matrículas ativas"
         />
         <MetricCard
-          label="Ticket médio/aluno"
+          label="Ticket médio por matrícula"
           value={
-            metrics.averageTicket !== null
-              ? formatCurrencyBRL(metrics.averageTicket)
+            metrics.averageTicketPerEnrollment !== null
+              ? formatCurrencyBRL(metrics.averageTicketPerEnrollment)
               : "-"
           }
+          detail={`${metrics.activeEnrollments} matrículas ativas`}
+        />
+        <MetricCard
+          label="Ticket médio por aluno"
+          value={
+            metrics.averageTicketPerStudent !== null
+              ? formatCurrencyBRL(metrics.averageTicketPerStudent)
+              : "-"
+          }
+          detail={`${metrics.activeStudents} alunos distintos`}
         />
         <MetricCard
           label="Ocupação"
@@ -119,7 +129,7 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
 }
 
 function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
-  const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "all">("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [modalityFilter, setModalityFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -143,13 +153,13 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
     teacherFilter,
   ]);
 
-  const activeRows = filteredRows.filter((row) => row.activeStudents > 0);
+  const activeRows = filteredRows.filter((row) => row.activeEnrollments > 0);
   const monthlyRevenue = filteredRows.reduce(
     (sum, row) => sum + row.monthlyRevenue,
     0,
   );
-  const activeStudents = filteredRows.reduce(
-    (sum, row) => sum + row.activeStudents,
+  const activeEnrollments = filteredRows.reduce(
+    (sum, row) => sum + row.activeEnrollments,
     0,
   );
   const enrollmentsWithoutAmount = filteredRows.reduce(
@@ -174,6 +184,8 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
   const hasClasses = filteredRows.length > 0;
   const hasActiveEnrollments = activeRows.length > 0;
   const hasRevenue = monthlyRevenue > 0;
+  const showRevenueDifferenceAlert =
+    Math.abs(metrics.revenueDiagnostics.revenueDifference) > 1;
 
   return (
     <section className="space-y-4">
@@ -187,6 +199,13 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         </p>
       </div>
 
+      {showRevenueDifferenceAlert ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+          Atenção: há diferença entre a receita geral e a soma por turma.
+          Verifique matrículas sem turma, duplicadas ou valores inconsistentes.
+        </div>
+      ) : null}
+
       {enrollmentsWithoutAmount > 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
           Existem {enrollmentsWithoutAmount} matrículas ativas sem valor mensal
@@ -196,7 +215,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
-          label="Faturamento mensal total"
+          label="Receita mensal contratada por turma"
           value={formatCurrencyBRL(monthlyRevenue)}
           detail="Contratado nas turmas filtradas"
         />
@@ -219,18 +238,41 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
           detail={lowestRevenueClass?.className ?? "Sem turma com alunos"}
         />
         <MetricCard
-          label="Ticket médio geral"
+          label="Ticket médio por matrícula"
           value={
-            activeStudents > 0
-              ? formatCurrencyBRL(monthlyRevenue / activeStudents)
+            activeEnrollments > 0
+              ? formatCurrencyBRL(monthlyRevenue / activeEnrollments)
               : "-"
           }
-          detail={`${activeStudents} alunos ativos`}
+          detail={`${activeEnrollments} matrículas ativas`}
         />
         <MetricCard
           label="Matrículas sem valor"
           value={String(enrollmentsWithoutAmount)}
           detail="monthly_amount nulo ou zerado"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Matrículas sem turma"
+          value={String(metrics.revenueDiagnostics.activeEnrollmentsWithoutClass)}
+          detail="Ativas sem turma válida"
+        />
+        <MetricCard
+          label="Matrículas sem valor"
+          value={String(
+            metrics.revenueDiagnostics.activeEnrollmentsWithoutAmount +
+              metrics.revenueDiagnostics.activeEnrollmentsWithZeroAmount,
+          )}
+          detail={`${metrics.revenueDiagnostics.activeEnrollmentsWithoutAmount} nulas · ${metrics.revenueDiagnostics.activeEnrollmentsWithZeroAmount} zeradas`}
+        />
+        <MetricCard
+          label="Turmas zeradas com matrículas"
+          value={String(
+            metrics.revenueDiagnostics.zeroRevenueClassesWithActiveEnrollments,
+          )}
+          detail="Receita 0 com matrículas ativas"
         />
       </div>
 
@@ -271,8 +313,8 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
           onChange={(value) => setSortKey(value as SortKey)}
           options={[
             { id: "revenue", name: "Maior faturamento" },
-            { id: "students", name: "Alunos ativos" },
-            { id: "ticket", name: "Ticket médio" },
+            { id: "students", name: "Matrículas ativas" },
+            { id: "ticket", name: "Ticket por matrícula" },
             { id: "name", name: "Nome da turma" },
           ]}
           includeAll={false}
@@ -306,13 +348,15 @@ function compareClassRevenueRows(
 ) {
   if (sortKey === "students") {
     return (
-      b.activeStudents - a.activeStudents || b.monthlyRevenue - a.monthlyRevenue
+      b.activeEnrollments - a.activeEnrollments ||
+      b.monthlyRevenue - a.monthlyRevenue
     );
   }
 
   if (sortKey === "ticket") {
     return (
-      b.averageTicket - a.averageTicket || b.monthlyRevenue - a.monthlyRevenue
+      b.averageTicketPerEnrollment - a.averageTicketPerEnrollment ||
+      b.monthlyRevenue - a.monthlyRevenue
     );
   }
 
@@ -321,7 +365,8 @@ function compareClassRevenueRows(
   }
 
   return (
-    b.monthlyRevenue - a.monthlyRevenue || b.activeStudents - a.activeStudents
+    b.monthlyRevenue - a.monthlyRevenue ||
+    b.activeEnrollments - a.activeEnrollments
   );
 }
 
@@ -398,9 +443,9 @@ function ClassRevenueTable({
             <tr>
               <th className="px-4 py-3">Turma</th>
               <th className="px-4 py-3">Professor</th>
-              <th className="px-4 py-3">Alunos ativos</th>
-              <th className="px-4 py-3">Faturamento mensal</th>
-              <th className="px-4 py-3">Ticket médio</th>
+              <th className="px-4 py-3">Matrículas ativas</th>
+              <th className="px-4 py-3">Receita mensal</th>
+              <th className="px-4 py-3">Ticket por matrícula</th>
               <th className="px-4 py-3">Sem valor</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Ações</th>
@@ -411,7 +456,7 @@ function ClassRevenueTable({
               rows.map((row) => {
                 const needsAttention =
                   row.enrollmentsWithoutAmount > 0 ||
-                  (row.monthlyRevenue === 0 && row.activeStudents > 0);
+                  (row.monthlyRevenue === 0 && row.activeEnrollments > 0);
 
                 return (
                   <tr
@@ -437,13 +482,16 @@ function ClassRevenueTable({
                       {row.teacherName}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {row.activeStudents}
+                      <div>{row.activeEnrollments}</div>
+                      <div className="mt-1 text-xs">
+                        {row.activeStudents} alunos distintos
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-semibold text-foreground">
                       {formatCurrencyBRL(row.monthlyRevenue)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {formatCurrencyBRL(row.averageTicket)}
+                      {formatCurrencyBRL(row.averageTicketPerEnrollment)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -486,7 +534,7 @@ function ClassRevenueTable({
               <td className="px-4 py-3">Total</td>
               <td className="px-4 py-3"></td>
               <td className="px-4 py-3">
-                {rows.reduce((sum, row) => sum + row.activeStudents, 0)}
+                {rows.reduce((sum, row) => sum + row.activeEnrollments, 0)}
               </td>
               <td className="px-4 py-3">{formatCurrencyBRL(totalRevenue)}</td>
               <td className="px-4 py-3"></td>

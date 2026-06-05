@@ -32,9 +32,10 @@ export type SchoolClassRevenueMetric = {
   scheduleLabel: string;
   capacity: number | null;
   activeStudents: number;
+  activeEnrollments: number;
   monthlyRevenue: number;
   totalDiscount: number;
-  averageTicket: number;
+  averageTicketPerEnrollment: number;
   enrollmentsWithoutAmount: number;
   occupancyRate: number | null;
 };
@@ -52,13 +53,22 @@ export type SchoolMetrics = {
   teachersActive: number;
   totalCapacity: number;
   monthlyRevenue: number;
-  averageTicket: number | null;
+  averageTicketPerEnrollment: number | null;
+  averageTicketPerStudent: number | null;
   occupancyRate: number | null;
   dnaTeamAverage: number | null;
   perModality: SchoolGroupMetric[];
   perLevel: SchoolGroupMetric[];
   perTeacher: SchoolTeacherMetric[];
   classRevenue: SchoolClassRevenueMetric[];
+  revenueDiagnostics: {
+    totalRevenueFromClasses: number;
+    revenueDifference: number;
+    activeEnrollmentsWithoutClass: number;
+    activeEnrollmentsWithoutAmount: number;
+    activeEnrollmentsWithZeroAmount: number;
+    zeroRevenueClassesWithActiveEnrollments: number;
+  };
   filters: {
     teachers: SchoolMetricFilterOption[];
     modalities: SchoolMetricFilterOption[];
@@ -74,12 +84,13 @@ type ClassRow = {
   teacher_id: string | null;
   modality_id: string | null;
   level_id: string | null;
+  category: string | null;
   instructor_name: string | null;
   schedule_description: string | null;
 };
 
 type EnrollmentRow = {
-  class_id: string;
+  class_id: string | null;
   student_id: string;
   status: string;
   monthly_amount: number | null;
@@ -94,7 +105,7 @@ type ScheduleRow = Pick<
 >;
 
 const activeEnrollmentStatus = "active";
-const inactiveClassStatus = "inactive";
+const activeClassStatus = "active";
 
 function emptyMetrics(available: boolean): SchoolMetrics {
   return {
@@ -105,13 +116,22 @@ function emptyMetrics(available: boolean): SchoolMetrics {
     teachersActive: 0,
     totalCapacity: 0,
     monthlyRevenue: 0,
-    averageTicket: null,
+    averageTicketPerEnrollment: null,
+    averageTicketPerStudent: null,
     occupancyRate: null,
     dnaTeamAverage: null,
     perModality: [],
     perLevel: [],
     perTeacher: [],
     classRevenue: [],
+    revenueDiagnostics: {
+      totalRevenueFromClasses: 0,
+      revenueDifference: 0,
+      activeEnrollmentsWithoutClass: 0,
+      activeEnrollmentsWithoutAmount: 0,
+      activeEnrollmentsWithZeroAmount: 0,
+      zeroRevenueClassesWithActiveEnrollments: 0,
+    },
     filters: {
       teachers: [],
       modalities: [],
@@ -120,30 +140,22 @@ function emptyMetrics(available: boolean): SchoolMetrics {
   };
 }
 
-function netAmount(enrollment: EnrollmentRow) {
-  const gross = Number(enrollment.monthly_amount ?? 0);
-  const discount = Number(enrollment.discount_amount ?? 0);
-
-  return Math.max(0, gross - discount);
-}
-
 function aggregateGroups(
   activeClasses: ClassRow[],
   activeEnrollments: EnrollmentRow[],
   classById: Map<string, ClassRow>,
-  keyOf: (danceClass: ClassRow) => string | null,
-  nameOf: (id: string | null) => string,
+  groupOf: (danceClass: ClassRow) => { id: string | null; name: string },
 ): SchoolGroupMetric[] {
   const groups = new Map<string, SchoolGroupMetric>();
 
-  const bucketFor = (id: string | null) => {
-    const key = id ?? "__none__";
+  const bucketFor = (group: { id: string | null; name: string }) => {
+    const key = group.id ?? `__name__:${group.name}`;
     let bucket = groups.get(key);
 
     if (!bucket) {
       bucket = {
-        id,
-        name: nameOf(id),
+        id: group.id,
+        name: group.name,
         classesCount: 0,
         activeEnrollments: 0,
         monthlyRevenue: 0,
@@ -155,19 +167,23 @@ function aggregateGroups(
   };
 
   for (const danceClass of activeClasses) {
-    bucketFor(keyOf(danceClass)).classesCount += 1;
+    bucketFor(groupOf(danceClass)).classesCount += 1;
   }
 
   for (const enrollment of activeEnrollments) {
+    if (!enrollment.class_id) {
+      continue;
+    }
+
     const danceClass = classById.get(enrollment.class_id);
 
     if (!danceClass) {
       continue;
     }
 
-    const bucket = bucketFor(keyOf(danceClass));
+    const bucket = bucketFor(groupOf(danceClass));
     bucket.activeEnrollments += 1;
-    bucket.monthlyRevenue += netAmount(enrollment);
+    bucket.monthlyRevenue += contractedAmount(enrollment);
   }
 
   return [...groups.values()].sort(
@@ -182,6 +198,70 @@ function contractedAmount(enrollment: EnrollmentRow) {
 function missingContractedAmount(enrollment: EnrollmentRow) {
   return (
     enrollment.monthly_amount === null || Number(enrollment.monthly_amount) === 0
+  );
+}
+
+function splitClassName(className: string) {
+  return className
+    .split(" - ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function textOrNull(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function getClassModalityName(
+  danceClass: ClassRow,
+  modalityName: Map<string, string>,
+) {
+  if (danceClass.modality_id) {
+    const officialName = modalityName.get(danceClass.modality_id);
+
+    if (officialName) {
+      return officialName;
+    }
+  }
+
+  return (
+    textOrNull(danceClass.category) ??
+    splitClassName(danceClass.name)[0] ??
+    "Sem modalidade informada"
+  );
+}
+
+function getClassLevelName(danceClass: ClassRow, levelName: Map<string, string>) {
+  if (danceClass.level_id) {
+    const officialName = levelName.get(danceClass.level_id);
+
+    if (officialName) {
+      return officialName;
+    }
+  }
+
+  return (
+    splitClassName(danceClass.name)[1] ?? "Sem nível informado"
+  );
+}
+
+function getClassTeacherName(
+  danceClass: ClassRow,
+  teacherName: Map<string, string>,
+) {
+  if (danceClass.teacher_id) {
+    const officialName = teacherName.get(danceClass.teacher_id);
+
+    if (officialName) {
+      return officialName;
+    }
+  }
+
+  return (
+    textOrNull(danceClass.instructor_name) ??
+    splitClassName(danceClass.name)[2] ??
+    "Não informado"
   );
 }
 
@@ -203,6 +283,10 @@ function buildClassRevenueMetrics({
   const enrollmentsByClass = new Map<string, EnrollmentRow[]>();
 
   for (const enrollment of activeEnrollments) {
+    if (!enrollment.class_id) {
+      continue;
+    }
+
     const items = enrollmentsByClass.get(enrollment.class_id) ?? [];
     items.push(enrollment);
     enrollmentsByClass.set(enrollment.class_id, items);
@@ -230,21 +314,18 @@ function buildClassRevenueMetrics({
       const enrollmentsWithoutAmount = classEnrollments.filter(
         missingContractedAmount,
       ).length;
-      const activeStudents = classEnrollments.length;
+      const activeStudents = new Set(
+        classEnrollments.map((enrollment) => enrollment.student_id),
+      ).size;
+      const activeEnrollments = classEnrollments.length;
       const schedulesForClass = schedulesByClass.get(danceClass.id) ?? [];
       const scheduleLabel =
         schedulesForClass.length > 0
           ? formatClassSchedules(schedulesForClass)
           : danceClass.schedule_description || "-";
-      const teacherNameValue = danceClass.teacher_id
-        ? teacherName.get(danceClass.teacher_id) ?? "Professor removido"
-        : danceClass.instructor_name || "Sem professor";
-      const modalityNameValue = danceClass.modality_id
-        ? modalityName.get(danceClass.modality_id) ?? "Modalidade removida"
-        : "Sem modalidade";
-      const levelNameValue = danceClass.level_id
-        ? levelName.get(danceClass.level_id) ?? "Nível removido"
-        : "Sem nível";
+      const teacherNameValue = getClassTeacherName(danceClass, teacherName);
+      const modalityNameValue = getClassModalityName(danceClass, modalityName);
+      const levelNameValue = getClassLevelName(danceClass, levelName);
 
       return {
         classId: danceClass.id,
@@ -259,13 +340,15 @@ function buildClassRevenueMetrics({
         scheduleLabel,
         capacity: danceClass.capacity,
         activeStudents,
+        activeEnrollments,
         monthlyRevenue,
         totalDiscount,
-        averageTicket: activeStudents > 0 ? monthlyRevenue / activeStudents : 0,
+        averageTicketPerEnrollment:
+          activeEnrollments > 0 ? monthlyRevenue / activeEnrollments : 0,
         enrollmentsWithoutAmount,
         occupancyRate:
           danceClass.capacity && danceClass.capacity > 0
-            ? activeStudents / danceClass.capacity
+            ? activeEnrollments / danceClass.capacity
             : null,
       };
     })
@@ -313,7 +396,7 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       supabase
         .from("classes")
         .select(
-          "id, name, capacity, status, teacher_id, modality_id, level_id, instructor_name, schedule_description",
+          "id, name, category, capacity, status, teacher_id, modality_id, level_id, instructor_name, schedule_description",
         ),
       supabase
         .from("enrollments")
@@ -348,7 +431,7 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
 
     const classById = new Map(classes.map((danceClass) => [danceClass.id, danceClass]));
     const activeClasses = classes.filter(
-      (danceClass) => danceClass.status !== inactiveClassStatus,
+      (danceClass) => danceClass.status === activeClassStatus,
     );
     const activeEnrollments = enrollments.filter(
       (enrollment) => enrollment.status === activeEnrollmentStatus,
@@ -364,11 +447,40 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       activeEnrollments.map((enrollment) => enrollment.student_id),
     );
     const monthlyRevenue = activeEnrollments.reduce(
-      (sum, enrollment) => sum + netAmount(enrollment),
+      (sum, enrollment) => sum + contractedAmount(enrollment),
       0,
     );
+    const activeEnrollmentsWithoutClass = activeEnrollments.filter(
+      (enrollment) =>
+        !enrollment.class_id || !classById.has(enrollment.class_id),
+    ).length;
+    const activeEnrollmentsWithoutAmount = activeEnrollments.filter(
+      (enrollment) => enrollment.monthly_amount === null,
+    ).length;
+    const activeEnrollmentsWithZeroAmount = activeEnrollments.filter(
+      (enrollment) => Number(enrollment.monthly_amount ?? 0) === 0,
+    ).length;
     const totalCapacity = activeClasses.reduce(
       (sum, danceClass) => sum + (danceClass.capacity ?? 0),
+      0,
+    );
+    const linkedActiveTeachers = new Set(
+      activeClasses
+        .map((danceClass) =>
+          danceClass.teacher_id ?? textOrNull(danceClass.instructor_name),
+        )
+        .filter(Boolean),
+    );
+    const classRevenue = buildClassRevenueMetrics({
+      classes,
+      activeEnrollments,
+      schedules,
+      teacherName,
+      modalityName,
+      levelName,
+    });
+    const totalRevenueFromClasses = classRevenue.reduce(
+      (sum, row) => sum + row.monthlyRevenue,
       0,
     );
 
@@ -376,8 +488,10 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       activeClasses,
       activeEnrollments,
       classById,
-      (danceClass) => danceClass.teacher_id,
-      (id) => (id ? teacherName.get(id) ?? "Professor removido" : "Sem professor"),
+      (danceClass) => ({
+        id: danceClass.teacher_id,
+        name: getClassTeacherName(danceClass, teacherName),
+      }),
     ).map<SchoolTeacherMetric>((group) => ({
       ...group,
       dnaScore: group.id ? dna.scoreByTeacher.get(group.id) ?? null : null,
@@ -388,10 +502,14 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
       activeStudents: distinctStudents.size,
       activeEnrollments: activeEnrollments.length,
       activeClasses: activeClasses.length,
-      teachersActive: dna.teachersActive,
+      teachersActive: linkedActiveTeachers.size || dna.teachersActive,
       totalCapacity,
       monthlyRevenue,
-      averageTicket:
+      averageTicketPerEnrollment:
+        activeEnrollments.length > 0
+          ? monthlyRevenue / activeEnrollments.length
+          : null,
+      averageTicketPerStudent:
         distinctStudents.size > 0 ? monthlyRevenue / distinctStudents.size : null,
       occupancyRate:
         totalCapacity > 0 ? activeEnrollments.length / totalCapacity : null,
@@ -400,25 +518,32 @@ export async function getSchoolMetrics(): Promise<SchoolMetrics> {
         activeClasses,
         activeEnrollments,
         classById,
-        (danceClass) => danceClass.modality_id,
-        (id) => (id ? modalityName.get(id) ?? "Modalidade removida" : "Sem modalidade"),
+        (danceClass) => ({
+          id: danceClass.modality_id,
+          name: getClassModalityName(danceClass, modalityName),
+        }),
       ),
       perLevel: aggregateGroups(
         activeClasses,
         activeEnrollments,
         classById,
-        (danceClass) => danceClass.level_id,
-        (id) => (id ? levelName.get(id) ?? "Nível removido" : "Sem nível"),
+        (danceClass) => ({
+          id: danceClass.level_id,
+          name: getClassLevelName(danceClass, levelName),
+        }),
       ),
       perTeacher,
-      classRevenue: buildClassRevenueMetrics({
-        classes,
-        activeEnrollments,
-        schedules,
-        teacherName,
-        modalityName,
-        levelName,
-      }),
+      classRevenue,
+      revenueDiagnostics: {
+        totalRevenueFromClasses,
+        revenueDifference: monthlyRevenue - totalRevenueFromClasses,
+        activeEnrollmentsWithoutClass,
+        activeEnrollmentsWithoutAmount,
+        activeEnrollmentsWithZeroAmount,
+        zeroRevenueClassesWithActiveEnrollments: classRevenue.filter(
+          (row) => row.monthlyRevenue === 0 && row.activeEnrollments > 0,
+        ).length,
+      },
       filters: {
         teachers: staff
           .map((member) => ({ id: member.id, name: getStaffDisplayName(member) }))
