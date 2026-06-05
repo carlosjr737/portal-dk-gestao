@@ -30,6 +30,10 @@ function formatPercent(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatPercentValue(value: number | null) {
+  return value === null ? null : Number((value * 100).toFixed(2));
+}
+
 type SortKey = "revenue" | "students" | "ticket" | "name";
 
 const statusLabels = new Map([
@@ -62,9 +66,9 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
           value={String(metrics.teachersActive)}
         />
         <MetricCard
-          label="Receita mensal contratada"
+          label="Receita mensal (MRR líquido)"
           value={formatCurrencyBRL(metrics.monthlyRevenue)}
-          detail="Soma do valor mensal das matrículas ativas"
+          detail="Mensalidade menos descontos · matrículas ativas"
         />
         <MetricCard
           label="Ticket médio por matrícula"
@@ -194,7 +198,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
           Faturamento por Turma
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Faturamento mensal contratado com base no valor mensal das matrículas
+          Receita mensal líquida (mensalidade menos descontos) das matrículas
           ativas do Portal DK.
         </p>
       </div>
@@ -215,9 +219,9 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
-          label="Receita mensal contratada por turma"
+          label="Receita mensal líquida por turma"
           value={formatCurrencyBRL(monthlyRevenue)}
-          detail="Contratado nas turmas filtradas"
+          detail="MRR líquido nas turmas filtradas"
         />
         <MetricCard
           label="Maior faturamento"
@@ -381,7 +385,7 @@ function TopClassRevenueChart({
     <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">
-          Top 10 turmas por faturamento mensal contratado
+          Top 10 turmas por receita mensal líquida
         </h3>
       </div>
       <div className="space-y-3">
@@ -426,16 +430,95 @@ function ClassRevenueTable({
   rows: SchoolClassRevenueMetric[];
   totalRevenue: number;
 }) {
+  async function exportToExcel() {
+    const XLSX = await import("xlsx");
+    const totalEnrollments = rows.reduce(
+      (sum, row) => sum + row.activeEnrollments,
+      0,
+    );
+    const totalDistinctStudents = rows.reduce(
+      (sum, row) => sum + row.activeStudents,
+      0,
+    );
+    const totalWithoutAmount = rows.reduce(
+      (sum, row) => sum + row.enrollmentsWithoutAmount,
+      0,
+    );
+    const worksheetRows = rows.map((row) => ({
+      Turma: row.className,
+      Professor: row.teacherName,
+      Modalidade: row.modalityName,
+      "Nível": row.levelName,
+      "Dias/horário": row.scheduleLabel,
+      Status: statusLabels.get(row.classStatus) ?? row.classStatus,
+      "Matrículas ativas": row.activeEnrollments,
+      "Alunos distintos": row.activeStudents,
+      Capacidade: row.capacity ?? "",
+      "Ocupação (%)": formatPercentValue(row.occupancyRate) ?? "",
+      "Receita mensal contratada": row.monthlyRevenue,
+      "Ticket por matrícula": row.averageTicketPerEnrollment,
+      "Matrículas sem valor": row.enrollmentsWithoutAmount,
+    }));
+
+    worksheetRows.push({
+      Turma: "Total",
+      Professor: "",
+      Modalidade: "",
+      "Nível": "",
+      "Dias/horário": "",
+      Status: "",
+      "Matrículas ativas": totalEnrollments,
+      "Alunos distintos": totalDistinctStudents,
+      Capacidade: "",
+      "Ocupação (%)": "",
+      "Receita mensal contratada": totalRevenue,
+      "Ticket por matrícula":
+        totalEnrollments > 0 ? totalRevenue / totalEnrollments : 0,
+      "Matrículas sem valor": totalWithoutAmount,
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetRows);
+    worksheet["!cols"] = [
+      { wch: 48 },
+      { wch: 20 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 42 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 22 },
+      { wch: 20 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Faturamento por Turma");
+    XLSX.writeFile(workbook, "faturamento-por-turma.xlsx");
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
-      <div className="border-b border-border px-5 py-4">
-        <h3 className="text-sm font-semibold text-foreground">
-          Faturamento por turma
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Ordenado conforme o filtro selecionado. O valor mensal não desconta
-          descontos cadastrados.
-        </p>
+      <div className="flex flex-col gap-3 border-b border-border px-5 py-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Faturamento por turma
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ordenado conforme o filtro selecionado. A receita mensal já desconta
+            os descontos cadastrados (MRR líquido).
+          </p>
+        </div>
+        <button
+          className="inline-flex items-center justify-center rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={rows.length === 0}
+          onClick={exportToExcel}
+          type="button"
+        >
+          Exportar Excel
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full text-left text-sm">
