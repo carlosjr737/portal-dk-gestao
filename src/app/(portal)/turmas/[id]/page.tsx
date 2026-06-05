@@ -254,7 +254,7 @@ async function getClassEnrollments(
       supabase
         .from("enrollments")
         .select(
-          "id, student_id, status, start_date, end_date, financial_guardian_id",
+          "id, student_id, status, start_date, end_date, financial_guardian_id, monthly_amount, discount_amount",
         )
         .eq("class_id", classId)
         .eq("status", "active")
@@ -297,6 +297,8 @@ async function getClassEnrollments(
         end_date: (enrollment.end_date as string | null) ?? null,
         financialGuardianName:
           guardiansById.get(enrollment.financial_guardian_id as string) ?? null,
+        monthlyAmount: (enrollment.monthly_amount as number | null) ?? null,
+        discountAmount: (enrollment.discount_amount as number | null) ?? null,
         student,
       };
     });
