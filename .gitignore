@@ -21,3 +21,10 @@ pnpm-debug.log*
 
 # misc
 .DS_Store
+
+# build artifacts
+tsconfig.tsbuildinfo
+
+# operational DB maintenance scripts — contém PII (CPF/nomes de alunos).
+# NUNCA versionar: mantém local apenas (LGPD).
+scripts/
