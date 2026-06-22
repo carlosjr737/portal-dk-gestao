@@ -19,7 +19,7 @@ const navigationGroups = [
   {
     title: "Principal",
     accordion: false,
-    items: ["/dashboard", "/metricas-escola"],
+    items: ["/dashboard", "/metricas-escola", "/metricas-publico"],
   },
   {
     title: "Gestão acadêmica",
