@@ -532,17 +532,21 @@ export async function cancelEnrollment(
   const classId = enrollment.class_id as string | null;
   const previousStatus = enrollment.status as string | null;
 
-  const { error: logError } = await supabase.from("enrollment_logs").insert({
-    enrollment_id: parsed.data.enrollment_id,
-    student_id: studentId,
-    class_id: classId,
-    event_type: "enrollment_cancelled",
-    reason: parsed.data.cancellation_reason,
-    notes: parsed.data.cancellation_notes,
-    previous_status: previousStatus,
-    new_status: "cancelled",
-    created_at: cancelledAt,
-  });
+  // O log usa admin client porque enrollment_logs tem RLS que bloqueia
+  // INSERT do usuário autenticado (mesmo padrão das demais escritas internas).
+  const { error: logError } = await createAdminClient()
+    .from("enrollment_logs")
+    .insert({
+      enrollment_id: parsed.data.enrollment_id,
+      student_id: studentId,
+      class_id: classId,
+      event_type: "enrollment_cancelled",
+      reason: parsed.data.cancellation_reason,
+      notes: parsed.data.cancellation_notes,
+      previous_status: previousStatus,
+      new_status: "cancelled",
+      created_at: cancelledAt,
+    });
 
   if (logError) {
     console.error("Cancel enrollment log insert error:", {
