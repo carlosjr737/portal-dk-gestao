@@ -848,6 +848,7 @@ function formatSource(value: string) {
     enrollment_created: "Matrícula criada",
     enrollment_cancelled: "Matrícula cancelada",
     manual: "Manual",
+    planilha_2026: "Planilha 2026",
   };
 
   return labels[value] ?? value;
