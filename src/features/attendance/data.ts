@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   classScheduleWeekdayOptions,
@@ -122,7 +121,7 @@ export async function getAttendanceClasses(
   filters: AttendanceFilters,
 ): Promise<AttendanceClassSummary[]> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     let classesQuery = supabase
       .from("classes")
       .select(
