@@ -28,6 +28,7 @@ type GrowthChurnEvent = {
   monthly_amount: number | null;
   reason_id: string | null;
   reason_notes: string | null;
+  student_name: string | null;
   source: string;
 };
 
@@ -281,7 +282,9 @@ export default async function GrowthChurnPage({
                       {event.event_type === "entrada" ? "Entrada" : "Saída"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.students.get(event.student_id ?? "")?.fullName ?? "-"}
+                      {data.maps.students.get(event.student_id ?? "")?.fullName ??
+                        event.student_name ??
+                        "-"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {data.maps.classes.get(event.class_id ?? "")?.name ?? "-"}
@@ -345,7 +348,7 @@ async function getGrowthChurnData(filters: {
   let eventsQuery = supabase
     .from("growth_churn_events")
     .select(
-      "id, event_type, student_id, enrollment_id, class_id, teacher_id, modality_id, level_id, event_date, monthly_amount, reason_id, reason_notes, source",
+      "id, event_type, student_id, enrollment_id, class_id, teacher_id, modality_id, level_id, event_date, monthly_amount, reason_id, reason_notes, student_name, source",
     )
     .order("event_date", { ascending: false })
     .order("created_at", { ascending: false });
