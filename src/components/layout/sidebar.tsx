@@ -49,6 +49,7 @@ const navigationGroups = [
     accordion: true,
     items: [
       "/financeiro",
+      "/financeiro/faturamento-turmas",
       "/financeiro/inadimplencia",
       "/financeiro/growth-churn",
       "/financeiro/entradas-saidas",

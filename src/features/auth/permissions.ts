@@ -32,6 +32,7 @@ export const navigationItems = [
   { href: "/dna-professores", label: "DNA do Professor" },
   { href: "/importar-alunos", label: "Importar alunos" },
   { href: "/financeiro", label: "Financeiro" },
+  { href: "/financeiro/faturamento-turmas", label: "Faturamento por turma" },
   { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
   { href: "/financeiro/entradas-saidas", label: "Entradas & Saídas" },
