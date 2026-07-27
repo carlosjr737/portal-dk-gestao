@@ -3,10 +3,11 @@ import { formatClassSchedules } from "@/features/classes/formatters";
 import type { ClassSchedule } from "@/features/classes/types";
 
 // ---- Parâmetros do contrato (ajuste aqui se a regra mudar) ----
-// Taxa de matrícula cobrada como sinal (Cláusula 3ª). Confirmar valor real.
-const TAXA_MATRICULA = 150;
 // Nº de mensalidades no ano letivo (fev–dez = 11 no modelo enviado).
 const QTD_MENSALIDADES = 11;
+// Regra confirmada com o cliente:
+//  - Taxa de matrícula = valor da mensalidade bruta (com exceções manuais).
+//  - Valor a pagar = mensalidade BRUTA (sem desconto e sem acréscimo de 2%).
 
 export type ContractTurma = {
   modalidade: string;
@@ -251,16 +252,18 @@ export async function getStudentContract(
         vencimento: matriculaVenc
           ? matriculaVenc.split("-").reverse().join("/")
           : null,
-        bruto: TAXA_MATRICULA,
+        // Matrícula = valor da mensalidade bruta (exceções ajustadas à mão).
+        bruto: mensalidadeBruta,
         desconto: 0,
-        valorPagar: TAXA_MATRICULA,
+        valorPagar: mensalidadeBruta,
       },
       ...dueDates.map((venc) => ({
         referente: "MENSALIDADE",
         vencimento: venc || null,
+        // Valor a pagar = bruto (sem desconto, sem +2%).
         bruto: mensalidadeBruta,
         desconto: mensalidadeDesconto,
-        valorPagar: mensalidadeLiquida,
+        valorPagar: mensalidadeBruta,
       })),
     ];
 
