@@ -43,7 +43,7 @@ async function getGuardian(id: string): Promise<Guardian | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("guardians")
-      .select("id, full_name, document, phone, email, notes, created_at, updated_at")
+      .select("id, full_name, document, phone, email, address, notes, created_at, updated_at")
       .eq("id", id)
       .maybeSingle();
 

@@ -61,6 +61,24 @@ export function GuardianForm({
       </div>
 
       <label className="block">
+        <span className="text-sm font-medium text-foreground">
+          Endereço (usado no contrato)
+        </span>
+        <textarea
+          name="address"
+          defaultValue={defaultValues?.address ?? ""}
+          rows={2}
+          placeholder="Rua, número, complemento. Bairro. Cidade. UF. CEP: 00000000."
+          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+        />
+        {state.errors?.address?.[0] ? (
+          <span className="mt-1 block text-xs text-red-600">
+            {state.errors.address[0]}
+          </span>
+        ) : null}
+      </label>
+
+      <label className="block">
         <span className="text-sm font-medium text-foreground">Observações</span>
         <textarea
           name="notes"

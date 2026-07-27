@@ -7,6 +7,7 @@ export type Guardian = {
   document: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
   notes: string | null;
   conta_azul_person_id: string | null;
   conta_azul_last_sync_at: string | null;

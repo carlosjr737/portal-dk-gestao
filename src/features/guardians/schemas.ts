@@ -16,6 +16,7 @@ export const guardianFormSchema = z.object({
   document: nullableText,
   phone: nullableText,
   email: nullableEmail,
+  address: nullableText,
   notes: nullableText,
 });
 

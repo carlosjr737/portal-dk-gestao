@@ -79,6 +79,7 @@ export default async function ResponsavelDetalhePage({
         <InfoCard label="Documento">{formatText(guardian.document)}</InfoCard>
         <InfoCard label="Telefone">{formatText(guardian.phone)}</InfoCard>
         <InfoCard label="E-mail">{formatText(guardian.email)}</InfoCard>
+        <InfoCard label="Endereço">{formatText(guardian.address)}</InfoCard>
       </section>
 
       <section className="mt-6 rounded-md border border-border bg-white p-5">
@@ -204,7 +205,7 @@ async function getGuardian(id: string): Promise<Guardian | null> {
     const { data, error } = await supabase
       .from("guardians")
       .select(
-        "id, full_name, document, phone, email, notes, conta_azul_person_id, conta_azul_last_sync_at, created_at, updated_at",
+        "id, full_name, document, phone, email, address, notes, conta_azul_person_id, conta_azul_last_sync_at, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();

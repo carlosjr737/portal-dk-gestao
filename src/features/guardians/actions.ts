@@ -19,6 +19,7 @@ function guardianFormDataToObject(formData: FormData) {
     document: String(formData.get("document") ?? ""),
     phone: String(formData.get("phone") ?? ""),
     email: String(formData.get("email") ?? ""),
+    address: String(formData.get("address") ?? ""),
     notes: String(formData.get("notes") ?? ""),
   };
 }
