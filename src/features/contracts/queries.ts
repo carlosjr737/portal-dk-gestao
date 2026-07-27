@@ -1,0 +1,295 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { formatClassSchedules } from "@/features/classes/formatters";
+import type { ClassSchedule } from "@/features/classes/types";
+
+// ---- Parâmetros do contrato (ajuste aqui se a regra mudar) ----
+// Taxa de matrícula cobrada como sinal (Cláusula 3ª). Confirmar valor real.
+const TAXA_MATRICULA = 150;
+// Nº de mensalidades no ano letivo (fev–dez = 11 no modelo enviado).
+const QTD_MENSALIDADES = 11;
+
+export type ContractTurma = {
+  modalidade: string;
+  nivel: string;
+  professor: string;
+  diasHorario: string;
+  inicio: string | null;
+  termino: string | null;
+  codigo: string;
+};
+
+export type ContractParcela = {
+  referente: string;
+  vencimento: string | null;
+  bruto: number;
+  desconto: number;
+  valorPagar: number;
+};
+
+export type StudentContract = {
+  available: boolean;
+  student: { fullName: string; document: string | null };
+  guardian: {
+    fullName: string;
+    document: string | null;
+    address: string | null;
+  } | null;
+  turmas: ContractTurma[];
+  payment: {
+    mensalidadeBruta: number;
+    mensalidadeDesconto: number;
+    mensalidadeLiquida: number;
+    parcelas: ContractParcela[];
+  };
+};
+
+const emptyContract: StudentContract = {
+  available: false,
+  student: { fullName: "", document: null },
+  guardian: null,
+  turmas: [],
+  payment: {
+    mensalidadeBruta: 0,
+    mensalidadeDesconto: 0,
+    mensalidadeLiquida: 0,
+    parcelas: [],
+  },
+};
+
+type EnrollmentRow = {
+  id: string;
+  class_id: string | null;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  financial_guardian_id: string | null;
+  first_due_date: string | null;
+  monthly_amount: number | string | null;
+  discount_amount: number | string | null;
+};
+
+function money(value: number | string | null): number {
+  return Number(value ?? 0) || 0;
+}
+
+/** Gera os vencimentos mensais a partir de uma data-base, no mesmo dia do mês. */
+function monthlyDueDates(firstDue: string | null, count: number): string[] {
+  if (!firstDue) {
+    return Array.from({ length: count }, () => "");
+  }
+  const [y, m, d] = firstDue.split("-").map(Number);
+  if (!y || !m || !d) {
+    return Array.from({ length: count }, () => "");
+  }
+  const dates: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const base = new Date(y, m - 1 + i, 1);
+    const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+    const day = Math.min(d, lastDay);
+    dates.push(
+      `${String(day).padStart(2, "0")}/${String(base.getMonth() + 1).padStart(2, "0")}/${base.getFullYear()}`,
+    );
+  }
+  return dates;
+}
+
+export async function getStudentContract(
+  studentId: string,
+): Promise<StudentContract> {
+  try {
+    const supabase = createAdminClient();
+
+    const [
+      { data: student, error: studentError },
+      { data: enrollments, error: enrollmentsError },
+    ] = await Promise.all([
+      supabase
+        .from("students")
+        .select("id, full_name, document")
+        .eq("id", studentId)
+        .maybeSingle(),
+      supabase
+        .from("enrollments")
+        .select(
+          "id, class_id, status, start_date, end_date, financial_guardian_id, first_due_date, monthly_amount, discount_amount",
+        )
+        .eq("student_id", studentId)
+        .eq("status", "active"),
+    ]);
+
+    if (studentError || !student) {
+      if (studentError) console.error("Contract student error:", studentError);
+      return emptyContract;
+    }
+
+    const activeEnrollments = (enrollments ?? []) as EnrollmentRow[];
+    if (enrollmentsError) {
+      console.error("Contract enrollments error:", enrollmentsError);
+    }
+
+    const classIds = [
+      ...new Set(
+        activeEnrollments
+          .map((e) => e.class_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const guardianId =
+      activeEnrollments.find((e) => e.financial_guardian_id)
+        ?.financial_guardian_id ?? null;
+
+    const [
+      { data: classes },
+      { data: schedules },
+      { data: modalities },
+      { data: levels },
+      { data: teachers },
+      { data: guardian },
+    ] = await Promise.all([
+      classIds.length
+        ? supabase
+            .from("classes")
+            .select(
+              "id, name, category, modality_id, level_id, teacher_id, instructor_name",
+            )
+            .in("id", classIds)
+        : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      classIds.length
+        ? supabase
+            .from("class_schedules")
+            .select("id, class_id, weekday, start_time, end_time, room")
+            .in("class_id", classIds)
+        : Promise.resolve({ data: [] as ClassSchedule[] }),
+      supabase.from("modalities").select("id, name"),
+      supabase.from("levels").select("id, name"),
+      supabase.from("staff_members").select("id, full_name, artistic_name"),
+      guardianId
+        ? supabase
+            .from("guardians")
+            .select("id, full_name, document, address")
+            .eq("id", guardianId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const modalityById = new Map(
+      (modalities ?? []).map((m) => [m.id as string, m.name as string]),
+    );
+    const levelById = new Map(
+      (levels ?? []).map((l) => [l.id as string, l.name as string]),
+    );
+    const teacherById = new Map(
+      (teachers ?? []).map((t) => [
+        t.id as string,
+        ((t.artistic_name as string | null) || (t.full_name as string)) ?? "",
+      ]),
+    );
+    const schedulesByClass = new Map<string, ClassSchedule[]>();
+    for (const s of (schedules ?? []) as ClassSchedule[]) {
+      const list = schedulesByClass.get(s.class_id) ?? [];
+      list.push(s);
+      schedulesByClass.set(s.class_id, list);
+    }
+    const classById = new Map(
+      (classes ?? []).map((c) => [c.id as string, c]),
+    );
+
+    const turmas: ContractTurma[] = activeEnrollments
+      .map((enrollment) => {
+        const danceClass = enrollment.class_id
+          ? classById.get(enrollment.class_id)
+          : null;
+        if (!danceClass) return null;
+        const modalidade =
+          (danceClass.modality_id
+            ? modalityById.get(danceClass.modality_id as string)
+            : null) ??
+          (danceClass.category as string | null) ??
+          "";
+        const nivel = danceClass.level_id
+          ? levelById.get(danceClass.level_id as string) ?? ""
+          : "";
+        const professor = danceClass.teacher_id
+          ? teacherById.get(danceClass.teacher_id as string) ?? ""
+          : ((danceClass.instructor_name as string | null) ?? "");
+        const sched = schedulesByClass.get(enrollment.class_id as string) ?? [];
+        return {
+          modalidade: modalidade.toUpperCase(),
+          nivel: nivel.toUpperCase(),
+          professor: professor.toUpperCase(),
+          diasHorario: sched.length ? formatClassSchedules(sched) : "-",
+          inicio: enrollment.start_date,
+          termino: enrollment.end_date,
+          codigo: enrollment.id.slice(0, 8).toUpperCase(),
+        };
+      })
+      .filter((t): t is ContractTurma => t !== null);
+
+    // ---- Pagamento (Cláusula 3ª) ----
+    const mensalidadeBruta = activeEnrollments.reduce(
+      (sum, e) => sum + money(e.monthly_amount),
+      0,
+    );
+    const mensalidadeDesconto = activeEnrollments.reduce(
+      (sum, e) => sum + money(e.discount_amount),
+      0,
+    );
+    const mensalidadeLiquida = Math.max(
+      0,
+      mensalidadeBruta - mensalidadeDesconto,
+    );
+
+    const firstDue =
+      activeEnrollments.find((e) => e.first_due_date)?.first_due_date ?? null;
+    const matriculaVenc =
+      activeEnrollments.find((e) => e.start_date)?.start_date ?? null;
+    const dueDates = monthlyDueDates(firstDue, QTD_MENSALIDADES);
+
+    const parcelas: ContractParcela[] = [
+      {
+        referente: "MATRÍCULA",
+        vencimento: matriculaVenc
+          ? matriculaVenc.split("-").reverse().join("/")
+          : null,
+        bruto: TAXA_MATRICULA,
+        desconto: 0,
+        valorPagar: TAXA_MATRICULA,
+      },
+      ...dueDates.map((venc) => ({
+        referente: "MENSALIDADE",
+        vencimento: venc || null,
+        bruto: mensalidadeBruta,
+        desconto: mensalidadeDesconto,
+        valorPagar: mensalidadeLiquida,
+      })),
+    ];
+
+    return {
+      available: true,
+      student: {
+        fullName: student.full_name as string,
+        document: (student.document as string | null) ?? null,
+      },
+      guardian: guardian
+        ? {
+            fullName: guardian.full_name as string,
+            document: (guardian.document as string | null) ?? null,
+            address: (guardian.address as string | null) ?? null,
+          }
+        : null,
+      turmas,
+      payment: {
+        mensalidadeBruta,
+        mensalidadeDesconto,
+        mensalidadeLiquida,
+        parcelas,
+      },
+    };
+  } catch (error) {
+    console.error(
+      "Contract load error:",
+      error instanceof Error ? error.message : error,
+    );
+    return emptyContract;
+  }
+}
