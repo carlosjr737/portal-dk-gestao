@@ -3,8 +3,8 @@ import { formatClassSchedules } from "@/features/classes/formatters";
 import type { ClassSchedule } from "@/features/classes/types";
 
 // ---- Parâmetros do contrato (ajuste aqui se a regra mudar) ----
-// Nº de mensalidades no ano letivo (fev–dez = 11 no modelo enviado).
-const QTD_MENSALIDADES = 11;
+// Fallback de nº de mensalidades quando não há Término na matrícula.
+const QTD_MENSALIDADES_FALLBACK = 11;
 // Regra confirmada com o cliente:
 //  - Taxa de matrícula = valor da mensalidade bruta (com exceções manuais).
 //  - Valor a pagar = mensalidade BRUTA (sem desconto e sem acréscimo de 2%).
@@ -71,6 +71,19 @@ type EnrollmentRow = {
 
 function money(value: number | string | null): number {
   return Number(value ?? 0) || 0;
+}
+
+/** Nº de meses entre o 1º vencimento e o Término (inclusive). */
+function monthsBetweenInclusive(
+  firstDue: string | null,
+  end: string | null,
+): number | null {
+  if (!firstDue || !end) return null;
+  const [fy, fm] = firstDue.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  if (!fy || !fm || !ey || !em) return null;
+  const n = ey * 12 + em - (fy * 12 + fm) + 1;
+  return n > 0 ? n : 0;
 }
 
 /** Gera os vencimentos mensais a partir de uma data-base, no mesmo dia do mês. */
@@ -244,7 +257,14 @@ export async function getStudentContract(
       activeEnrollments.find((e) => e.first_due_date)?.first_due_date ?? null;
     const matriculaVenc =
       activeEnrollments.find((e) => e.start_date)?.start_date ?? null;
-    const dueDates = monthlyDueDates(firstDue, QTD_MENSALIDADES);
+    // Nº de mensalidades = do 1º vencimento até o Término da matrícula (Cláusula 2ª).
+    const termino = activeEnrollments.reduce<string | null>((max, e) => {
+      if (!e.end_date) return max;
+      return !max || e.end_date > max ? e.end_date : max;
+    }, null);
+    const count =
+      monthsBetweenInclusive(firstDue, termino) ?? QTD_MENSALIDADES_FALLBACK;
+    const dueDates = monthlyDueDates(firstDue, count);
 
     const parcelas: ContractParcela[] = [
       {

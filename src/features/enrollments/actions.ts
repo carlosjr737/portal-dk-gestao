@@ -260,8 +260,11 @@ export async function createEnrollment(
 
   const redirectQuery = redirectParams.toString();
 
+  // Ao concluir a matrícula, vai para a página do aluno (onde fica "Gerar contrato").
   redirect(
-    redirectQuery ? `/matriculas?${redirectQuery}` : "/matriculas",
+    redirectQuery
+      ? `/alunos/${enrollment.student_id}?${redirectQuery}`
+      : `/alunos/${enrollment.student_id}`,
   );
 }
 

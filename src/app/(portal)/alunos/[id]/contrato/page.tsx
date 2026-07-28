@@ -10,6 +10,14 @@ type ContratoPageProps = {
   params: Promise<{ id: string }>;
 };
 
+export async function generateMetadata({ params }: ContratoPageProps) {
+  const { id } = await params;
+  const contract = await getStudentContract(id);
+  const nome = contract.guardian?.fullName ?? contract.student.fullName;
+  // Vira o nome sugerido do PDF ao "Salvar como PDF".
+  return { title: nome ? `${nome} - Contrato` : "Contrato" };
+}
+
 export default async function ContratoAlunoPage({ params }: ContratoPageProps) {
   const { id } = await params;
   const contract = await getStudentContract(id);

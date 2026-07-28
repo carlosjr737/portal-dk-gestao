@@ -18,7 +18,7 @@ function dateBR(iso: string | null) {
 
 // Dados fixos do CONTRATADO (do modelo enviado).
 const DK = {
-  representanteLegal: "RUAN DE OLIVEIRA LOPES ROSA",
+  representanteLegal: "CARLOS ANTONIO DE SOUZA JUNIOR",
   cnpj: "43330929000191",
   enderecoComercial:
     "Av Prof Cristovam do Santos, 43A. Belvedere. Belo Horizonte. MG. CEP: 30320510.",
