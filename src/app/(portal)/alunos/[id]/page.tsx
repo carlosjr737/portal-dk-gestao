@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
+import { ContractLauncher } from "@/features/contracts/contract-launcher";
 import { createClient } from "@/lib/supabase/server";
 import {
   StudentEnrollmentsSection,
@@ -19,12 +20,17 @@ type AlunoDetalhePageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    created?: string;
+  }>;
 };
 
 export default async function AlunoDetalhePage({
   params,
+  searchParams,
 }: AlunoDetalhePageProps) {
   const { id } = await params;
+  const justCreated = (await searchParams)?.created === "1";
   const [student, guardians, enrollments] = await Promise.all([
     getStudent(id),
     getStudentGuardians(id),
@@ -63,6 +69,10 @@ export default async function AlunoDetalhePage({
           </Link>
         </div>
       </div>
+
+      {justCreated ? (
+        <ContractLauncher href={`/alunos/${student.id}/contrato?auto=1`} />
+      ) : null}
 
       <section className="mt-6 grid gap-4 lg:grid-cols-3">
         <InfoCard label="Status">
