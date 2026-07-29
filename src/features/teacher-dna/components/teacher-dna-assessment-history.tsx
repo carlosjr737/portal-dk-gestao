@@ -27,7 +27,7 @@ export function TeacherDnaAssessmentHistory({
           Histórico de avaliações
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Clique em uma aula para ver a análise completa dos 12 pilares.
+          Clique em uma aula para ver a análise completa dos 13 pilares.
         </p>
       </div>
       <div className="overflow-x-auto">

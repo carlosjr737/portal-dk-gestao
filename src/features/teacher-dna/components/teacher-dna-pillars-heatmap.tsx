@@ -13,7 +13,7 @@ export function TeacherDnaPillarsHeatmap({
     <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
       <div className="border-b border-border px-5 py-4">
         <h2 className="text-base font-semibold text-foreground">
-          Matriz dos 12 pilares
+          Matriz dos 13 pilares
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Heatmap de pontuação por professor e pilar.

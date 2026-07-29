@@ -204,14 +204,31 @@ function normalizeAssessment(
     pillar_scores: unknown;
   },
 ): TeacherDnaAssessment {
-  const pillarScores =
-    assessment.pillar_scores && typeof assessment.pillar_scores === "object"
-      ? (assessment.pillar_scores as Partial<Record<TeacherDnaPillarKey, number>>)
-      : {};
+  const raw = assessment.pillar_scores;
+  let pillarScores: Partial<Record<TeacherDnaPillarKey, number>> = {};
+  let overall = Number(assessment.overall_score ?? 0);
+
+  if (Array.isArray(raw)) {
+    // Formato PEDK (aula_aberta): array de { code, score 1-5 }. Converte cada
+    // nota 1-5 -> 0-100 e o overall (finalScore 1-5) -> 0-100.
+    for (const item of raw as Array<{ code?: string; score?: number }>) {
+      const code = item?.code as TeacherDnaPillarKey | undefined;
+      const score = Number(item?.score);
+      if (code && Number.isFinite(score)) {
+        pillarScores[code] = Math.round(Math.min(5, Math.max(1, score)) * 20);
+      }
+    }
+    if (Number.isFinite(overall)) {
+      overall = Math.round(overall * 20);
+    }
+  } else if (raw && typeof raw === "object") {
+    // Formato legado (objeto já em 0-100).
+    pillarScores = raw as Partial<Record<TeacherDnaPillarKey, number>>;
+  }
 
   return {
     ...assessment,
-    overall_score: Number(assessment.overall_score ?? 0),
+    overall_score: overall,
     pillar_scores: pillarScores,
     report_path: assessment.report_path ?? null,
   };

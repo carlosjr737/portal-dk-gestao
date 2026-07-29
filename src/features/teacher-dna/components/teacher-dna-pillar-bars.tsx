@@ -5,7 +5,7 @@ import {
 
 export function TeacherDnaPillarBars({
   scores,
-  title = "Média dos 12 pilares",
+  title = "Média dos 13 pilares",
 }: {
   scores: Record<TeacherDnaPillarKey, number | null>;
   title?: string;

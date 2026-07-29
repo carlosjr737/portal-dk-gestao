@@ -1,63 +1,71 @@
+// Matriz oficial PEDK - DNA Professor DK (13 pilares). Fonte da verdade: o
+// sistema de análise (aula_aberta) que grava em teacher_dna_assessments.
+// As keys batem com os "code" do pillar_scores gerado pela IA.
 export const teacherDnaPillars = [
   {
-    key: "energia_presenca",
-    name: "Energia e presença",
-    shortName: "Energia",
+    key: "presenca_autoridade",
+    name: "Presença e autoridade",
+    shortName: "Presença",
   },
   {
-    key: "clareza_conducao",
-    name: "Clareza na condução",
-    shortName: "Clareza",
+    key: "demonstracao_qualificada",
+    name: "Demonstração qualificada",
+    shortName: "Demonstração",
   },
   {
-    key: "dominio_tecnico",
-    name: "Domínio técnico",
-    shortName: "Técnica",
+    key: "organizacao_espacial",
+    name: "Organização espacial",
+    shortName: "Espaço",
   },
   {
-    key: "didatica",
-    name: "Didática",
-    shortName: "Didática",
+    key: "progressao_fluxo",
+    name: "Progressão e fluxo",
+    shortName: "Progressão",
   },
   {
-    key: "correcao_alunos",
-    name: "Correção dos alunos",
+    key: "correcao_impacto",
+    name: "Correção com impacto",
     shortName: "Correção",
   },
   {
-    key: "gestao_turma",
-    name: "Gestão da turma",
-    shortName: "Gestão",
+    key: "repeticao_produtiva",
+    name: "Repetição produtiva",
+    shortName: "Repetição",
   },
   {
-    key: "motivacao_engajamento",
-    name: "Motivação e engajamento",
+    key: "musicalidade",
+    name: "Musicalidade",
+    shortName: "Musicalidade",
+  },
+  {
+    key: "performance_palco",
+    name: "Performance e palco",
+    shortName: "Palco",
+  },
+  {
+    key: "seguranca_emocional",
+    name: "Segurança emocional",
+    shortName: "Segurança",
+  },
+  {
+    key: "adaptacao_contexto",
+    name: "Adaptação ao contexto",
+    shortName: "Adaptação",
+  },
+  {
+    key: "observacao_elenco",
+    name: "Observação e elenco",
+    shortName: "Elenco",
+  },
+  {
+    key: "diagnostico_individualizacao",
+    name: "Diagnóstico e individualização",
+    shortName: "Diagnóstico",
+  },
+  {
+    key: "engajamento_divertido",
+    name: "Engajamento e diversão",
     shortName: "Engajamento",
-  },
-  {
-    key: "conexao_alunos",
-    name: "Conexão com os alunos",
-    shortName: "Conexão",
-  },
-  {
-    key: "organizacao_aula",
-    name: "Organização da aula",
-    shortName: "Organização",
-  },
-  {
-    key: "ritmo_tempo",
-    name: "Ritmo e aproveitamento do tempo",
-    shortName: "Ritmo",
-  },
-  {
-    key: "padrao_dk",
-    name: "Alinhamento com o padrão DK",
-    shortName: "Padrão DK",
-  },
-  {
-    key: "evolucao_turma",
-    name: "Evolução percebida da turma",
-    shortName: "Evolução",
   },
 ] as const;
 
