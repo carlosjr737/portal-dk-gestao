@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PINA_ALLOWED_ORIGIN } from "@/features/pina/config";
-import { getUserFromBearer, resolvePinaViewer } from "@/features/pina/auth";
+import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +29,26 @@ export async function GET(
 ) {
   const { espetaculoId } = await params;
 
+  // Auth: Firebase ID token (a mesma sessão que o SSO criou no Pina).
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
-  const user = await getUserFromBearer(token);
-  if (!user) {
+  const firebaseAuth = getPinaFirebaseAuth();
+  if (!firebaseAuth) {
+    return json({ error: "firebase_not_configured" }, 503);
+  }
+  if (!token) {
     return json({ error: "unauthorized" }, 401);
   }
-  const viewer = await resolvePinaViewer(user.id);
-  if (!viewer) {
-    return json({ error: "forbidden" }, 403);
+  let claims: { role?: string; professorId?: string | null };
+  try {
+    claims = await firebaseAuth.verifyIdToken(token);
+  } catch {
+    return json({ error: "unauthorized" }, 401);
   }
+  // As claims foram assinadas por nós no /sso-token.
+  const viewer = {
+    role: claims.role === "professor" ? "professor" : "master",
+    staffMemberId: (claims.professorId as string | null) ?? null,
+  };
 
   const admin = createAdminClient();
 
