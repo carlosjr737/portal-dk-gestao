@@ -50,6 +50,7 @@ const navigationGroups = [
     items: [
       "/financeiro",
       "/financeiro/faturamento-turmas",
+      "/financeiro/professores",
       "/financeiro/inadimplencia",
       "/financeiro/growth-churn",
       "/financeiro/entradas-saidas",
