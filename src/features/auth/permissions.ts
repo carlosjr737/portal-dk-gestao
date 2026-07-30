@@ -42,6 +42,7 @@ export const navigationItems = [
   { href: "/financeiro/configuracoes", label: "Configurações financeiras" },
   { href: "/configuracoes", label: "Configurações" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
+  { href: "/configuracoes/pina-acessos", label: "Acessos ao Pina" },
 ] as const;
 
 const roleRoutePrefixes: Record<UserRole, string[]> = {
