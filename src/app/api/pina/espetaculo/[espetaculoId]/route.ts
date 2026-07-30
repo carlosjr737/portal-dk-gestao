@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PINA_ALLOWED_ORIGIN } from "@/features/pina/config";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export async function GET(
   if (!token) {
     return json({ error: "unauthorized" }, 401);
   }
-  let claims: { role?: string; professorId?: string | null };
+  let claims: DecodedIdToken;
   try {
     claims = await firebaseAuth.verifyIdToken(token);
   } catch {
@@ -46,7 +47,7 @@ export async function GET(
   }
   // As claims foram assinadas por nós no /sso-token.
   const viewer = {
-    role: claims.role === "professor" ? "professor" : "master",
+    role: claims.role === "professor" ? ("professor" as const) : ("master" as const),
     staffMemberId: (claims.professorId as string | null) ?? null,
   };
 
