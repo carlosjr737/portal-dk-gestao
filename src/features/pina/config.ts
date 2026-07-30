@@ -7,6 +7,10 @@ export const PINA_APP_URL = process.env.PINA_APP_URL ?? "https://www.pinaform.ap
 export const PINA_ALLOWED_ORIGIN =
   process.env.PINA_ALLOWED_ORIGIN ?? "https://www.pinaform.app";
 
+/** Para onde voltar depois de definir a senha (login do Pina). */
+export const PINA_LOGIN_URL =
+  process.env.PINA_LOGIN_URL ?? "https://www.pinaform.app/login";
+
 /**
  * Service account do Firebase "pinaform-a5fec", lido de env (JSON em string).
  * NUNCA fica no repositório — só em env/secret manager. Retorna null se ausente.

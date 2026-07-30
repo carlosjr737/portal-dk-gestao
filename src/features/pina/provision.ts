@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
+import { PINA_LOGIN_URL } from "@/features/pina/config";
 
 export type ProvisionResult =
   | { ok: true; email: string; resetLink: string; created: boolean }
@@ -67,7 +68,11 @@ export async function provisionPinaProfessor(
 
   let resetLink: string;
   try {
-    resetLink = await auth.generatePasswordResetLink(email);
+    // continueUrl: volta pro login do Pina depois de definir a senha.
+    resetLink = await auth.generatePasswordResetLink(email, {
+      url: PINA_LOGIN_URL,
+      handleCodeInApp: false,
+    });
   } catch (err) {
     console.error("Pina provision reset link error:", err);
     return { ok: false, error: "reset_link_error" };
