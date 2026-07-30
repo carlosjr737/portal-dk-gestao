@@ -29,6 +29,52 @@ export type TeacherPaymentData = {
   grandTotal: number;
 };
 
+// ---------------------------------------------------------------------------
+// Regra de pagamento (dos contratos). Bonificação conta ALUNOS ATIVOS (opção A).
+// ---------------------------------------------------------------------------
+type ContratoTipo = "escalonado" | "fixo60" | "zion";
+
+// Tipo de contrato por professor (nome de exibição, normalizado).
+const CONTRATO_POR_PROFESSOR: Record<string, ContratoTipo> = {
+  carol: "escalonado", dener: "escalonado", gladson: "escalonado",
+  livia: "escalonado", marcella: "escalonado", nagao: "escalonado",
+  rick: "escalonado", ruan: "escalonado",
+  carolzinha: "fixo60", laura: "fixo60", red: "fixo60",
+  sarah: "fixo60", guedes: "fixo60",
+  zion: "zion",
+};
+
+// Turmas com valor negociado (fora da tabela escalonada).
+const RATE_CUSTOM: Record<string, { hora: number; variavel: number }> = {
+  "c6758f4b-430b-4ec0-bbe9-f892fb920928": { hora: 140.25, variavel: 30 }, // Ruan Equipe Junior
+  "d2ef0403-8997-4b64-999a-675a8faabf4d": { hora: 140.25, variavel: 30 }, // Ruan Equipe Juvenil
+  "ff79adf5-9791-4c14-b3d6-136d6cf7d878": { hora: 165.0, variavel: 30 },  // Marcella Sáb
+  "d34a38be-eb57-448a-bdd4-9276f527c4fd": { hora: 115.5, variavel: 0 },   // Carol Sáb
+};
+
+function tarifa(tipo: ContratoTipo, n: number): { hora: number; variavel: number } {
+  if (tipo === "fixo60") return { hora: 60.5, variavel: 0 };
+  if (tipo === "zion") {
+    if (n <= 5) return { hora: 60.5, variavel: 0 };
+    if (n <= 10) return { hora: 60.5, variavel: 15 };
+    return { hora: 60.5, variavel: 30 };
+  }
+  // escalonado
+  if (n <= 3) return { hora: 60.5, variavel: 0 };
+  if (n <= 5) return { hora: 77.0, variavel: 0 };
+  if (n <= 10) return { hora: 77.0, variavel: 15 };
+  if (n <= 15) return { hora: 77.0, variavel: 30 };
+  return { hora: 93.5, variavel: 30 };
+}
+
+function normProf(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 const WEEKDAY_JS: Record<string, number> = {
   domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6,
 };
@@ -41,11 +87,10 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-/** Nº de aulas no mês = ocorrências dos dias da semana da turma (sem descontar recesso). */
 function contarAulas(weekdays: string[], year: number, month: number): number {
   const dias = new Set(weekdays.map((w) => WEEKDAY_JS[w]).filter((d) => d !== undefined));
   if (dias.size === 0) return 0;
-  const lastDay = new Date(year, month, 0).getDate(); // month é 1-based aqui
+  const lastDay = new Date(year, month, 0).getDate();
   let count = 0;
   for (let d = 1; d <= lastDay; d += 1) {
     if (dias.has(new Date(year, month - 1, d).getDay())) count += 1;
@@ -64,26 +109,20 @@ function labelDias(weekdays: string[]): string {
 
 export async function getTeacherPaymentData(
   year: number,
-  month: number, // 1-based
+  month: number,
 ): Promise<TeacherPaymentData> {
   const admin = createAdminClient();
-  const monthFirst = `${year}-${String(month).padStart(2, "0")}-01`;
 
   const [
-    { data: rates },
     { data: classes },
     { data: schedules },
     { data: staff },
     { data: levels },
     { data: enrollments },
   ] = await Promise.all([
-    admin
-      .from("class_teacher_rate")
-      .select("class_id, hora_aula, valor_por_aluno, vigencia_inicio, vigencia_fim")
-      .lte("vigencia_inicio", monthFirst),
     admin.from("classes").select("id, teacher_id, level_id, status").eq("status", "active"),
     admin.from("class_schedules").select("class_id, weekday, start_time"),
-    admin.from("staff_members").select("id, full_name, artistic_name"),
+    admin.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor"),
     admin.from("levels").select("id, name"),
     admin
       .from("enrollments")
@@ -91,25 +130,9 @@ export async function getTeacherPaymentData(
       .eq("status", "active"),
   ]);
 
-  // rate vigente no mês (mais recente que cobre o mês)
-  const rateByClass = new Map<string, { hora: number; aluno: number; inicio: string }>();
-  for (const r of rates ?? []) {
-    const fim = r.vigencia_fim as string | null;
-    if (fim && fim < monthFirst) continue; // já expirou antes do mês
-    const cur = rateByClass.get(r.class_id as string);
-    const inicio = r.vigencia_inicio as string;
-    if (!cur || inicio > cur.inicio) {
-      rateByClass.set(r.class_id as string, {
-        hora: Number(r.hora_aula ?? 0),
-        aluno: Number(r.valor_por_aluno ?? 0),
-        inicio,
-      });
-    }
-  }
-
+  const staffIds = new Set((staff ?? []).map((s) => s.id as string));
   const levelName = new Map((levels ?? []).map((l) => [l.id as string, l.name as string]));
   const staffName = new Map((staff ?? []).map((s) => [s.id as string, getStaffDisplayName(s)]));
-  const classById = new Map((classes ?? []).map((c) => [c.id as string, c]));
 
   const schedByClass = new Map<string, { weekdays: string[]; minTime: string }>();
   for (const s of schedules ?? []) {
@@ -121,7 +144,6 @@ export async function getTeacherPaymentData(
     schedByClass.set(cid, cur);
   }
 
-  // roster por turma (só das que têm rate)
   const studentIds = [
     ...new Set((enrollments ?? []).map((e) => e.student_id as string).filter(Boolean)),
   ];
@@ -136,7 +158,6 @@ export async function getTeacherPaymentData(
   const rosterByClass = new Map<string, { nome: string; condicao: string }[]>();
   for (const e of enrollments ?? []) {
     const cid = e.class_id as string;
-    if (!rateByClass.has(cid)) continue;
     const list = rosterByClass.get(cid) ?? [];
     list.push({
       nome: studentName.get(e.student_id as string) ?? "—",
@@ -145,26 +166,31 @@ export async function getTeacherPaymentData(
     rosterByClass.set(cid, list);
   }
 
-  // monta por professor
   const byProf = new Map<string, ProfessorPayment>();
-  for (const [classId, rate] of rateByClass) {
-    const cls = classById.get(classId);
-    if (!cls) continue;
-    const prof = staffName.get(cls.teacher_id as string) ?? "—";
+  for (const cls of classes ?? []) {
+    const teacherId = cls.teacher_id as string | null;
+    if (!teacherId || !staffIds.has(teacherId)) continue;
+    const classId = cls.id as string;
+    const prof = staffName.get(teacherId) ?? "—";
     const sched = schedByClass.get(classId) ?? { weekdays: [], minTime: "-" };
     const aulas = contarAulas(sched.weekdays, year, month);
     const alunos = (rosterByClass.get(classId) ?? []).sort((a, b) =>
       a.nome.localeCompare(b.nome, "pt-BR"),
     );
     const n = alunos.length;
+
+    const custom = RATE_CUSTOM[classId];
+    const tipo = CONTRATO_POR_PROFESSOR[normProf(prof)] ?? "escalonado";
+    const rate = custom ?? tarifa(tipo, n);
+
     const vf = rate.hora * aulas;
-    const vv = rate.aluno * n;
+    const vv = rate.variavel * n;
     const turma: TurmaPayment = {
       nivel: cls.level_id ? levelName.get(cls.level_id as string) ?? "—" : "—",
       diasLabel: labelDias(sched.weekdays),
       horario: sched.minTime,
       horaAula: rate.hora,
-      valorAluno: rate.aluno,
+      valorAluno: rate.variavel,
       aulas,
       alunos,
       nAlunos: n,
