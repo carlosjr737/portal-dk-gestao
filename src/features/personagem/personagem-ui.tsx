@@ -125,31 +125,29 @@ export function PersonagemCreate({
         <p className="w-full text-sm text-muted-foreground">{state.message}</p>
       ) : null}
       <label className="block">
-        <span className="text-sm font-medium text-foreground">Nome do personagem</span>
+        <span className="mb-1 block text-sm font-medium text-foreground">Nome do personagem</span>
         <input
           name="nome"
           required
           placeholder="Morticia"
-          className="mt-1 h-9 w-56 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+          className="h-9 w-56 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
         />
         {state.errors?.nome?.[0] ? (
           <span className="block text-xs text-red-600">{state.errors.nome[0]}</span>
         ) : null}
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-foreground">Cor</span>
+        <span className="mb-1 block text-sm font-medium text-foreground">Cor</span>
         <input
           name="cor"
           type="color"
           defaultValue="#8b5cf6"
-          className="mt-1 h-9 w-16 cursor-pointer rounded-md border border-border bg-white"
+          className="h-9 w-16 cursor-pointer rounded-md border border-border bg-white"
         />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-foreground">Aluno (opcional)</span>
-        <div className="mt-1">
-          <AlunoCombobox name="aluno_id" alunos={alunos} />
-        </div>
+        <span className="mb-1 block text-sm font-medium text-foreground">Aluno (opcional)</span>
+        <AlunoCombobox name="aluno_id" alunos={alunos} />
       </label>
       <button
         type="submit"

@@ -175,7 +175,7 @@ export default async function EspetaculoDetalhePage({
         </div>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
+      <section className="mt-6 rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-3">
           <h2 className="text-base font-semibold text-foreground">
             Personagens
