@@ -20,7 +20,7 @@
 | # | Entrega | Status |
 |---|---|---|
 | 0.1 | Protótipo da tela de subconta com selo Asaas (evidência Q06) | ✅ feito (`/configuracoes/baas-preview`) |
-| 0.2 | Criar subconta real no sandbox e capturar print | ⏳ falta `ASAAS_API_KEY` no `.env.local` |
+| 0.2 | Criar subconta real no sandbox e capturar print | ✅ subconta `78c9177b-…` criada (wallet `72b51abf-…`) |
 | 0.3 | Preencher e enviar o Checklist BaaS (Google Forms do Asaas) | ⏳ |
 | 0.4 | Análise do Asaas (~3 dias úteis) + eventuais ajustes | ⏳ |
 | 0.5 | Assinatura do contrato de BaaS | ⏳ |
@@ -28,6 +28,13 @@
 | 0.7 | Validação jurídica/contábil (custódia, split, tributação da taxa) | ⏳ **único custo em dinheiro previsto** |
 
 **Respostas do checklist já definidas:** Q01 Não · Q02 Sim · Q03 Sim · Q04 Não · Q05 (a) Direta Tomador · Q06 Sim · Q07 Sim · Q08 Não · Q09 Não · Q13 Subcontas BaaS. Faltam: razão social, nº funcionários, faturamento, Q12.
+
+### Aprendizados da integração sandbox
+
+- **`ASAAS_API_KEY` começa com `$`** → o Next.js (`@next/env` + dotenv-expand) trata como variável e a chave vira `undefined` (dá 401). No `.env.local` precisa escapar: `ASAAS_API_KEY=\$aact_…`. **Na Vercel não escapar** — o painel guarda o valor literal.
+- **`companyType` é obrigatório para CNPJ**, apesar de a doc listar como opcional.
+- CPF/CNPJ e e-mail precisam ser **únicos** no ambiente (o CNPJ de exemplo da doc já está em uso no sandbox).
+- Celular com dígitos repetidos (`11999999999`) é recusado.
 
 ---
 

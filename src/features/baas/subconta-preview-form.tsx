@@ -39,10 +39,10 @@ export function SubcontaPreviewForm() {
             Dados da escola
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nome da escola" name="name" placeholder="Ex.: DK Studio" error={state.errors?.name?.[0]} />
-            <Field label="CNPJ/CPF" name="cpfCnpj" placeholder="Somente números" error={state.errors?.cpfCnpj?.[0]} />
-            <Field label="E-mail financeiro" name="email" placeholder="financeiro@escola.com.br" error={state.errors?.email?.[0]} />
-            <Field label="Celular" name="mobilePhone" placeholder="(00) 00000-0000" error={state.errors?.mobilePhone?.[0]} />
+            <Field label="Nome da escola" name="name" placeholder="Ex.: DK Studio" defaultValue={state.values?.name} error={state.errors?.name?.[0]} />
+            <Field label="CNPJ/CPF" name="cpfCnpj" placeholder="Somente números" defaultValue={state.values?.cpfCnpj} error={state.errors?.cpfCnpj?.[0]} />
+            <Field label="E-mail financeiro" name="email" placeholder="financeiro@escola.com.br" defaultValue={state.values?.email} error={state.errors?.email?.[0]} />
+            <Field label="Celular" name="mobilePhone" placeholder="(00) 00000-0000" defaultValue={state.values?.mobilePhone} error={state.errors?.mobilePhone?.[0]} />
           </div>
         </div>
 
@@ -56,9 +56,35 @@ export function SubcontaPreviewForm() {
               name="incomeValue"
               type="number"
               placeholder="0,00"
+              defaultValue={state.values?.incomeValue}
               error={state.errors?.incomeValue?.[0]}
             />
-            <Field label="Site da escola (opcional)" name="site" placeholder="https://…" />
+            <label className="block">
+              <span className="text-xs font-medium text-foreground">Tipo de empresa</span>
+              <select
+                name="companyType"
+                // key força o remount pra o defaultValue reaplicar após o re-render da action
+                key={state.values?.companyType ?? "vazio"}
+                defaultValue={state.values?.companyType ?? ""}
+                className="mt-1 h-9 w-full rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="">Selecione…</option>
+                <option value="MEI">MEI</option>
+                <option value="LIMITED">Ltda</option>
+                <option value="INDIVIDUAL">Empresário individual</option>
+                <option value="ASSOCIATION">Associação</option>
+              </select>
+              {state.errors?.companyType?.[0] ? (
+                <span className="text-xs text-red-600">{state.errors.companyType[0]}</span>
+              ) : null}
+            </label>
+            <Field
+              label="Site da escola (opcional)"
+              name="site"
+              placeholder="https://…"
+              defaultValue={state.values?.site}
+              className="col-span-2"
+            />
           </div>
         </div>
 
@@ -67,10 +93,10 @@ export function SubcontaPreviewForm() {
             Endereço
           </p>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="CEP" name="postalCode" placeholder="Somente números" error={state.errors?.postalCode?.[0]} />
-            <Field label="Rua" name="address" placeholder="Rua/Avenida" className="col-span-2" error={state.errors?.address?.[0]} />
-            <Field label="Número" name="addressNumber" placeholder="0000" error={state.errors?.addressNumber?.[0]} />
-            <Field label="Bairro" name="province" placeholder="Bairro" className="col-span-2" error={state.errors?.province?.[0]} />
+            <Field label="CEP" name="postalCode" placeholder="Somente números" defaultValue={state.values?.postalCode} error={state.errors?.postalCode?.[0]} />
+            <Field label="Rua" name="address" placeholder="Rua/Avenida" className="col-span-2" defaultValue={state.values?.address} error={state.errors?.address?.[0]} />
+            <Field label="Número" name="addressNumber" placeholder="0000" defaultValue={state.values?.addressNumber} error={state.errors?.addressNumber?.[0]} />
+            <Field label="Bairro" name="province" placeholder="Bairro" className="col-span-2" defaultValue={state.values?.province} error={state.errors?.province?.[0]} />
           </div>
         </div>
       </div>
@@ -96,6 +122,7 @@ function Field({
   placeholder,
   className = "",
   error,
+  defaultValue,
 }: {
   label: string;
   name: string;
@@ -103,6 +130,7 @@ function Field({
   placeholder?: string;
   className?: string;
   error?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className={`block ${className}`}>
@@ -111,6 +139,7 @@ function Field({
         name={name}
         type={type}
         placeholder={placeholder}
+        defaultValue={defaultValue}
         className="mt-1 h-9 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
       />
       {error ? <span className="text-xs text-red-600">{error}</span> : null}

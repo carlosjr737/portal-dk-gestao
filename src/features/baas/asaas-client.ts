@@ -12,7 +12,7 @@ export type AsaasSubcontaInput = {
   addressNumber: string;
   province: string;
   postalCode: string;
-  companyType?: "MEI" | "LIMITED" | "INDIVIDUAL" | "ASSOCIATION";
+  companyType: "MEI" | "LIMITED" | "INDIVIDUAL" | "ASSOCIATION";
   phone?: string;
   site?: string;
   complement?: string;

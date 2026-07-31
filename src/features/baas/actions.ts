@@ -10,6 +10,8 @@ export type CriarSubcontaState = {
   message?: string;
   ok?: boolean;
   subconta?: { id: string; walletId: string };
+  /** Ecoa o que foi digitado, pra não perder o preenchimento quando dá erro. */
+  values?: Record<string, string>;
 };
 
 const subcontaSchema = z.object({
@@ -22,6 +24,10 @@ const subcontaSchema = z.object({
   addressNumber: z.string().trim().min(1, "Informe o número."),
   province: z.string().trim().min(1, "Informe o bairro."),
   postalCode: z.string().trim().min(8, "CEP inválido.").transform((v) => v.replace(/\D/g, "")),
+  // Obrigatório para CNPJ (a doc lista como opcional, mas a API recusa sem ele).
+  companyType: z.enum(["MEI", "LIMITED", "INDIVIDUAL", "ASSOCIATION"], {
+    message: "Selecione o tipo de empresa.",
+  }),
   site: z
     .string()
     .trim()
@@ -44,25 +50,36 @@ export async function criarSubcontaPreview(
     return { ok: false, message: "Sem permissão." };
   }
 
-  const parsed = subcontaSchema.safeParse({
-    name: String(formData.get("name") ?? ""),
-    email: String(formData.get("email") ?? ""),
-    cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
-    mobilePhone: String(formData.get("mobilePhone") ?? ""),
-    incomeValue: String(formData.get("incomeValue") ?? ""),
-    address: String(formData.get("address") ?? ""),
-    addressNumber: String(formData.get("addressNumber") ?? ""),
-    province: String(formData.get("province") ?? ""),
-    postalCode: String(formData.get("postalCode") ?? ""),
-    site: String(formData.get("site") ?? ""),
-  });
+  const CAMPOS = [
+    "name",
+    "email",
+    "cpfCnpj",
+    "mobilePhone",
+    "incomeValue",
+    "address",
+    "addressNumber",
+    "province",
+    "postalCode",
+    "companyType",
+    "site",
+  ] as const;
+  const values = Object.fromEntries(
+    CAMPOS.map((c) => [c, String(formData.get(c) ?? "")]),
+  ) as Record<string, string>;
+
+  const parsed = subcontaSchema.safeParse(values);
 
   if (!parsed.success) {
-    return { ok: false, errors: parsed.error.flatten().fieldErrors, message: "Revise os campos." };
+    return {
+      ok: false,
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Revise os campos.",
+      values,
+    };
   }
 
   if (ASAAS_ENV !== "sandbox") {
-    return { ok: false, message: "Protótipo bloqueado: ASAAS_ENV precisa ser 'sandbox'." };
+    return { ok: false, message: "Protótipo bloqueado: ASAAS_ENV precisa ser 'sandbox'.", values };
   }
 
   const result = await criarSubcontaAsaas(parsed.data);
@@ -72,9 +89,10 @@ export async function criarSubcontaPreview(
       return {
         ok: false,
         message: "Configure ASAAS_API_KEY (chave de sandbox) no .env.local do portal.",
+        values,
       };
     }
-    return { ok: false, message: `Asaas recusou: ${result.error}` };
+    return { ok: false, message: `Asaas recusou: ${result.error}`, values };
   }
 
   return {
