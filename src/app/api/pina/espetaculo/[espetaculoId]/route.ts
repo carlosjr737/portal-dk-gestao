@@ -55,7 +55,7 @@ export async function GET(
 
   const { data: espetaculo, error: espError } = await admin
     .from("espetaculo")
-    .select("id, nome, escola_id")
+    .select("id, nome")
     .eq("id", espetaculoId)
     .maybeSingle();
 
@@ -63,8 +63,8 @@ export async function GET(
     return json({ error: "not_found" }, 404);
   }
 
-  // Pool de personagens da escola do espetáculo (LGPD: só id, nome, cor, alunoId).
-  const personagens = await fetchPersonagens(admin, espetaculo.escola_id as string | null);
+  // Personagens deste espetáculo (LGPD: só id, nome, cor, alunoId).
+  const personagens = await fetchPersonagens(admin, espetaculoId);
 
   const { data: coreografiasRaw } = await admin
     .from("coreografia")
@@ -192,14 +192,16 @@ export async function GET(
 // ---------------- helpers ----------------
 type PinaPersonagem = { id: string; nome: string; cor: string; alunoId: string | null };
 
-/** Pool de personagens da escola (isolado por escola_id; hoje single-school = null). */
+/** Personagens deste espetáculo (o Pina consome; portal é a fonte da verdade). */
 async function fetchPersonagens(
   admin: ReturnType<typeof createAdminClient>,
-  escolaId: string | null,
+  espetaculoId: string,
 ): Promise<PinaPersonagem[]> {
-  let query = admin.from("personagem").select("id, nome, cor, aluno_id");
-  query = escolaId ? query.eq("escola_id", escolaId) : query.is("escola_id", null);
-  const { data } = await query.order("nome", { ascending: true });
+  const { data } = await admin
+    .from("personagem")
+    .select("id, nome, cor, aluno_id")
+    .eq("espetaculo_id", espetaculoId)
+    .order("nome", { ascending: true });
   return (data ?? []).map((p) => ({
     id: p.id as string,
     nome: p.nome as string,

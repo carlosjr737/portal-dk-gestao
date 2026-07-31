@@ -10,7 +10,7 @@ export type PersonagemActionState = {
   message?: string;
 };
 
-const personagemSchema = z.object({
+const camposComuns = {
   nome: z.string().trim().min(1, "Informe o nome do personagem."),
   cor: z
     .string()
@@ -21,6 +21,12 @@ const personagemSchema = z.object({
     .trim()
     .transform((v) => (v.length > 0 ? v : null))
     .pipe(z.string().uuid("Aluno inválido.").nullable()),
+};
+
+const personagemSchema = z.object(camposComuns);
+const createSchema = z.object({
+  ...camposComuns,
+  espetaculo_id: z.string().uuid("Espetáculo inválido."),
 });
 
 function parse(formData: FormData) {
@@ -35,7 +41,12 @@ export async function createPersonagem(
   _prev: PersonagemActionState,
   formData: FormData,
 ): Promise<PersonagemActionState> {
-  const parsed = parse(formData);
+  const parsed = createSchema.safeParse({
+    espetaculo_id: String(formData.get("espetaculo_id") ?? ""),
+    nome: String(formData.get("nome") ?? ""),
+    cor: String(formData.get("cor") ?? "#8b5cf6"),
+    aluno_id: String(formData.get("aluno_id") ?? ""),
+  });
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors, message: "Revise os campos." };
   }
@@ -47,7 +58,7 @@ export async function createPersonagem(
   if (error) {
     return { message: `Não foi possível criar o personagem: ${error.message}` };
   }
-  revalidatePath("/personagens");
+  revalidatePath(`/espetaculos/${parsed.data.espetaculo_id}`);
   return { message: "Personagem criado." };
 }
 
@@ -68,12 +79,16 @@ export async function updatePersonagem(
   if (error) {
     return { message: `Não foi possível atualizar: ${error.message}` };
   }
-  revalidatePath("/personagens");
+  const espetaculoId = String(formData.get("espetaculo_id") ?? "");
+  if (espetaculoId) revalidatePath(`/espetaculos/${espetaculoId}`);
   return { message: "Personagem atualizado." };
 }
 
-export async function deletePersonagem(personagemId: string): Promise<void> {
+export async function deletePersonagem(
+  personagemId: string,
+  espetaculoId: string,
+): Promise<void> {
   const supabase = await createClient();
   await supabase.from("personagem").delete().eq("id", personagemId);
-  revalidatePath("/personagens");
+  if (espetaculoId) revalidatePath(`/espetaculos/${espetaculoId}`);
 }

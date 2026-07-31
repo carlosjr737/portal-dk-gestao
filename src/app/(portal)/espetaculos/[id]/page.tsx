@@ -8,6 +8,11 @@ import { CoreografiaForm } from "@/features/espetaculo/coreografia-form";
 import { DeleteCoreografiaButton } from "@/features/espetaculo/delete-coreografia-button";
 import { OpenInPinaButton } from "@/features/pina/open-in-pina-button";
 import { PINA_APP_URL } from "@/features/pina/config";
+import {
+  PersonagemCreate,
+  PersonagemRow,
+  type PersonagemItem,
+} from "@/features/personagem/personagem-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +52,7 @@ export default async function EspetaculoDetalhePage({
     { data: classes },
     { data: staff },
     { data: students },
+    { data: personagens },
   ] = await Promise.all([
     admin
       .from("coreografia")
@@ -56,6 +62,11 @@ export default async function EspetaculoDetalhePage({
     admin.from("classes").select("id, name").eq("status", "active").order("name"),
     admin.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor").order("full_name"),
     admin.from("students").select("id, full_name").eq("status", "active").order("full_name"),
+    admin
+      .from("personagem")
+      .select("id, nome, cor, aluno_id")
+      .eq("espetaculo_id", id)
+      .order("nome", { ascending: true }),
   ]);
 
   const coreoIds = (coreografias ?? []).map((c) => c.id as string);
@@ -161,6 +172,41 @@ export default async function EspetaculoDetalhePage({
             professores={professorOptions}
             alunos={alunoOptions}
           />
+        </div>
+      </section>
+
+      <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-base font-semibold text-foreground">
+            Personagens
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              {(personagens ?? []).length}
+            </span>
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Papéis deste espetáculo (Morticia, Wandinha…). Cor = identidade visual no palco. O Pina consome esta lista.
+          </p>
+        </div>
+        {(personagens ?? []).length > 0 ? (
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-border">
+              {((personagens ?? []) as PersonagemItem[]).map((p) => (
+                <PersonagemRow
+                  key={p.id}
+                  espetaculoId={id}
+                  personagem={p}
+                  alunos={alunoOptions}
+                />
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-5 py-6 text-center text-sm text-muted-foreground">
+            Nenhum personagem ainda. Adicione abaixo.
+          </p>
+        )}
+        <div className="border-t border-border p-5">
+          <PersonagemCreate espetaculoId={id} alunos={alunoOptions} />
         </div>
       </section>
     </div>

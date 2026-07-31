@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import {
   createPersonagem,
   deletePersonagem,
@@ -18,33 +18,109 @@ export type PersonagemItem = {
 
 const initial: PersonagemActionState = {};
 
-function AlunoSelect({
+/** Combobox com busca: digita pra filtrar, escreve o aluno_id num input oculto. */
+function AlunoCombobox({
   name,
   alunos,
-  defaultValue,
+  defaultId,
 }: {
   name: string;
   alunos: AlunoOption[];
-  defaultValue?: string | null;
+  defaultId?: string | null;
 }) {
+  const byId = useMemo(() => new Map(alunos.map((a) => [a.id, a.nome])), [alunos]);
+  const [selectedId, setSelectedId] = useState<string>(defaultId ?? "");
+  const [query, setQuery] = useState<string>(
+    defaultId ? (byId.get(defaultId) ?? "") : "",
+  );
+  const [open, setOpen] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const q = query.trim().toLowerCase();
+  const matches = useMemo(() => {
+    if (!q) return alunos.slice(0, 30);
+    return alunos.filter((a) => a.nome.toLowerCase().includes(q)).slice(0, 30);
+  }, [alunos, q]);
+
+  function pick(a: AlunoOption) {
+    setSelectedId(a.id);
+    setQuery(a.nome);
+    setOpen(false);
+  }
+  function clear() {
+    setSelectedId("");
+    setQuery("");
+    setOpen(false);
+  }
+
   return (
-    <select
-      name={name}
-      defaultValue={defaultValue ?? ""}
-      className="h-10 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
-    >
-      <option value="">— Sem aluno (papel livre) —</option>
-      {alunos.map((a) => (
-        <option key={a.id} value={a.id}>{a.nome}</option>
-      ))}
-    </select>
+    <div className="relative">
+      <input type="hidden" name={name} value={selectedId} />
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          value={query}
+          placeholder="Buscar aluno… (opcional)"
+          autoComplete="off"
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSelectedId(""); // digitar invalida a seleção até clicar de novo
+            setOpen(true);
+          }}
+          onBlur={() => {
+            blurTimer.current = setTimeout(() => setOpen(false), 120);
+          }}
+          className="h-9 w-56 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+        />
+        {selectedId || query ? (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="Limpar aluno"
+            className="h-9 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted"
+          >
+            ✕
+          </button>
+        ) : null}
+      </div>
+      {open && matches.length > 0 ? (
+        <ul
+          className="absolute z-20 mt-1 max-h-56 w-56 overflow-auto rounded-md border border-border bg-white py-1 shadow-lg"
+          onMouseDown={() => {
+            if (blurTimer.current) clearTimeout(blurTimer.current);
+          }}
+        >
+          {matches.map((a) => (
+            <li key={a.id}>
+              <button
+                type="button"
+                onClick={() => pick(a)}
+                className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-muted ${
+                  a.id === selectedId ? "bg-muted font-medium" : ""
+                }`}
+              >
+                {a.nome}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
-export function PersonagemCreate({ alunos }: { alunos: AlunoOption[] }) {
+export function PersonagemCreate({
+  espetaculoId,
+  alunos,
+}: {
+  espetaculoId: string;
+  alunos: AlunoOption[];
+}) {
   const [state, action, pending] = useActionState(createPersonagem, initial);
   return (
     <form action={action} className="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="espetaculo_id" value={espetaculoId} />
       {state.message ? (
         <p className="w-full text-sm text-muted-foreground">{state.message}</p>
       ) : null}
@@ -54,7 +130,7 @@ export function PersonagemCreate({ alunos }: { alunos: AlunoOption[] }) {
           name="nome"
           required
           placeholder="Morticia"
-          className="mt-1 h-10 w-56 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+          className="mt-1 h-9 w-56 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
         />
         {state.errors?.nome?.[0] ? (
           <span className="block text-xs text-red-600">{state.errors.nome[0]}</span>
@@ -66,19 +142,19 @@ export function PersonagemCreate({ alunos }: { alunos: AlunoOption[] }) {
           name="cor"
           type="color"
           defaultValue="#8b5cf6"
-          className="mt-1 h-10 w-16 cursor-pointer rounded-md border border-border bg-white"
+          className="mt-1 h-9 w-16 cursor-pointer rounded-md border border-border bg-white"
         />
       </label>
       <label className="block">
         <span className="text-sm font-medium text-foreground">Aluno (opcional)</span>
         <div className="mt-1">
-          <AlunoSelect name="aluno_id" alunos={alunos} />
+          <AlunoCombobox name="aluno_id" alunos={alunos} />
         </div>
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+        className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
       >
         {pending ? "Criando…" : "Adicionar personagem"}
       </button>
@@ -87,9 +163,11 @@ export function PersonagemCreate({ alunos }: { alunos: AlunoOption[] }) {
 }
 
 export function PersonagemRow({
+  espetaculoId,
   personagem,
   alunos,
 }: {
+  espetaculoId: string;
   personagem: PersonagemItem;
   alunos: AlunoOption[];
 }) {
@@ -99,8 +177,9 @@ export function PersonagemRow({
   );
   return (
     <tr className="align-middle">
-      <td className="px-4 py-2" colSpan={4}>
+      <td className="px-4 py-2">
         <form action={action} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="espetaculo_id" value={espetaculoId} />
           <span
             className="inline-block h-5 w-5 shrink-0 rounded-full border border-border"
             style={{ backgroundColor: personagem.cor }}
@@ -109,7 +188,7 @@ export function PersonagemRow({
             name="nome"
             defaultValue={personagem.nome}
             required
-            className="h-9 w-48 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+            className="h-9 w-44 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
           />
           <input
             name="cor"
@@ -117,7 +196,7 @@ export function PersonagemRow({
             defaultValue={personagem.cor}
             className="h-9 w-12 cursor-pointer rounded-md border border-border bg-white"
           />
-          <AlunoSelect name="aluno_id" alunos={alunos} defaultValue={personagem.aluno_id} />
+          <AlunoCombobox name="aluno_id" alunos={alunos} defaultId={personagem.aluno_id} />
           <button
             type="submit"
             disabled={pending}
@@ -130,8 +209,8 @@ export function PersonagemRow({
           ) : null}
         </form>
       </td>
-      <td className="px-4 py-2 text-right">
-        <form action={deletePersonagem.bind(null, personagem.id)}>
+      <td className="px-4 py-2 text-right align-top">
+        <form action={deletePersonagem.bind(null, personagem.id, espetaculoId)}>
           <button
             type="submit"
             className="h-9 rounded-md border border-rose-200 px-3 text-xs font-medium text-rose-700 transition hover:bg-rose-50"

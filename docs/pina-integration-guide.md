@@ -108,7 +108,7 @@ const data = await res.json();
 }
 ```
 
-- **`personagens`** é o **pool da escola** (reutilizável em qualquer coreografia/formação) — o portal é a fonte da verdade; o Pina só **consome**. Campos: `id`, `nome`, `cor` (hex, identidade visual no palco) e `alunoId` (o aluno que interpreta o papel, ou `null` se for papel livre). A lista vem no **nível do espetáculo**, não por coreografia, porque o mesmo personagem pode aparecer em várias.
+- **`personagens`** são os papéis **deste espetáculo** (cada espetáculo tem os seus) — o portal é a fonte da verdade; o Pina só **consome**. Campos: `id`, `nome`, `cor` (hex, identidade visual no palco) e `alunoId` (o aluno que interpreta o papel, ou `null` se for papel livre). A lista vem no **nível do espetáculo**, não por coreografia, porque o mesmo personagem pode aparecer em várias.
 - **`elenco`** já vem **resolvido pelo backend** (alunos das turmas via matrículas ativas **+** elenco manual das coreografias tipo `especial`). O Pina **não** precisa conhecer o schema interno.
 - **LGPD:** de aluno só expomos **`alunoId` + `nome`**; de personagem só **`id`, `nome`, `cor`, `alunoId`**. Nada sensível.
 
