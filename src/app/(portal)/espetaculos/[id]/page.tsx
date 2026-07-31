@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { CoreografiaForm } from "@/features/espetaculo/coreografia-form";
-import { DeleteCoreografiaButton } from "@/features/espetaculo/delete-coreografia-button";
+import { CoreografiaEditor } from "@/features/espetaculo/coreografia-editor";
+import type { CoreografiaTipo } from "@/features/espetaculo/schemas";
 import { OpenInPinaButton } from "@/features/pina/open-in-pina-button";
 import { PINA_APP_URL } from "@/features/pina/config";
 import {
@@ -56,7 +57,7 @@ export default async function EspetaculoDetalhePage({
   ] = await Promise.all([
     admin
       .from("coreografia")
-      .select("id, nome, tipo, musica_texto, ordem, duracao_segundos")
+      .select("id, nome, tipo, musica_texto, audio_url, ordem, duracao_segundos")
       .eq("espetaculo_id", id)
       .order("ordem", { ascending: true }),
     admin.from("classes").select("id, name").eq("status", "active").order("name"),
@@ -70,30 +71,49 @@ export default async function EspetaculoDetalhePage({
   ]);
 
   const coreoIds = (coreografias ?? []).map((c) => c.id as string);
-  const [{ data: ctRows }, { data: cpRows }] = await Promise.all([
+  const [{ data: ctRows }, { data: cpRows }, { data: caRows }] = await Promise.all([
     coreoIds.length
       ? admin.from("coreografia_turma").select("coreografia_id, turma_id").in("coreografia_id", coreoIds)
       : Promise.resolve({ data: [] as { coreografia_id: string; turma_id: string }[] }),
     coreoIds.length
       ? admin.from("coreografia_professor").select("coreografia_id, professor_id").in("coreografia_id", coreoIds)
       : Promise.resolve({ data: [] as { coreografia_id: string; professor_id: string }[] }),
+    coreoIds.length
+      ? admin.from("coreografia_aluno").select("coreografia_id, aluno_id").in("coreografia_id", coreoIds)
+      : Promise.resolve({ data: [] as { coreografia_id: string; aluno_id: string }[] }),
   ]);
 
   const classMap = new Map((classes ?? []).map((c) => [c.id as string, c.name as string]));
   const staffMap = new Map(
     (staff ?? []).map((s) => [s.id as string, getStaffDisplayName(s)]),
   );
-  const turmasByCoreo = new Map<string, string[]>();
+  // IDs vinculados por coreografia (pra pré-marcar na edição).
+  const turmaIdsByCoreo = new Map<string, string[]>();
+  const profIdsByCoreo = new Map<string, string[]>();
+  const alunoIdsByCoreo = new Map<string, string[]>();
   for (const r of ctRows ?? []) {
-    const list = turmasByCoreo.get(r.coreografia_id) ?? [];
-    list.push(classMap.get(r.turma_id) ?? "");
-    turmasByCoreo.set(r.coreografia_id, list);
+    const list = turmaIdsByCoreo.get(r.coreografia_id) ?? [];
+    list.push(r.turma_id);
+    turmaIdsByCoreo.set(r.coreografia_id, list);
+  }
+  for (const r of cpRows ?? []) {
+    const list = profIdsByCoreo.get(r.coreografia_id) ?? [];
+    list.push(r.professor_id);
+    profIdsByCoreo.set(r.coreografia_id, list);
+  }
+  for (const r of caRows ?? []) {
+    const list = alunoIdsByCoreo.get(r.coreografia_id) ?? [];
+    list.push(r.aluno_id);
+    alunoIdsByCoreo.set(r.coreografia_id, list);
+  }
+  // Nomes por coreografia (pra exibir o resumo).
+  const turmasByCoreo = new Map<string, string[]>();
+  for (const [cid, ids] of turmaIdsByCoreo) {
+    turmasByCoreo.set(cid, ids.map((tid) => classMap.get(tid) ?? ""));
   }
   const profsByCoreo = new Map<string, string[]>();
-  for (const r of cpRows ?? []) {
-    const list = profsByCoreo.get(r.coreografia_id) ?? [];
-    list.push(staffMap.get(r.professor_id) ?? "");
-    profsByCoreo.set(r.coreografia_id, list);
+  for (const [cid, ids] of profIdsByCoreo) {
+    profsByCoreo.set(cid, ids.map((pid) => staffMap.get(pid) ?? ""));
   }
 
   const turmaOptions = (classes ?? []).map((c) => ({ id: c.id as string, nome: c.name as string }));
@@ -132,27 +152,33 @@ export default async function EspetaculoDetalhePage({
             (coreografias ?? []).map((c) => {
               const cid = c.id as string;
               return (
-                <li key={cid} className="px-5 py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        <span className="mr-2 text-muted-foreground">{(c.ordem as number) ?? 0}.</span>
-                        {c.nome as string}
-                        <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {TIPO_LABEL[c.tipo as string] ?? c.tipo}
-                        </span>
-                      </p>
-                      {c.musica_texto ? (
-                        <p className="mt-0.5 text-sm text-muted-foreground">🎵 {c.musica_texto as string}</p>
-                      ) : null}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Turmas: {(turmasByCoreo.get(cid) ?? []).join(", ") || "—"} · Professores:{" "}
-                        {(profsByCoreo.get(cid) ?? []).join(", ") || "—"}
-                      </p>
-                    </div>
-                    <DeleteCoreografiaButton espetaculoId={id} coreografiaId={cid} />
-                  </div>
-                </li>
+                <CoreografiaEditor
+                  key={cid}
+                  espetaculoId={id}
+                  resumo={{
+                    ordem: (c.ordem as number) ?? 0,
+                    nome: c.nome as string,
+                    tipoLabel: TIPO_LABEL[c.tipo as string] ?? (c.tipo as string),
+                    musicaTexto: (c.musica_texto as string | null) ?? null,
+                    turmasStr: (turmasByCoreo.get(cid) ?? []).join(", "),
+                    professoresStr: (profsByCoreo.get(cid) ?? []).join(", "),
+                  }}
+                  defaults={{
+                    coreografiaId: cid,
+                    nome: c.nome as string,
+                    tipo: c.tipo as CoreografiaTipo,
+                    musica_texto: (c.musica_texto as string | null) ?? "",
+                    audio_url: (c.audio_url as string | null) ?? "",
+                    ordem: (c.ordem as number) ?? 0,
+                    duracao_segundos: (c.duracao_segundos as number | null) ?? null,
+                    turmaIds: turmaIdsByCoreo.get(cid) ?? [],
+                    professorIds: profIdsByCoreo.get(cid) ?? [],
+                    alunoIds: alunoIdsByCoreo.get(cid) ?? [],
+                  }}
+                  turmas={turmaOptions}
+                  professores={professorOptions}
+                  alunos={alunoOptions}
+                />
               );
             })
           ) : (

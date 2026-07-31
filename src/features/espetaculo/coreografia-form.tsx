@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import {
   createCoreografia,
+  updateCoreografia,
   type EspetaculoActionState,
 } from "@/features/espetaculo/actions";
 import {
@@ -12,6 +13,19 @@ import {
 
 type Option = { id: string; nome: string };
 
+export type CoreografiaDefaults = {
+  coreografiaId: string;
+  nome: string;
+  tipo: CoreografiaTipo;
+  musica_texto: string;
+  audio_url: string;
+  ordem: number;
+  duracao_segundos: number | null;
+  turmaIds: string[];
+  professorIds: string[];
+  alunoIds: string[];
+};
+
 const initial: EspetaculoActionState = {};
 
 export function CoreografiaForm({
@@ -19,15 +33,19 @@ export function CoreografiaForm({
   turmas,
   professores,
   alunos,
+  edit,
 }: {
   espetaculoId: string;
   turmas: Option[];
   professores: Option[];
   alunos: Option[];
+  edit?: CoreografiaDefaults;
 }) {
-  const action = createCoreografia.bind(null, espetaculoId);
+  const action = edit
+    ? updateCoreografia.bind(null, espetaculoId, edit.coreografiaId)
+    : createCoreografia.bind(null, espetaculoId);
   const [state, formAction, pending] = useActionState(action, initial);
-  const [tipo, setTipo] = useState<CoreografiaTipo>("normal");
+  const [tipo, setTipo] = useState<CoreografiaTipo>(edit?.tipo ?? "normal");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -35,9 +53,23 @@ export function CoreografiaForm({
         <p className="text-sm text-muted-foreground">{state.message}</p>
       ) : null}
 
+      {/* audio_url ainda não tem campo próprio — preserva o valor atual na edição. */}
+      <input type="hidden" name="audio_url" defaultValue={edit?.audio_url ?? ""} />
+
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nome" name="nome" required error={state.errors?.nome?.[0]} />
-        <Field label="Música (texto livre)" name="musica_texto" placeholder="Everybody - Backstreet Boys" />
+        <Field
+          label="Nome"
+          name="nome"
+          required
+          defaultValue={edit?.nome}
+          error={state.errors?.nome?.[0]}
+        />
+        <Field
+          label="Música (texto livre)"
+          name="musica_texto"
+          placeholder="Everybody - Backstreet Boys"
+          defaultValue={edit?.musica_texto}
+        />
         <label className="block">
           <span className="text-sm font-medium text-foreground">Tipo</span>
           <select
@@ -52,15 +84,44 @@ export function CoreografiaForm({
           </select>
         </label>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Ordem" name="ordem" type="number" placeholder="0" />
-          <Field label="Duração (s)" name="duracao_segundos" type="number" placeholder="opcional" />
+          <Field
+            label="Ordem"
+            name="ordem"
+            type="number"
+            placeholder="0"
+            defaultValue={edit ? String(edit.ordem) : undefined}
+          />
+          <Field
+            label="Duração (s)"
+            name="duracao_segundos"
+            type="number"
+            placeholder="opcional"
+            defaultValue={
+              edit?.duracao_segundos != null ? String(edit.duracao_segundos) : undefined
+            }
+          />
         </div>
       </div>
 
-      <CheckboxGroup label="Turmas" name="turma_ids" options={turmas} />
-      <CheckboxGroup label="Professores" name="professor_ids" options={professores} />
+      <CheckboxGroup
+        label="Turmas"
+        name="turma_ids"
+        options={turmas}
+        selected={edit?.turmaIds}
+      />
+      <CheckboxGroup
+        label="Professores"
+        name="professor_ids"
+        options={professores}
+        selected={edit?.professorIds}
+      />
       {tipo === "especial" ? (
-        <CheckboxGroup label="Elenco manual (alunos)" name="aluno_ids" options={alunos} />
+        <CheckboxGroup
+          label="Elenco manual (alunos)"
+          name="aluno_ids"
+          options={alunos}
+          selected={edit?.alunoIds}
+        />
       ) : null}
 
       <div>
@@ -69,7 +130,11 @@ export function CoreografiaForm({
           disabled={pending}
           className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
-          {pending ? "Salvando…" : "Adicionar coreografia"}
+          {pending
+            ? "Salvando…"
+            : edit
+              ? "Salvar alterações"
+              : "Adicionar coreografia"}
         </button>
       </div>
     </form>
@@ -83,6 +148,7 @@ function Field({
   placeholder,
   required,
   error,
+  defaultValue,
 }: {
   label: string;
   name: string;
@@ -90,6 +156,7 @@ function Field({
   placeholder?: string;
   required?: boolean;
   error?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className="block">
@@ -99,6 +166,7 @@ function Field({
         type={type}
         placeholder={placeholder}
         required={required}
+        defaultValue={defaultValue}
         className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
       />
       {error ? <span className="text-xs text-red-600">{error}</span> : null}
@@ -110,11 +178,14 @@ function CheckboxGroup({
   label,
   name,
   options,
+  selected,
 }: {
   label: string;
   name: string;
   options: Option[];
+  selected?: string[];
 }) {
+  const checkedSet = new Set(selected ?? []);
   return (
     <fieldset className="rounded-md border border-border p-3">
       <legend className="px-1 text-sm font-medium text-foreground">{label}</legend>
@@ -124,7 +195,13 @@ function CheckboxGroup({
         <div className="mt-1 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto">
           {options.map((o) => (
             <label key={o.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input type="checkbox" name={name} value={o.id} className="h-4 w-4" />
+              <input
+                type="checkbox"
+                name={name}
+                value={o.id}
+                defaultChecked={checkedSet.has(o.id)}
+                className="h-4 w-4"
+              />
               {o.nome}
             </label>
           ))}
