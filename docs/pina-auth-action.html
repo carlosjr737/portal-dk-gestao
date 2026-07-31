@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pina — Definir senha</title>
+  <style>
+    :root {
+      --bg: #0b0b12;
+      --card: #14141f;
+      --border: #2a2a3a;
+      --text: #f4f4f7;
+      --muted: #9a9ab0;
+      --accent: #8b5cf6;
+      --accent-hover: #7c4dff;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f5fa; --card: #ffffff; --border: #e5e5ee;
+        --text: #1a1a24; --muted: #6b6b80;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      background: var(--bg); color: var(--text); padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .card {
+      width: 100%; max-width: 400px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 16px; padding: 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.25);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .brand .dot {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #ec4899);
+      display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 18px;
+    }
+    .brand .name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+    h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: -.02em; }
+    p.sub { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+    .field { position: relative; }
+    input[type=password], input[type=text] {
+      width: 100%; height: 44px; padding: 0 44px 0 14px; font-size: 15px;
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px; outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    .toggle {
+      position: absolute; right: 6px; top: 6px; height: 32px; width: 32px;
+      border: none; background: transparent; color: var(--muted); cursor: pointer;
+      border-radius: 8px; font-size: 15px;
+    }
+    .toggle:hover { background: rgba(139,92,246,.12); }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    button.primary {
+      width: 100%; height: 46px; margin-top: 22px; border: none; border-radius: 10px;
+      background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    button.primary:hover { background: var(--accent-hover); }
+    button.primary:disabled { opacity: .55; cursor: default; }
+    .msg { font-size: 13px; margin-top: 14px; line-height: 1.5; }
+    .msg.error { color: var(--danger); }
+    .msg.ok { color: var(--ok); }
+    .center { text-align: center; }
+    .link { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 14px; }
+    .link:hover { text-decoration: underline; }
+    .spinner {
+      width: 26px; height: 26px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      margin: 8px auto 0; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="dot">P</div>
+      <div class="name">Pina</div>
+    </div>
+
+    <!-- Estado: carregando / validando o código -->
+    <div id="loading">
+      <h1>Um instante…</h1>
+      <p class="sub">Validando seu link de acesso.</p>
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Estado: formulário de nova senha -->
+    <form id="form" class="hidden" autocomplete="off">
+      <h1>Defina sua senha</h1>
+      <p class="sub">Conta: <strong id="email"></strong></p>
+
+      <label for="pw1">Nova senha</label>
+      <div class="field">
+        <input id="pw1" type="password" minlength="6" placeholder="Mínimo 6 caracteres" required />
+        <button type="button" class="toggle" data-target="pw1" aria-label="Mostrar senha">👁</button>
+      </div>
+
+      <label for="pw2">Confirmar senha</label>
+      <div class="field">
+        <input id="pw2" type="password" minlength="6" placeholder="Repita a senha" required />
+        <button type="button" class="toggle" data-target="pw2" aria-label="Mostrar senha">👁</button>
+      </div>
+      <p class="hint">Use ao menos 6 caracteres.</p>
+
+      <button type="submit" class="primary" id="submit">Salvar senha</button>
+      <p id="formMsg" class="msg"></p>
+    </form>
+
+    <!-- Estado: sucesso -->
+    <div id="success" class="hidden center">
+      <h1>Senha definida ✅</h1>
+      <p class="sub">Redirecionando para o Pina…</p>
+      <a id="continueBtn" class="link" href="#">Ir agora</a>
+    </div>
+
+    <!-- Estado: erro (link inválido/expirado) -->
+    <div id="error" class="hidden">
+      <h1>Link inválido</h1>
+      <p class="sub" id="errorMsg">Este link expirou ou já foi usado.</p>
+      <a id="loginLink" class="link" href="/login">Voltar ao login</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      verifyPasswordResetCode,
+      confirmPasswordReset,
+      applyActionCode,
+      checkActionCode,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // ⚠️ TROQUE pelos valores do SEU app web Firebase (Console → Configurações do projeto → Seus apps → SDK).
+    // São os MESMOS que o app do Pina já usa. apiKey/appId aqui são públicos (não é o service account).
+    const firebaseConfig = {
+      apiKey: "COLE_A_API_KEY_AQUI",
+      authDomain: "pinaform-a5fec.firebaseapp.com",
+      projectId: "pinaform-a5fec",
+      appId: "COLE_O_APP_ID_AQUI",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const params = new URLSearchParams(location.search);
+    const mode = params.get("mode");
+    const oobCode = params.get("oobCode");
+    const continueUrl = params.get("continueUrl") || "/";
+
+    const $ = (id) => document.getElementById(id);
+    const show = (id) => $(id).classList.remove("hidden");
+    const hide = (id) => $(id).classList.add("hidden");
+    $("loginLink").href = "/login";
+    $("continueBtn").href = continueUrl;
+
+    // mostrar/ocultar senha
+    document.querySelectorAll(".toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const inp = $(btn.dataset.target);
+        inp.type = inp.type === "password" ? "text" : "password";
+      });
+    });
+
+    function fail(message) {
+      hide("loading"); hide("form");
+      if (message) $("errorMsg").textContent = message;
+      show("error");
+    }
+
+    function goSuccess() {
+      hide("loading"); hide("form"); show("success");
+      setTimeout(() => location.assign(continueUrl), 1500);
+    }
+
+    async function main() {
+      if (!oobCode) return fail("Link incompleto. Peça um novo acesso ao administrador.");
+
+      // O Firebase manda todos os e-mails de conta pra esta mesma página; trate por 'mode'.
+      try {
+        if (mode === "resetPassword") {
+          // valida o código e descobre o e-mail
+          const email = await verifyPasswordResetCode(auth, oobCode);
+          $("email").textContent = email;
+          hide("loading"); show("form");
+        } else if (mode === "verifyEmail") {
+          await applyActionCode(auth, oobCode);
+          $("success").querySelector("h1").textContent = "E-mail confirmado ✅";
+          goSuccess();
+        } else if (mode === "recoverEmail") {
+          const info = await checkActionCode(auth, oobCode);
+          await applyActionCode(auth, oobCode);
+          $("success").querySelector("h1").textContent = "E-mail restaurado ✅";
+          goSuccess();
+          void info;
+        } else {
+          fail("Tipo de ação não suportado.");
+        }
+      } catch (err) {
+        console.error(err);
+        const code = err?.code || "";
+        if (code === "auth/expired-action-code") fail("Este link expirou. Peça um novo acesso ao administrador.");
+        else if (code === "auth/invalid-action-code") fail("Este link é inválido ou já foi usado.");
+        else if (code === "auth/user-disabled") fail("Esta conta está desativada. Fale com o administrador.");
+        else if (code === "auth/user-not-found") fail("Conta não encontrada.");
+        else fail("Não foi possível validar o link. Tente novamente.");
+      }
+    }
+
+    // envio da nova senha
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pw1 = $("pw1").value;
+      const pw2 = $("pw2").value;
+      const msg = $("formMsg");
+      msg.className = "msg";
+      if (pw1.length < 6) { msg.className = "msg error"; msg.textContent = "A senha precisa ter ao menos 6 caracteres."; return; }
+      if (pw1 !== pw2) { msg.className = "msg error"; msg.textContent = "As senhas não coincidem."; return; }
+
+      $("submit").disabled = true;
+      $("submit").textContent = "Salvando…";
+      try {
+        await confirmPasswordReset(auth, oobCode, pw1);
+        goSuccess();
+      } catch (err) {
+        console.error(err);
+        const code = err?.code || "";
+        $("submit").disabled = false;
+        $("submit").textContent = "Salvar senha";
+        msg.className = "msg error";
+        if (code === "auth/expired-action-code" || code === "auth/invalid-action-code") {
+          fail("Este link expirou ou já foi usado. Peça um novo acesso.");
+        } else if (code === "auth/weak-password") {
+          msg.textContent = "Senha muito fraca. Use uma combinação mais forte.";
+        } else {
+          msg.textContent = "Não foi possível salvar. Tente novamente.";
+        }
+      }
+    });
+
+    main();
+  </script>
+</body>
+</html>
