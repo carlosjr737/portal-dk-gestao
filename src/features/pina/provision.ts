@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
-import { PINA_LOGIN_URL } from "@/features/pina/config";
+import { PINA_AUTH_ACTION_URL, PINA_CONTINUE_URL } from "@/features/pina/config";
 
 export type ProvisionResult =
   | { ok: true; email: string; resetLink: string; created: boolean }
@@ -68,11 +68,18 @@ export async function provisionPinaProfessor(
 
   let resetLink: string;
   try {
-    // continueUrl: volta pro login do Pina depois de definir a senha.
-    resetLink = await auth.generatePasswordResetLink(email, {
-      url: PINA_LOGIN_URL,
-      handleCodeInApp: false,
-    });
+    // Gera o link padrão SÓ pra extrair o oobCode (sem actionCodeSettings ->
+    // não exige domínio autorizado no Firebase).
+    const rawLink = await auth.generatePasswordResetLink(email);
+    const oob = new URL(rawLink).searchParams.get("oobCode");
+    if (!oob) {
+      console.error("Pina provision: oobCode ausente no link", rawLink);
+      return { ok: false, error: "reset_link_error" };
+    }
+    // Monta o link apontando pra PÁGINA DO PINA (branding + redirect próprios).
+    resetLink =
+      `${PINA_AUTH_ACTION_URL}?mode=resetPassword&oobCode=${encodeURIComponent(oob)}` +
+      `&continueUrl=${encodeURIComponent(PINA_CONTINUE_URL)}`;
   } catch (err) {
     console.error("Pina provision reset link error:", err);
     return { ok: false, error: "reset_link_error" };

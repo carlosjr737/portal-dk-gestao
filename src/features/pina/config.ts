@@ -12,6 +12,17 @@ export const PINA_LOGIN_URL =
   process.env.PINA_LOGIN_URL ?? "https://www.pinaform.app/login";
 
 /**
+ * Página do PRÓPRIO Pina que trata o oobCode (resetPassword) e faz o redirect.
+ * O portal monta o link apontando pra cá — sem depender do Custom Action URL
+ * do Firebase nem de domínio autorizado.
+ */
+export const PINA_AUTH_ACTION_URL =
+  process.env.PINA_AUTH_ACTION_URL ?? `${PINA_APP_URL}/auth/action`;
+
+/** Para onde o /auth/action redireciona depois de definir a senha (lista do professor). */
+export const PINA_CONTINUE_URL = process.env.PINA_CONTINUE_URL ?? `${PINA_APP_URL}/`;
+
+/**
  * Service account do Firebase "pinaform-a5fec", lido de env (JSON em string).
  * NUNCA fica no repositório — só em env/secret manager. Retorna null se ausente.
  */
