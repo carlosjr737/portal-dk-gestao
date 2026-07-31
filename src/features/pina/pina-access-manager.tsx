@@ -41,7 +41,11 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Cria/atualiza a conta Firebase (uid = id do professor) e gera o link
-          para o professor definir a senha. Envie o link ao professor.
+          para o professor definir a senha (página do Pina). O link{" "}
+          <strong>expira em ~1h</strong> — gere e envie na hora.{" "}
+          <span className="text-muted-foreground/80">
+            “Provisionar todos” só cria/atualiza as contas, sem gerar links.
+          </span>
         </p>
         <button
           type="button"
@@ -104,6 +108,7 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
                           onFocus={(e) => e.currentTarget.select()}
                           className="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs"
                         />
+                        <p className="text-xs text-amber-700">⏱ Expira em ~1h — envie agora.</p>
                       </div>
                     ) : null}
                     {res?.status === "error" ? (

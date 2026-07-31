@@ -2,7 +2,11 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
-import { PINA_AUTH_ACTION_URL, PINA_CONTINUE_URL } from "@/features/pina/config";
+import {
+  PINA_APP_URL,
+  PINA_AUTH_ACTION_URL,
+  PINA_CONTINUE_URL,
+} from "@/features/pina/config";
 
 export type ProvisionResult =
   | { ok: true; email: string; resetLink: string; created: boolean }
@@ -16,6 +20,7 @@ export type ProvisionResult =
  */
 export async function provisionPinaProfessor(
   staffMemberId: string,
+  espetaculoId?: string,
 ): Promise<ProvisionResult> {
   const auth = getPinaFirebaseAuth();
   if (!auth) return { ok: false, error: "firebase_not_configured" };
@@ -76,10 +81,14 @@ export async function provisionPinaProfessor(
       console.error("Pina provision: oobCode ausente no link", rawLink);
       return { ok: false, error: "reset_link_error" };
     }
+    // Com espetáculo -> abre direto nele; sem -> raiz do app (lista do professor).
+    const continueUrl = espetaculoId
+      ? `${PINA_APP_URL}/?espetaculoId=${encodeURIComponent(espetaculoId)}`
+      : PINA_CONTINUE_URL;
     // Monta o link apontando pra PÁGINA DO PINA (branding + redirect próprios).
     resetLink =
       `${PINA_AUTH_ACTION_URL}?mode=resetPassword&oobCode=${encodeURIComponent(oob)}` +
-      `&continueUrl=${encodeURIComponent(PINA_CONTINUE_URL)}`;
+      `&continueUrl=${encodeURIComponent(continueUrl)}`;
   } catch (err) {
     console.error("Pina provision reset link error:", err);
     return { ok: false, error: "reset_link_error" };
