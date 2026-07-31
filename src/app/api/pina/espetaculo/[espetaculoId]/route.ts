@@ -55,13 +55,16 @@ export async function GET(
 
   const { data: espetaculo, error: espError } = await admin
     .from("espetaculo")
-    .select("id, nome")
+    .select("id, nome, escola_id")
     .eq("id", espetaculoId)
     .maybeSingle();
 
   if (espError || !espetaculo) {
     return json({ error: "not_found" }, 404);
   }
+
+  // Pool de personagens da escola do espetáculo (LGPD: só id, nome, cor, alunoId).
+  const personagens = await fetchPersonagens(admin, espetaculo.escola_id as string | null);
 
   const { data: coreografiasRaw } = await admin
     .from("coreografia")
@@ -93,7 +96,11 @@ export async function GET(
   );
 
   if (coreografias.length === 0) {
-    return json({ espetaculo: { id: espetaculo.id, nome: espetaculo.nome }, coreografias: [] });
+    return json({
+      espetaculo: { id: espetaculo.id, nome: espetaculo.nome },
+      coreografias: [],
+      personagens,
+    });
   }
 
   // ---- vínculos das coreografias visíveis ----
@@ -145,6 +152,7 @@ export async function GET(
 
   const payload = {
     espetaculo: { id: espetaculo.id as string, nome: espetaculo.nome as string },
+    personagens,
     coreografias: coreografias.map((c) => {
       const coreoId = c.id as string;
       // elenco distinto
@@ -182,6 +190,24 @@ export async function GET(
 }
 
 // ---------------- helpers ----------------
+type PinaPersonagem = { id: string; nome: string; cor: string; alunoId: string | null };
+
+/** Pool de personagens da escola (isolado por escola_id; hoje single-school = null). */
+async function fetchPersonagens(
+  admin: ReturnType<typeof createAdminClient>,
+  escolaId: string | null,
+): Promise<PinaPersonagem[]> {
+  let query = admin.from("personagem").select("id, nome, cor, aluno_id");
+  query = escolaId ? query.eq("escola_id", escolaId) : query.is("escola_id", null);
+  const { data } = await query.order("nome", { ascending: true });
+  return (data ?? []).map((p) => ({
+    id: p.id as string,
+    nome: p.nome as string,
+    cor: p.cor as string,
+    alunoId: (p.aluno_id as string | null) ?? null,
+  }));
+}
+
 function uniq(arr: string[]): string[] {
   return [...new Set(arr)];
 }

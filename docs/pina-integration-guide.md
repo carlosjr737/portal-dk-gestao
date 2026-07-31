@@ -2,7 +2,7 @@
 
 Este documento descreve **como o Pina consome os dados do espetáculo** e **como o professor entra sem segundo login (SSO)**.
 
-- **Portal (fonte da verdade):** coreografias, turmas, professores, músicas, elenco.
+- **Portal (fonte da verdade):** coreografias, turmas, professores, músicas, elenco, personagens.
 - **Pina (Firebase):** lê esses dados e grava as formações do lado dele.
 - **Base da API:** `https://portal-dk-gestao.vercel.app/api/pina`
 - **Firebase project (SSO):** `pinaform-a5fec`
@@ -87,6 +87,10 @@ const data = await res.json();
 ```json
 {
   "espetaculo": { "id": "uuid", "nome": "Festival 1 / 2026" },
+  "personagens": [
+    { "id": "uuid", "nome": "Morticia", "cor": "#8b5cf6", "alunoId": "uuid" },
+    { "id": "uuid", "nome": "Wandinha", "cor": "#22c55e", "alunoId": null }
+  ],
   "coreografias": [
     {
       "id": "uuid",
@@ -104,8 +108,9 @@ const data = await res.json();
 }
 ```
 
+- **`personagens`** é o **pool da escola** (reutilizável em qualquer coreografia/formação) — o portal é a fonte da verdade; o Pina só **consome**. Campos: `id`, `nome`, `cor` (hex, identidade visual no palco) e `alunoId` (o aluno que interpreta o papel, ou `null` se for papel livre). A lista vem no **nível do espetáculo**, não por coreografia, porque o mesmo personagem pode aparecer em várias.
 - **`elenco`** já vem **resolvido pelo backend** (alunos das turmas via matrículas ativas **+** elenco manual das coreografias tipo `especial`). O Pina **não** precisa conhecer o schema interno.
-- **LGPD:** de aluno só expomos **`alunoId` + `nome`**. Nada sensível.
+- **LGPD:** de aluno só expomos **`alunoId` + `nome`**; de personagem só **`id`, `nome`, `cor`, `alunoId`**. Nada sensível.
 
 **Códigos de erro:**
 | Código | Significado |
