@@ -21,6 +21,11 @@ const thin: Partial<ExcelJS.Borders> = {
 };
 const whiteBold = { bold: true, color: { argb: "FFFFFFFF" } } as const;
 
+/** Célula com fórmula do Excel + resultado pré-calculado (abre certo em qualquer visualizador). */
+function formula(f: string, result: number): ExcelJS.CellFormulaValue {
+  return { formula: f, result };
+}
+
 function safeSheetName(name: string, used: Set<string>): string {
   const base = name.replace(/[\\/*?:[\]]/g, "").slice(0, 28) || "Prof";
   let n = base;
@@ -30,76 +35,41 @@ function safeSheetName(name: string, used: Set<string>): string {
   return n;
 }
 
+/** Referência à aba para usar em fórmula (aspas + escape de aspas internas). */
+function sheetRef(sheetName: string, cell: string): string {
+  return `'${sheetName.replace(/'/g, "''")}'!${cell}`;
+}
+
+type ProfMeta = {
+  professor: string;
+  turmas: number;
+  total: number;
+  totalRef: string; // ex.: 'Ruan Lopes'!D48
+};
+
 export async function buildTeacherPaymentsWorkbook(
   data: TeacherPaymentData,
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Portal DK Gestão";
+  wb.calcProperties.fullCalcOnLoad = true; // Excel recalcula as fórmulas ao abrir
 
-  // ============ RESUMO ============
-  const rs = wb.addWorksheet("RESUMO", {
-    views: [{ showGridLines: false }],
-  });
-  rs.columns = [{ width: 4 }, { width: 30 }, { width: 12 }, { width: 18 }];
-  rs.mergeCells("B2:D2");
-  const title = rs.getCell("B2");
-  title.value = `FINANCEIRO DK — ${data.monthLabel.toUpperCase()}`;
-  title.font = { bold: true, size: 16, color: { argb: BLACK } };
-  rs.mergeCells("B3:D3");
-  rs.getCell("B3").value =
-    "Pagamento dos professores · gerado pelo portal (aulas contadas no mês, sem descontar recesso).";
-  rs.getCell("B3").font = { italic: true, size: 9, color: { argb: "FF808080" } };
-
-  const head = rs.getRow(5);
-  ["", "PROFESSOR", "TURMAS", "TOTAL A PAGAR"].forEach((v, i) => {
-    const cell = head.getCell(i + 1);
-    cell.value = v;
-    if (i > 0) {
-      cell.fill = fill(BLACK);
-      cell.font = whiteBold;
-      cell.alignment = { horizontal: i === 1 ? "left" : "right" };
-      cell.border = thin;
-    }
-  });
-  let r = 6;
-  for (const p of data.professores) {
-    const row = rs.getRow(r);
-    row.getCell(2).value = p.professor;
-    row.getCell(3).value = p.turmas.length;
-    row.getCell(3).alignment = { horizontal: "right" };
-    const t = row.getCell(4);
-    t.value = p.total;
-    t.numFmt = MONEY;
-    for (let c = 2; c <= 4; c += 1) {
-      row.getCell(c).border = thin;
-      if (r % 2 === 0) row.getCell(c).fill = fill(ZEBRA);
-    }
-    r += 1;
-  }
-  const totalRow = rs.getRow(r);
-  totalRow.getCell(2).value = "TOTAL GERAL";
-  rs.mergeCells(`B${r}:C${r}`);
-  const gt = totalRow.getCell(4);
-  gt.value = data.grandTotal;
-  gt.numFmt = MONEY;
-  for (let c = 2; c <= 4; c += 1) {
-    totalRow.getCell(c).fill = fill(BLACK);
-    totalRow.getCell(c).font = whiteBold;
-    totalRow.getCell(c).border = thin;
-  }
-  totalRow.getCell(4).alignment = { horizontal: "right" };
+  // RESUMO fica como primeira aba, mas é preenchido DEPOIS (pra referenciar as abas).
+  const rs = wb.addWorksheet("RESUMO", { views: [{ showGridLines: false }] });
 
   // ============ uma aba por professor ============
   const used = new Set<string>(["RESUMO"]);
+  const meta: ProfMeta[] = [];
+
   for (const p of data.professores) {
-    const ws = wb.addWorksheet(safeSheetName(p.professor, used), {
-      views: [{ showGridLines: false }],
-    });
+    const sheetName = safeSheetName(p.professor, used);
+    const ws = wb.addWorksheet(sheetName, { views: [{ showGridLines: false }] });
     ws.columns = [
       { width: 5 }, { width: 16 }, { width: 14 }, { width: 13 },
-      { width: 11 }, { width: 8 }, { width: 16 },
+      { width: 11 }, { width: 10 }, { width: 16 },
     ];
     let row = 1;
+    const turmaTotalRefs: string[] = [];
 
     for (const t of p.turmas) {
       // barra preta: PROFESSOR / TURMA / NÍVEL / HORÁRIO / ANO
@@ -152,10 +122,10 @@ export async function buildTeacherPaymentsWorkbook(
       });
       row += 1;
 
-      // barra azul do cálculo
-      const calcH = ws.getRow(row);
-      ["Hora aula", "Variável", "Nº Alunos"].forEach((v, i) => {
-        const c = calcH.getCell(i + 2);
+      // ---- ENTRADAS do cálculo (barra azul) ----
+      const inH = ws.getRow(row);
+      ["Hora aula", "Variável/aluno", "Nº Alunos", "Aulas/mês"].forEach((v, i) => {
+        const c = inH.getCell(i + 2); // B, C, D, E
         c.value = v;
         c.fill = fill(BLUE);
         c.font = whiteBold;
@@ -163,22 +133,20 @@ export async function buildTeacherPaymentsWorkbook(
         c.border = thin;
       });
       row += 1;
-      const calcV = ws.getRow(row);
-      calcV.getCell(2).value = t.horaAula;
-      calcV.getCell(2).numFmt = MONEY;
-      calcV.getCell(3).value = t.valorAluno;
-      calcV.getCell(3).numFmt = MONEY;
-      calcV.getCell(4).value = t.nAlunos;
-      calcV.getCell(4).alignment = { horizontal: "center" };
-      for (let ci = 2; ci <= 4; ci += 1) calcV.getCell(ci).border = thin;
-      row += 1;
-      ws.mergeCells(`B${row}:D${row}`);
-      const am = ws.getRow(row);
-      am.getCell(2).value = `Aulas mensais: ${t.aulas}`;
-      am.getCell(2).font = { bold: true };
-      am.getCell(2).alignment = { horizontal: "center" };
-      for (let ci = 2; ci <= 4; ci += 1) am.getCell(ci).border = thin;
-      row += 1;
+      const inRow = row; // linha com hora/variável/nAlunos/aulas (entradas)
+      const inV = ws.getRow(row);
+      inV.getCell(2).value = t.horaAula;
+      inV.getCell(2).numFmt = MONEY;
+      inV.getCell(3).value = t.valorAluno;
+      inV.getCell(3).numFmt = MONEY;
+      inV.getCell(4).value = t.nAlunos;
+      inV.getCell(4).alignment = { horizontal: "center" };
+      inV.getCell(5).value = t.aulas;
+      inV.getCell(5).alignment = { horizontal: "center" };
+      for (let ci = 2; ci <= 5; ci += 1) inV.getCell(ci).border = thin;
+      row += 2;
+
+      // ---- RESULTADOS (fórmulas) ----
       const valH = ws.getRow(row);
       ["Valor fixo", "Variável", "Valor Total"].forEach((v, i) => {
         const c = valH.getCell(i + 2);
@@ -189,23 +157,33 @@ export async function buildTeacherPaymentsWorkbook(
         c.border = thin;
       });
       row += 1;
+      const valRow = row;
       const valV = ws.getRow(row);
-      valV.getCell(2).value = t.valorFixo;
-      valV.getCell(3).value = t.valorVariavel;
-      valV.getCell(4).value = t.total;
+      // Valor fixo  = Hora aula × Aulas do mês
+      valV.getCell(2).value = formula(`B${inRow}*E${inRow}`, t.valorFixo);
+      // Variável    = Variável/aluno × Nº alunos
+      valV.getCell(3).value = formula(`C${inRow}*D${inRow}`, t.valorVariavel);
+      // Valor total = Valor fixo + Variável
+      valV.getCell(4).value = formula(`B${valRow}+C${valRow}`, t.total);
       [2, 3, 4].forEach((ci) => {
         valV.getCell(ci).numFmt = MONEY;
         valV.getCell(ci).border = thin;
       });
       valV.getCell(4).fill = fill(GREEN);
       valV.getCell(4).font = { bold: true, color: { argb: GREENTX } };
+      turmaTotalRefs.push(`D${valRow}`);
       row += 2;
     }
 
+    // TOTAL PROFESSOR = soma dos totais das turmas
+    const tpRow = row;
     const tp = ws.getRow(row);
     ws.mergeCells(`B${row}:C${row}`);
     tp.getCell(2).value = "TOTAL PROFESSOR";
-    tp.getCell(4).value = p.total;
+    tp.getCell(4).value =
+      turmaTotalRefs.length > 0
+        ? formula(`SUM(${turmaTotalRefs.join(",")})`, p.total)
+        : p.total;
     tp.getCell(4).numFmt = MONEY;
     for (const ci of [2, 3, 4]) {
       tp.getCell(ci).fill = fill(BLACK);
@@ -213,7 +191,71 @@ export async function buildTeacherPaymentsWorkbook(
       tp.getCell(ci).border = thin;
     }
     tp.getCell(4).alignment = { horizontal: "right" };
+
+    meta.push({
+      professor: p.professor,
+      turmas: p.turmas.length,
+      total: p.total,
+      totalRef: sheetRef(sheetName, `D${tpRow}`),
+    });
   }
+
+  // ============ RESUMO (referencia cada aba) ============
+  rs.columns = [{ width: 4 }, { width: 30 }, { width: 12 }, { width: 18 }];
+  rs.mergeCells("B2:D2");
+  const title = rs.getCell("B2");
+  title.value = `FINANCEIRO DK — ${data.monthLabel.toUpperCase()}`;
+  title.font = { bold: true, size: 16, color: { argb: BLACK } };
+  rs.mergeCells("B3:D3");
+  rs.getCell("B3").value =
+    "Pagamento dos professores · fórmulas de cálculo embutidas (edite as entradas e o Excel recalcula).";
+  rs.getCell("B3").font = { italic: true, size: 9, color: { argb: "FF808080" } };
+
+  const head = rs.getRow(5);
+  ["", "PROFESSOR", "TURMAS", "TOTAL A PAGAR"].forEach((v, i) => {
+    const cell = head.getCell(i + 1);
+    cell.value = v;
+    if (i > 0) {
+      cell.fill = fill(BLACK);
+      cell.font = whiteBold;
+      cell.alignment = { horizontal: i === 1 ? "left" : "right" };
+      cell.border = thin;
+    }
+  });
+
+  const firstDataRow = 6;
+  let r = firstDataRow;
+  for (const m of meta) {
+    const row = rs.getRow(r);
+    row.getCell(2).value = m.professor;
+    row.getCell(3).value = m.turmas;
+    row.getCell(3).alignment = { horizontal: "right" };
+    const t = row.getCell(4);
+    // TOTAL A PAGAR = referência ao TOTAL PROFESSOR da aba do professor
+    t.value = formula(m.totalRef, m.total);
+    t.numFmt = MONEY;
+    for (let c = 2; c <= 4; c += 1) {
+      row.getCell(c).border = thin;
+      if (r % 2 === 0) row.getCell(c).fill = fill(ZEBRA);
+    }
+    r += 1;
+  }
+
+  const totalRow = rs.getRow(r);
+  totalRow.getCell(2).value = "TOTAL GERAL";
+  rs.mergeCells(`B${r}:C${r}`);
+  const gt = totalRow.getCell(4);
+  gt.value =
+    meta.length > 0
+      ? formula(`SUM(D${firstDataRow}:D${r - 1})`, data.grandTotal)
+      : data.grandTotal;
+  gt.numFmt = MONEY;
+  for (let c = 2; c <= 4; c += 1) {
+    totalRow.getCell(c).fill = fill(BLACK);
+    totalRow.getCell(c).font = whiteBold;
+    totalRow.getCell(c).border = thin;
+  }
+  totalRow.getCell(4).alignment = { horizontal: "right" };
 
   const arrayBuffer = await wb.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer);
