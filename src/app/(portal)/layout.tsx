@@ -4,8 +4,11 @@ import { AppShell } from "@/components/layout/app-shell";
 import { canAccessPath } from "@/features/auth/permissions";
 import {
   getAuthenticatedUser,
+  getCurrentEscolaId,
   getProfileByUserId,
 } from "@/features/auth/session";
+import { getSituacaoAssinatura } from "@/features/plataforma/assinatura-guard";
+import { AvisoAssinatura } from "@/features/plataforma/aviso-assinatura";
 
 export default async function PortalLayout({
   children,
@@ -31,5 +34,21 @@ export default async function PortalLayout({
     redirect("/acesso-nao-autorizado");
   }
 
-  return <AppShell profile={profile}>{children}</AppShell>;
+  // Assinatura vencida além da carência suspende o acesso ao sistema.
+  const assinatura = await getSituacaoAssinatura(profile.escolaId ?? (await getCurrentEscolaId()));
+  if (assinatura.bloqueada) {
+    redirect("/assinatura-pendente");
+  }
+
+  return (
+    <AppShell profile={profile}>
+      {assinatura.emAviso ? (
+        <AvisoAssinatura
+          diasDeAtraso={assinatura.diasDeAtraso}
+          vencimento={assinatura.vencimento}
+        />
+      ) : null}
+      {children}
+    </AppShell>
+  );
 }
