@@ -9,18 +9,66 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /*
+       * As cores viraram objetos com DEFAULT + foreground. As classes antigas
+       * não mudam: `bg-primary` sai do DEFAULT e `text-primary-foreground` sai
+       * do foreground aninhado, exatamente como antes. O ganho é poder pedir
+       * `bg-card`, `bg-secondary` e `bg-destructive` sem inventar hex na tela.
+       */
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         border: "hsl(var(--border))",
-        muted: "hsl(var(--muted))",
-        "muted-foreground": "hsl(var(--muted-foreground))",
-        primary: "hsl(var(--primary))",
-        "primary-foreground": "hsl(var(--primary-foreground))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      /*
+       * De propósito NÃO redefinimos `borderRadius`. A receita padrão do
+       * shadcn amarra `rounded-md` a `calc(var(--radius) - 2px)`, o que aqui
+       * encolheria de 6px para 4px TODO canto arredondado do portal — e o
+       * portal inteiro usa `rounded-md`. Mudança grande, sem ganho.
+       */
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 };
 
 export default config;

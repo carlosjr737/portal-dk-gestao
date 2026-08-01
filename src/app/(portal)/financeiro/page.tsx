@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function FinanceiroPage() {
   return (
@@ -19,19 +20,19 @@ export default function FinanceiroPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/financeiro/inadimplencia"
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            className={buttonVariants()}
           >
             Inadimplência
           </Link>
           <Link
             href="/financeiro/growth-churn"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Growth & Churn
           </Link>
           <Link
             href="/financeiro/configuracoes"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Configurações financeiras
           </Link>

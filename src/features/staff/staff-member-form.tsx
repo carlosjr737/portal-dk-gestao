@@ -8,6 +8,7 @@ import {
   staffStatusOptions,
   type StaffMemberFormData,
 } from "@/features/staff/schemas";
+import { Button } from "@/components/ui/button";
 
 type StaffMemberFormProps = {
   action: (
@@ -132,13 +133,12 @@ export function StaffMemberForm({
         />
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={isPending}
-        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending ? "Salvando..." : submitLabel}
-      </button>
+      </Button>
     </form>
   );
 }

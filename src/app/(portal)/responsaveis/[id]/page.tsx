@@ -17,6 +17,7 @@ import {
   formatText,
 } from "@/features/students/formatters";
 import { StatusBadge } from "@/features/students/status-badge";
+import { buttonVariants } from "@/components/ui/button";
 
 type ResponsavelDetalhePageProps = {
   params: Promise<{
@@ -49,13 +50,13 @@ export default async function ResponsavelDetalhePage({
           <>
             <Link
               href="/responsaveis"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              className={buttonVariants({ variant: "outline" })}
             >
               Voltar
             </Link>
             <Link
               href={`/responsaveis/${guardian.id}/editar`}
-              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className={buttonVariants()}
             >
               Editar
             </Link>

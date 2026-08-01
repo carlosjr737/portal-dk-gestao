@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
 
 type OpenInPinaButtonProps = {
   espetaculoId: string;
@@ -61,7 +62,7 @@ export function OpenInPinaButton({
         disabled={loading}
         className={
           className ??
-          "inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          buttonVariants()
         }
       >
         {loading ? "Abrindo…" : label}

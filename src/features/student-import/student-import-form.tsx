@@ -7,6 +7,7 @@ import type {
   StudentImportState,
   StudentImportSummary,
 } from "@/features/student-import/types";
+import { Button } from "@/components/ui/button";
 
 const initialState: StudentImportState = {
   status: "ready",
@@ -105,24 +106,23 @@ export function StudentImportForm() {
         ) : null}
 
         <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row">
-          <button
+          <Button
+            variant="secondary"
             type="submit"
             name="intent"
             value="analyze"
             disabled={isPending}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? "Analisando..." : "Analisar planilha"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             name="intent"
             value="confirm"
             disabled={isPending || !state.rows?.length}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? "Importando..." : "Confirmar importação"}
-          </button>
+          </Button>
         </div>
       </form>
 

@@ -23,6 +23,7 @@ import type {
   CalendarEventType,
 } from "@/features/calendar/types";
 import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type CalendarViewProps = {
   events: CalendarEvent[];
@@ -99,13 +100,12 @@ export function CalendarView({
             </p>
           </div>
           {canManage ? (
-            <button
+            <Button
               type="button"
               onClick={() => setModal({ mode: "create" })}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
             >
               Novo evento
-            </button>
+            </Button>
           ) : null}
         </div>
       </section>
@@ -207,7 +207,7 @@ export function CalendarView({
                 eventType,
                 affectsClasses,
               })}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              className={buttonVariants({ variant: "outline" })}
             >
               Hoje
             </Link>
@@ -218,7 +218,7 @@ export function CalendarView({
                 eventType,
                 affectsClasses,
               })}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-lg font-medium text-foreground transition hover:bg-muted"
+              className={cn(buttonVariants({ variant: "outline", size: "icon" }), "text-lg")}
               aria-label="Mês anterior"
             >
               ‹
@@ -233,7 +233,7 @@ export function CalendarView({
                 eventType,
                 affectsClasses,
               })}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-lg font-medium text-foreground transition hover:bg-muted"
+              className={cn(buttonVariants({ variant: "outline", size: "icon" }), "text-lg")}
               aria-label="Próximo mês"
             >
               ›
@@ -278,12 +278,11 @@ export function CalendarView({
                 <option value="no">Afeta aulas: não</option>
               </select>
             </label>
-            <button
+            <Button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
             >
               Filtrar
-            </button>
+            </Button>
           </form>
         </div>
 
@@ -534,13 +533,12 @@ function EventDetail({
       ) : null}
       {canManage ? (
         <div className="flex flex-wrap gap-3 border-t border-border pt-4">
-          <button
+          <Button
             type="button"
             onClick={onEdit}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
             Editar
-          </button>
+          </Button>
           {canDelete ? (
             <DeleteCalendarEventButton
               action={deleteAction}

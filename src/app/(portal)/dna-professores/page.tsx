@@ -14,6 +14,7 @@ import {
   getTeacherDnaDashboardData,
   normalizeTeacherDnaFilters,
 } from "@/features/teacher-dna/queries";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ export default async function DnaProfessoresPage({
             </button>
             <Link
               href="/dna-professores"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium"
+              className={buttonVariants({ variant: "outline" })}
             >
               Limpar
             </Link>

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime, formatText } from "@/features/students/formatters";
 import type { Guardian } from "@/features/guardians/types";
+import { buttonVariants } from "@/components/ui/button";
 
 type ResponsaveisPageProps = {
   searchParams?: Promise<{
@@ -26,7 +27,7 @@ export default async function ResponsaveisPage({
           <>
             <Link
               href="/responsaveis/novo"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className={buttonVariants()}
             >
               Novo responsável
             </Link>
@@ -56,7 +57,7 @@ export default async function ResponsaveisPage({
           </button>
           <Link
             href="/responsaveis"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Limpar
           </Link>

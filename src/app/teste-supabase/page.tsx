@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 
 type StudentTestRow = {
   id: string;
@@ -132,14 +133,14 @@ export default function TesteSupabasePage() {
         </p>
 
         <section className="mt-6 rounded-md border border-border bg-white p-5">
-          <button
+          <Button
+            className="mb-4"
             type="button"
             onClick={createTestStudent}
             disabled={state.isCreating}
-            className="mb-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {state.isCreating ? "Criando..." : "Criar aluno teste"}
-          </button>
+          </Button>
 
           {state.message ? (
             <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

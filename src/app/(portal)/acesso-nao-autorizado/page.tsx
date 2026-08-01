@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getHomeForRole, roleLabels } from "@/features/auth/permissions";
+import { buttonVariants } from "@/components/ui/button";
 
 /**
  * Tela de acesso negado.
@@ -53,13 +54,13 @@ export default async function AcessoNaoAutorizadoPage() {
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
             href={destino}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            className={buttonVariants()}
           >
             Voltar ao início
           </Link>
           <Link
             href="/login"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Entrar com outra conta
           </Link>

@@ -14,6 +14,7 @@ import {
   PersonagemRow,
   type PersonagemItem,
 } from "@/features/personagem/personagem-ui";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,7 @@ export default async function EspetaculoDetalhePage({
           <>
             <Link
               href="/espetaculos"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              className={buttonVariants({ variant: "outline" })}
             >
               Voltar
             </Link>

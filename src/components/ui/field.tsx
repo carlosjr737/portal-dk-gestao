@@ -1,0 +1,84 @@
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+/**
+ * Rótulo + campo + mensagem de erro.
+ *
+ * Existe porque essa combinação estava reescrita à mão em sete arquivos
+ * (`SelectField`, `Select`, `Field`...), cada um com um detalhe diferente. Um
+ * deles mostrava o erro em `text-red-600`, outro não mostrava erro nenhum, e
+ * em nenhum o erro estava LIGADO ao campo — quem usa leitor de tela ouvia
+ * "Nome, caixa de texto" e nunca a mensagem que estava logo abaixo.
+ *
+ * Aqui o erro é ligado por `aria-describedby` e o campo é marcado com
+ * `aria-invalid`, então o leitor anuncia o problema junto com o campo.
+ */
+type FieldProps = {
+  label: string;
+  /** Id do controle. Gerado automaticamente se não vier. */
+  htmlFor?: string;
+  error?: string | null;
+  /** Texto de apoio abaixo do rótulo (ex.: formato esperado). */
+  hint?: string;
+  required?: boolean;
+  className?: string;
+  children: React.ReactNode;
+};
+
+export function Field({
+  label,
+  htmlFor,
+  error,
+  hint,
+  required,
+  className,
+  children,
+}: FieldProps) {
+  const generatedId = React.useId();
+  const id = htmlFor ?? generatedId;
+  const errorId = `${id}-erro`;
+  const hintId = `${id}-ajuda`;
+
+  return (
+    <div className={cn("block", className)}>
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
+        {required ? (
+          <span className="ml-0.5 text-destructive" aria-hidden="true">
+            *
+          </span>
+        ) : null}
+      </label>
+
+      {hint ? (
+        <p id={hintId} className="mt-0.5 text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
+
+      <div className="mt-1">
+        {/*
+          Injeta id e as ligações de acessibilidade no controle, para a página
+          não ter que repetir isso em cada campo — que é justamente o passo que
+          ninguém lembra de dar.
+        */}
+        {React.isValidElement(children)
+          ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+              id,
+              "aria-invalid": error ? true : undefined,
+              "aria-describedby":
+                [hint ? hintId : null, error ? errorId : null]
+                  .filter(Boolean)
+                  .join(" ") || undefined,
+            })
+          : children}
+      </div>
+
+      {error ? (
+        <p id={errorId} className="mt-1 text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}

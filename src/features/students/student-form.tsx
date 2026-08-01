@@ -7,6 +7,7 @@ import {
   type StudentFormData,
 } from "@/features/students/schemas";
 import type { StudentActionState } from "@/features/students/actions";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type StudentFormProps = {
   action: (
@@ -349,17 +350,16 @@ export function StudentForm({
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
         <Link
           href="/alunos"
-          className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+          className={buttonVariants({ variant: "outline" })}
         >
           Cancelar
         </Link>
-        <button
+        <Button
           type="submit"
           disabled={isPending}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Salvando..." : submitLabel}
-        </button>
+        </Button>
       </div>
     </form>
   );

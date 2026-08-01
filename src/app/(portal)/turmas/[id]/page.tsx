@@ -25,6 +25,7 @@ import {
   formatDateTime,
   formatText,
 } from "@/features/students/formatters";
+import { buttonVariants } from "@/components/ui/button";
 
 type TurmaDetalhePageProps = {
   params: Promise<{
@@ -54,24 +55,22 @@ export default async function TurmaDetalhePage({
           <>
             <Link
               href="/turmas"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              className={buttonVariants({ variant: "outline" })}
             >
               Voltar
             </Link>
             <Link
               href={`/turmas/${danceClass.id}/editar`}
-              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className={buttonVariants()}
             >
               Editar
             </Link>
-            <span className="inline-flex h-10 items-center rounded-md border border-rose-200 px-4">
-              <DeleteClassButton
-                classId={danceClass.id}
-                className={danceClass.name}
-                enrollmentsCount={danceClass.total_enrollments_count}
-                redirectOnSuccess
-              />
-            </span>
+            <DeleteClassButton
+              classId={danceClass.id}
+              className={danceClass.name}
+              enrollmentsCount={danceClass.total_enrollments_count}
+              redirectOnSuccess
+            />
           </>
         }
       />

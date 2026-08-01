@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  /* Paleta original do portal — os valores não mudaram. */
   --background: 0 0% 99%;
   --foreground: 222 47% 11%;
   --border: 214 32% 91%;
@@ -10,6 +11,36 @@
   --muted-foreground: 215 16% 47%;
   --primary: 346 77% 49%;
   --primary-foreground: 0 0% 100%;
+
+  /*
+   * Complemento para os componentes de UI. Tudo aqui foi extraído do que as
+   * telas já usavam à mão — cartão branco, borda cinza, foco na cor da marca.
+   * Nada de cor nova, só nome para o que já existia espalhado.
+   */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --input: 214 32% 91%;
+  --ring: 346 77% 49%;
+  --radius: 0.375rem;
+
+  /*
+   * Vermelho de ação destrutiva.
+   *
+   * ATENÇÃO, esta é a única cor que MUDOU. As telas usavam `bg-rose-600`
+   * (#e11d48) em "Excluir", e a cor da marca é #dd1d4a — a mesma cor, para
+   * qualquer olho. "Salvar" e "Excluir" ficavam idênticos, lado a lado, e a
+   * única diferença era ler o rótulo.
+   *
+   * Este vermelho é mais fechado e menos rosa, então destoa do carmim da
+   * marca em vez de imitá-lo. Se preferir voltar, é só devolver
+   * `347 77% 50%` aqui — nenhum componente tem a cor escrita dentro.
+   */
+  --destructive: 0 72% 42%;
+  --destructive-foreground: 0 0% 100%;
 }
 
 * {

@@ -19,6 +19,7 @@ import type {
 } from "@/features/enrollments/types";
 import { formatCapacity } from "@/features/classes/formatters";
 import { formatText } from "@/features/students/formatters";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type EnrollmentFormProps = {
   action: (
@@ -418,17 +419,16 @@ export function EnrollmentForm({
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
         <Link
           href="/matriculas"
-          className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+          className={buttonVariants({ variant: "outline" })}
         >
           Cancelar
         </Link>
-        <button
+        <Button
           type="submit"
           disabled={isPending}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Salvando..." : "Criar matrícula"}
-        </button>
+        </Button>
       </div>
     </form>
   );

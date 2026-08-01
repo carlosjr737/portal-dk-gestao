@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createEspetaculo, type EspetaculoActionState } from "@/features/espetaculo/actions";
+import { Button } from "@/components/ui/button";
 
 const initial: EspetaculoActionState = {};
 
@@ -42,13 +43,12 @@ export function EspetaculoForm() {
         />
       </label>
       <div className="sm:col-span-3">
-        <button
+        <Button
           type="submit"
           disabled={pending}
-          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           {pending ? "Criando…" : "Criar espetáculo"}
-        </button>
+        </Button>
       </div>
     </form>
   );

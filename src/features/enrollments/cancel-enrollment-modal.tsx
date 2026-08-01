@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { enrollmentCancellationReasons } from "@/features/enrollments/schemas";
+import { Button } from "@/components/ui/button";
 
 type CancelEnrollmentModalProps = {
   open: boolean;
@@ -160,21 +161,21 @@ export function CancelEnrollmentModal({
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={handleClose}
-            className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
           >
             Voltar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="destructive"
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-rose-600 px-4 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? "Cancelando..." : "Confirmar cancelamento"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

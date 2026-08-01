@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser, getCurrentEscolaId } from "@/features/auth/session";
 import { getSituacaoAssinatura } from "@/features/plataforma/assinatura-guard";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -76,13 +77,13 @@ export default async function AssinaturaPendentePage() {
         <div className="mt-6 flex gap-3">
           <Link
             href="/assinatura-pendente"
-            className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            className={buttonVariants()}
           >
             Já paguei, verificar
           </Link>
           <Link
             href="/auth/logout"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Sair
           </Link>

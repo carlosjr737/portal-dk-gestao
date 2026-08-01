@@ -24,6 +24,8 @@ import type {
   RoomRotationPageData,
   RoomRotationPlan,
 } from "@/features/room-rotation/types";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const slotHeight = 34;
 const minBlockHeight = 28;
@@ -362,7 +364,7 @@ export function RoomRotationPlanner({
             </button>
             <a
               href="/rodizio-salas"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium"
+              className={buttonVariants({ variant: "outline" })}
             >
               Limpar
             </a>
@@ -580,7 +582,7 @@ function RotationScheduleBoard({
         </p>
         <a
           href="/salas"
-          className="mt-4 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+          className={cn(buttonVariants(), "mt-4")}
         >
           Cadastrar salas
         </a>

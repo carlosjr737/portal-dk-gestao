@@ -10,6 +10,8 @@ import {
   type PortalUser,
   type UserFilters,
 } from "@/features/users/actions";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,7 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
         />
         <Link
           href="/configuracoes/usuarios?mode=new"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-semibold text-white transition hover:opacity-90"
+          className={cn(buttonVariants({ variant: "secondary" }), "font-semibold")}
         >
           Novo usuário
         </Link>
@@ -109,15 +111,16 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
         </label>
 
         <div className="flex items-end gap-2 md:col-span-4">
-          <button
+          <Button
+            variant="secondary"
+            className="font-semibold"
             type="submit"
-            className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Filtrar
-          </button>
+          </Button>
           <Link
             href="/configuracoes/usuarios"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Limpar
           </Link>
@@ -384,15 +387,16 @@ function ActiveField({ defaultChecked }: { defaultChecked?: boolean }) {
 function FormActions({ submitLabel }: { submitLabel: string }) {
   return (
     <div className="flex items-end gap-2 md:col-span-2">
-      <button
+      <Button
+        variant="secondary"
+        className="font-semibold"
         type="submit"
-        className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-semibold text-white transition hover:opacity-90"
       >
         {submitLabel}
-      </button>
+      </Button>
       <Link
         href="/configuracoes/usuarios"
-        className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+        className={buttonVariants({ variant: "outline" })}
       >
         Cancelar
       </Link>

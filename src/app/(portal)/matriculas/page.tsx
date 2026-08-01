@@ -11,6 +11,7 @@ import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
 import { CobrancaAlunoButton } from "@/features/baas/cobranca-aluno-button";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function MatriculasPage({
           <>
             <Link
               href="/matriculas/nova"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className={buttonVariants()}
             >
               Nova matrícula
             </Link>

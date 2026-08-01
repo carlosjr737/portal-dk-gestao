@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { GuardianActionState } from "@/features/guardians/actions";
 import { guardianRelationshipOptions } from "@/features/guardians/schemas";
 import type { StudentOption } from "@/features/guardians/types";
+import { Button } from "@/components/ui/button";
 
 type LinkStudentFormProps = {
   action: (
@@ -73,13 +74,12 @@ export function LinkStudentForm({ action, students }: LinkStudentFormProps) {
         Responsável principal do aluno
       </label>
 
-      <button
+      <Button
         type="submit"
         disabled={isPending || students.length === 0}
-        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending ? "Vinculando..." : "Vincular aluno"}
-      </button>
+      </Button>
     </form>
   );
 }

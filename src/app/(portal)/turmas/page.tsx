@@ -16,6 +16,7 @@ import type { CatalogOption } from "@/features/class-catalog/types";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
+import { buttonVariants } from "@/components/ui/button";
 
 type TurmasPageProps = {
   searchParams?: Promise<{
@@ -39,7 +40,7 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
           <>
             <Link
               href="/turmas/novo"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className={buttonVariants()}
             >
               Nova turma
             </Link>
@@ -75,7 +76,7 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
           </button>
           <Link
             href="/turmas"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Limpar
           </Link>

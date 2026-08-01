@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function GrowthChurnPage({
           <>
             <Link
               href="/financeiro"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              className={buttonVariants({ variant: "outline" })}
             >
               Financeiro
             </Link>
@@ -152,7 +153,7 @@ export default async function GrowthChurnPage({
           </button>
           <Link
             href="/financeiro/growth-churn"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             Limpar
           </Link>

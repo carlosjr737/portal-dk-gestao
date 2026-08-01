@@ -10,6 +10,7 @@ import {
   coreografiaTipoOptions,
   type CoreografiaTipo,
 } from "@/features/espetaculo/schemas";
+import { Button } from "@/components/ui/button";
 
 type Option = { id: string; nome: string };
 
@@ -125,17 +126,16 @@ export function CoreografiaForm({
       ) : null}
 
       <div>
-        <button
+        <Button
           type="submit"
           disabled={pending}
-          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           {pending
             ? "Salvando…"
             : edit
               ? "Salvar alterações"
               : "Adicionar coreografia"}
-        </button>
+        </Button>
       </div>
     </form>
   );

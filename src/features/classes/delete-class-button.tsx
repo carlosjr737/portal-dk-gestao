@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteOrArchiveClass } from "@/features/classes/actions";
+import { Button } from "@/components/ui/button";
 
 type DeleteClassButtonProps = {
   classId: string;
@@ -47,13 +48,19 @@ export function DeleteClassButton({
 
   return (
     <>
-      <button
-        type="button"
+      {/*
+        Era um texto sublinhado dentro de um <span> que imitava a moldura de
+        um botão. Agora é botão de verdade, na mesma altura de "Voltar" e
+        "Editar" — mas em contorno, e não sólido: excluir turma não é a ação
+        que a pessoa veio fazer nesta tela.
+      */}
+      <Button
+        variant="outline"
         onClick={() => setIsOpen(true)}
-        className="text-sm font-medium text-rose-700 hover:underline"
+        className="border-destructive/40 text-destructive hover:bg-destructive/5"
       >
         Excluir
-      </button>
+      </Button>
 
       {isOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
@@ -77,24 +84,24 @@ export function DeleteClassButton({
             ) : null}
 
             <div className="mt-6 flex justify-end gap-3">
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
                   setErrorMessage("");
                 }}
-                className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 Voltar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
                 type="button"
                 onClick={handleConfirm}
                 disabled={isSubmitting}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-rose-600 px-4 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Processando..." : "Confirmar exclusão"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
