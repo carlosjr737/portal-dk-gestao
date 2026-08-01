@@ -40,8 +40,17 @@ export async function criarCobrancaAluno(
   if (!escolaId) return { ok: false, message: "Usuário sem escola vinculada." };
 
   const contratoId = String(formData.get("contrato_id") ?? "");
-  const billingType = String(formData.get("billing_type") ?? "PIX");
   if (!contratoId) return { ok: false, message: "Contrato não informado." };
+
+  // Só aceita forma de pagamento conhecida. Valor inesperado vira PIX em vez
+  // de ir cru para o provedor — numa cobrança criada em 01/08/2026 o
+  // billingType chegou como BOLETO mesmo com PIX no formulário, e a causa não
+  // foi reproduzida. Enquanto isso, isto garante que o padrão seja Pix.
+  const FORMAS = ["PIX", "BOLETO", "CREDIT_CARD"] as const;
+  const enviado = String(formData.get("billing_type") ?? "");
+  const billingType = (FORMAS as readonly string[]).includes(enviado)
+    ? (enviado as (typeof FORMAS)[number])
+    : "PIX";
 
   const admin = createAdminClient();
 
@@ -134,7 +143,7 @@ export async function criarCobrancaAluno(
       value: valor,
       nextDueDate: primeiroVencimento,
       cycle: "MONTHLY",
-      billingType: billingType as "PIX" | "BOLETO" | "CREDIT_CARD",
+      billingType,
       description: "Mensalidade",
       externalReference: contratoId,
       // Sem split: a plataforma não retém nada da mensalidade (decisão em
