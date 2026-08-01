@@ -2,6 +2,16 @@ import "server-only";
 
 import { ASAAS_API_BASE, getAsaasApiKey } from "@/features/baas/config";
 
+/**
+ * Forma de pagamento de uma cobrança.
+ *
+ * `UNDEFINED` não é ausência de escolha: é a cobrança sair com TODAS as formas
+ * disponíveis, e quem paga escolher na fatura. É o padrão para a mensalidade
+ * do aluno — a escola oferece, o responsável decide. As demais servem para
+ * quando a escola quiser impor uma forma específica.
+ */
+export type FormaPagamento = "UNDEFINED" | "PIX" | "BOLETO" | "CREDIT_CARD";
+
 export type AsaasSubcontaInput = {
   name: string;
   email: string;
@@ -121,7 +131,7 @@ export type AssinaturaAsaasInput = {
   value: number;
   nextDueDate: string; // AAAA-MM-DD
   cycle: "MONTHLY" | "YEARLY";
-  billingType: "PIX" | "BOLETO" | "CREDIT_CARD";
+  billingType: FormaPagamento;
   description?: string;
   externalReference?: string;
   /**

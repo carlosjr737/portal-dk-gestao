@@ -48,23 +48,31 @@ export function CobrancaAlunoButton({
   }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="contrato_id" value={contratoId} />
-      <input type="hidden" name="billing_type" value="PIX" />
+      <select
+        name="billing_type"
+        defaultValue="UNDEFINED"
+        aria-label="Forma de pagamento"
+        className="h-7 w-full rounded-md border border-border bg-white px-1 text-xs outline-none focus:border-primary"
+      >
+        <option value="UNDEFINED">Responsável escolhe</option>
+        <option value="PIX">Somente Pix</option>
+        <option value="BOLETO">Somente boleto</option>
+        <option value="CREDIT_CARD">Somente cartão</option>
+      </select>
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
+        className="inline-flex h-8 items-center justify-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
       >
         {pending
           ? "Criando…"
-          : `Cobrar mensalidade${valor ? ` (${brl.format(valor)})` : ""}`}
+          : `Cobrar${valor ? ` ${brl.format(valor)}` : " mensalidade"}`}
       </button>
       {state.message ? (
         <p
-          className={`mt-1 text-xs ${
-            state.ok ? "text-emerald-700" : "text-rose-600"
-          }`}
+          className={`text-xs ${state.ok ? "text-emerald-700" : "text-rose-600"}`}
         >
           {state.message}
         </p>

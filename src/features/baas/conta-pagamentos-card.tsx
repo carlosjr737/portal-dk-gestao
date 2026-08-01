@@ -48,11 +48,16 @@ export function ContaPagamentosCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">
-            Conta de pagamentos
+            Conta de pagamentos{" "}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              (opcional)
+            </span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conta usada para receber as mensalidades dos alunos. O dinheiro cai
-            direto nela.
+            Necessária só se a escola quiser <strong>cobrar os alunos pelo
+            sistema</strong>. Sem ela, o portal segue funcionando para a gestão
+            (alunos, turmas, chamada) e a cobrança continua sendo feita por
+            fora. O dinheiro das mensalidades cai direto nesta conta.
           </p>
         </div>
         <span

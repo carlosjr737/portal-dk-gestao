@@ -10,6 +10,7 @@ import {
 import {
   criarAssinaturaAsaas,
   criarClienteAsaas,
+  type FormaPagamento,
 } from "@/features/baas/asaas-client";
 
 export type CobrancaAlunoState = {
@@ -42,15 +43,19 @@ export async function criarCobrancaAluno(
   const contratoId = String(formData.get("contrato_id") ?? "");
   if (!contratoId) return { ok: false, message: "Contrato não informado." };
 
-  // Só aceita forma de pagamento conhecida. Valor inesperado vira PIX em vez
-  // de ir cru para o provedor — numa cobrança criada em 01/08/2026 o
-  // billingType chegou como BOLETO mesmo com PIX no formulário, e a causa não
-  // foi reproduzida. Enquanto isso, isto garante que o padrão seja Pix.
-  const FORMAS = ["PIX", "BOLETO", "CREDIT_CARD"] as const;
+  // Só aceita forma conhecida; valor inesperado cai no padrão em vez de ir
+  // cru para o provedor. O padrão é UNDEFINED: a cobrança sai com todas as
+  // formas e o responsável escolhe na fatura.
+  const FORMAS: readonly FormaPagamento[] = [
+    "UNDEFINED",
+    "PIX",
+    "BOLETO",
+    "CREDIT_CARD",
+  ];
   const enviado = String(formData.get("billing_type") ?? "");
-  const billingType = (FORMAS as readonly string[]).includes(enviado)
-    ? (enviado as (typeof FORMAS)[number])
-    : "PIX";
+  const billingType: FormaPagamento = FORMAS.includes(enviado as FormaPagamento)
+    ? (enviado as FormaPagamento)
+    : "UNDEFINED";
 
   const admin = createAdminClient();
 
@@ -165,6 +170,7 @@ export async function criarCobrancaAluno(
     status: "pendente",
     valor,
     proximo_vencimento: primeiroVencimento,
+    forma_pagamento: billingType,
   });
 
   if (error) {

@@ -75,16 +75,23 @@ export default async function MatriculasPage({
   const guardianContractMessage = params?.guardianContract
     ? guardianContractMessages[params.guardianContract]
     : null;
-  const [enrollments, profile, cobrancas, usaContaAzul] = await Promise.all([
-    getEnrollments(),
-    getCurrentProfile(),
-    getCobrancasPorContrato(),
-    escolaUsaContaAzul(),
-  ]);
+  const [enrollments, profile, cobrancas, usaContaAzul, usaPagamentos] =
+    await Promise.all([
+      getEnrollments(),
+      getCurrentProfile(),
+      getCobrancasPorContrato(),
+      escolaUsaContaAzul(),
+      escolaUsaPagamentos(),
+    ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
-  // Colunas visíveis variam: só a escola que realmente conectou o Conta Azul
-  // vê as colunas dele. Escola nova entra direto no fluxo novo, sem legado.
-  const colunas = 10 + (usaContaAzul ? 1 : 0) + (canGenerateReceivable && usaContaAzul ? 1 : 0);
+  // Colunas visíveis variam por escola: quem não optou pelo módulo de
+  // pagamento não vê "Cobrança", e quem não conectou o Conta Azul não vê as
+  // colunas dele. Escola que só quer a gestão fica com a tela limpa.
+  const colunas =
+    9 +
+    (usaPagamentos ? 1 : 0) +
+    (usaContaAzul ? 1 : 0) +
+    (canGenerateReceivable && usaContaAzul ? 1 : 0);
 
 
   return (
@@ -160,7 +167,9 @@ export default async function MatriculasPage({
                 <th className="px-4 py-3 font-semibold">1º vencimento</th>
                 <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
                 <th className="px-4 py-3 font-semibold">Valor mensal</th>
-                <th className="px-4 py-3 font-semibold">Cobrança</th>
+                {usaPagamentos ? (
+                  <th className="px-4 py-3 font-semibold">Cobrança</th>
+                ) : null}
                 {usaContaAzul ? (
                   <th className="px-4 py-3 font-semibold">Conta Azul</th>
                 ) : null}
@@ -224,6 +233,7 @@ export default async function MatriculasPage({
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatMoney(enrollment.monthly_amount)}
                     </td>
+                    {usaPagamentos ? (
                     <td className="px-4 py-3">
                       {(() => {
                         const c = enrollment.guardianContractId
@@ -268,6 +278,7 @@ export default async function MatriculasPage({
                         );
                       })()}
                     </td>
+                    ) : null}
                     {usaContaAzul ? (
                       <td className="px-4 py-3">
                         <ConsolidatedContractStatus enrollment={enrollment} />
@@ -357,6 +368,21 @@ async function getCobrancasPorContrato(): Promise<Map<string, CobrancaResumo>> {
  * novo, sem carregar legado que não é dela. Baseado em dado, não em regra
  * fixa para o DK Studio.
  */
+/**
+ * A escola optou por cobrar os alunos pelo sistema?
+ *
+ * Muita escola vai querer só a gestão (alunos, turmas, chamada) e continuar
+ * cobrando por fora. Para essas, a coluna de cobrança nem aparece.
+ */
+async function escolaUsaPagamentos(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("school")
+    .select("usa_pagamentos")
+    .maybeSingle();
+  return Boolean(data?.usa_pagamentos);
+}
+
 async function escolaUsaContaAzul(): Promise<boolean> {
   const supabase = await createClient();
   const { data } = await supabase

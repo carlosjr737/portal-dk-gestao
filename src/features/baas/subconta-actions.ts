@@ -127,6 +127,8 @@ export async function criarSubcontaEscola(
       asaas_account_id: result.id,
       asaas_wallet_id: result.walletId,
       kyc_status: "analise",
+      // Criar a conta É o opt-in pelo módulo de pagamento.
+      usa_pagamentos: true,
       updated_at: new Date().toISOString(),
     })
     .eq("id", escolaId);
