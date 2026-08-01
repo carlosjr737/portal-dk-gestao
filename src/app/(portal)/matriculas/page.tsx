@@ -11,7 +11,6 @@ import {
   formatMoney,
 } from "@/features/enrollments/formatters";
 import type { EnrollmentListRow } from "@/features/enrollments/types";
-import { syncGuardianContractAction } from "@/features/finance/conta-azul/enrollment-receivable-actions";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
@@ -22,76 +21,25 @@ export const dynamic = "force-dynamic";
 type MatriculasPageProps = {
   searchParams?: Promise<{
     created?: string;
-    receivable?: string;
-    contract?: string;
-    guardianContract?: string;
   }>;
-};
-
-const contractMessages: Record<string, string> = {
-  created: "Contrato consolidado enviado ao Conta Azul com sucesso.",
-  "already-created": "Este contrato consolidado já existe no Conta Azul.",
-  failed: "Não foi possível sincronizar o contrato consolidado no Conta Azul.",
-  unauthorized: "Acesso não autorizado.",
-};
-
-const guardianContractMessages: Record<
-  string,
-  { message: string; tone: "success" | "warning" }
-> = {
-  auto_sync_success: {
-    message:
-      "Matrícula criada e contrato consolidado sincronizado com o Conta Azul.",
-    tone: "success",
-  },
-  auto_sync_failed: {
-    message:
-      "Matrícula criada, mas houve falha ao sincronizar o contrato com o Conta Azul. Verifique os logs.",
-    tone: "warning",
-  },
-  contract_link_not_found: {
-    message:
-      "Matrícula criada, mas não foi possível localizar o contrato consolidado interno.",
-    tone: "warning",
-  },
-  sync_success: {
-    message: "Contrato consolidado sincronizado com sucesso.",
-    tone: "success",
-  },
-  sync_failed: {
-    message: "Não foi possível sincronizar o contrato consolidado.",
-    tone: "warning",
-  },
-  failed: {
-    message: "Não foi possível sincronizar o contrato consolidado.",
-    tone: "warning",
-  },
 };
 
 export default async function MatriculasPage({
   searchParams,
 }: MatriculasPageProps) {
   const params = await searchParams;
-  const guardianContractMessage = params?.guardianContract
-    ? guardianContractMessages[params.guardianContract]
-    : null;
-  const [enrollments, profile, cobrancas, usaContaAzul, usaPagamentos] =
+  const [enrollments, profile, cobrancas, usaPagamentos] =
     await Promise.all([
       getEnrollments(),
       getCurrentProfile(),
       getCobrancasPorContrato(),
-      escolaUsaContaAzul(),
       escolaUsaPagamentos(),
     ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
   // Colunas visíveis variam por escola: quem não optou pelo módulo de
   // pagamento não vê "Cobrança", e quem não conectou o Conta Azul não vê as
   // colunas dele. Escola que só quer a gestão fica com a tela limpa.
-  const colunas =
-    9 +
-    (usaPagamentos ? 1 : 0) +
-    (usaContaAzul ? 1 : 0) +
-    (canGenerateReceivable && usaContaAzul ? 1 : 0);
+  const colunas = 9 + (usaPagamentos ? 1 : 0);
 
 
   return (
@@ -121,38 +69,6 @@ export default async function MatriculasPage({
         </div>
       ) : null}
 
-      {params?.created === "conta-azul-contract-failed" ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Matrícula criada, mas o contrato no Conta Azul não foi gerado.
-        </div>
-      ) : null}
-
-      {params?.contract ? (
-        <div
-          className={`mt-4 rounded-md border px-4 py-3 text-sm ${
-            params.contract === "created" ||
-            params.contract === "already-created"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          {contractMessages[params.contract] ??
-            "Não foi possível criar contrato no Conta Azul."}
-        </div>
-      ) : null}
-
-      {guardianContractMessage ? (
-        <div
-          className={`mt-4 rounded-md border px-4 py-3 text-sm ${
-            guardianContractMessage.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          {guardianContractMessage.message}
-        </div>
-      ) : null}
-
       <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1240px] border-collapse text-left text-sm">
@@ -170,12 +86,7 @@ export default async function MatriculasPage({
                 {usaPagamentos ? (
                   <th className="px-4 py-3 font-semibold">Cobrança</th>
                 ) : null}
-                {usaContaAzul ? (
-                  <th className="px-4 py-3 font-semibold">Conta Azul</th>
-                ) : null}
-                {canGenerateReceivable && usaContaAzul ? (
-                  <th className="px-4 py-3 font-semibold">Ação</th>
-                ) : null}
+
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -279,38 +190,6 @@ export default async function MatriculasPage({
                       })()}
                     </td>
                     ) : null}
-                    {usaContaAzul ? (
-                      <td className="px-4 py-3">
-                        <ConsolidatedContractStatus enrollment={enrollment} />
-                      </td>
-                    ) : null}
-                    {canGenerateReceivable && usaContaAzul ? (
-                      <td className="px-4 py-3">
-                        {shouldShowGuardianContractSync(enrollment) ? (
-                          <form action={syncGuardianContractAction}>
-                            <input
-                              type="hidden"
-                              name="guardianContractId"
-                              value={enrollment.guardianContractId ?? ""}
-                            />
-                            <button
-                              type="submit"
-                              className="h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:opacity-90"
-                            >
-                              {getGuardianContractSyncButtonLabel(enrollment)}
-                            </button>
-                          </form>
-                        ) : enrollment.guardianContractStatus === "active" ? (
-                          <span className="text-xs text-muted-foreground">
-                            Contrato ativo
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Sem contrato consolidado
-                          </span>
-                        )}
-                      </td>
-                    ) : null}
                   </tr>
                 ))
               ) : (
@@ -362,13 +241,6 @@ async function getCobrancasPorContrato(): Promise<Map<string, CobrancaResumo>> {
 }
 
 /**
- * A escola conectou o Conta Azul?
- *
- * Se não, as colunas dele nem aparecem: escola nova entra direto no fluxo
- * novo, sem carregar legado que não é dela. Baseado em dado, não em regra
- * fixa para o DK Studio.
- */
-/**
  * A escola optou por cobrar os alunos pelo sistema?
  *
  * Muita escola vai querer só a gestão (alunos, turmas, chamada) e continuar
@@ -381,17 +253,6 @@ async function escolaUsaPagamentos(): Promise<boolean> {
     .select("usa_pagamentos")
     .maybeSingle();
   return Boolean(data?.usa_pagamentos);
-}
-
-async function escolaUsaContaAzul(): Promise<boolean> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("integration_connections")
-    .select("id")
-    .eq("provider", "conta_azul")
-    .eq("status", "connected")
-    .maybeSingle();
-  return Boolean(data);
 }
 
 async function getEnrollments(): Promise<EnrollmentListRow[]> {

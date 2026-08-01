@@ -54,7 +54,6 @@ const navigationGroups = [
       "/financeiro/inadimplencia",
       "/financeiro/growth-churn",
       "/financeiro/entradas-saidas",
-      "/financeiro/vinculos-conta-azul",
       "/financeiro/configuracoes",
     ],
   },
