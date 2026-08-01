@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 
 export type TurmaPayment = {
@@ -111,7 +111,8 @@ export async function getTeacherPaymentData(
   year: number,
   month: number,
 ): Promise<TeacherPaymentData> {
-  const admin = createAdminClient();
+  // Cliente com RLS: o isolamento por escola é garantido pelas policies.
+  const supabase = await createClient();
 
   const [
     { data: classes },
@@ -120,11 +121,11 @@ export async function getTeacherPaymentData(
     { data: levels },
     { data: enrollments },
   ] = await Promise.all([
-    admin.from("classes").select("id, teacher_id, level_id, status").eq("status", "active"),
-    admin.from("class_schedules").select("class_id, weekday, start_time"),
-    admin.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor"),
-    admin.from("levels").select("id, name"),
-    admin
+    supabase.from("classes").select("id, teacher_id, level_id, status").eq("status", "active"),
+    supabase.from("class_schedules").select("class_id, weekday, start_time"),
+    supabase.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor"),
+    supabase.from("levels").select("id, name"),
+    supabase
       .from("enrollments")
       .select("class_id, status, discount_amount, student_id")
       .eq("status", "active"),
@@ -149,7 +150,7 @@ export async function getTeacherPaymentData(
   ];
   const { data: students } =
     studentIds.length > 0
-      ? await admin.from("students").select("id, full_name").in("id", studentIds)
+      ? await supabase.from("students").select("id, full_name").in("id", studentIds)
       : { data: [] as { id: string; full_name: string }[] };
   const studentName = new Map(
     (students ?? []).map((s) => [s.id as string, s.full_name as string]),
