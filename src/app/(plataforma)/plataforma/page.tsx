@@ -83,7 +83,7 @@ export default async function PlataformaEscolasPage() {
     <div>
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Escolas</h1>
+          <h1 className="text-2xl font-bold leading-8 tracking-tight text-foreground">Escolas</h1>
           <p className="mt-1 text-sm text-slate-500">
             Clientes da plataforma. A assinatura é o que libera o acesso ao sistema.
           </p>
@@ -110,7 +110,7 @@ export default async function PlataformaEscolasPage() {
             <TableHead>Escola</TableHead>
             <TableHead>CNPJ</TableHead>
             <TableHead>Cidade</TableHead>
-            <TableHead className="text-right">Alunos</TableHead>
+            <TableHead className="text-right tabular-nums">Alunos</TableHead>
             <TableHead>Assinatura</TableHead>
             <TableHead>Conta de pagamentos</TableHead>
           </TableRow>
@@ -137,7 +137,7 @@ export default async function PlataformaEscolasPage() {
                   <TableCell className="text-muted-foreground">
                     {[e.cidade, e.uf].filter(Boolean).join("/") || "—"}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground tabular-nums">
                     {alunosPorEscola.get(e.id as string) ?? 0}
                   </TableCell>
                   <TableCell>

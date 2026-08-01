@@ -50,7 +50,7 @@ export function ContaPagamentosCard({
     <div>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Conta de pagamentos{" "}
             <span className="ml-1 text-xs font-normal text-muted-foreground">
               (opcional)

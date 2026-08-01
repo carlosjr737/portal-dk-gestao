@@ -147,7 +147,7 @@ export default async function EspetaculoDetalhePage({
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-foreground">Coreografias</h2>
+          <h2 className="text-sm font-semibold text-foreground">Coreografias</h2>
         </div>
         <ul className="divide-y divide-border">
           {(coreografias ?? []).length > 0 ? (
@@ -192,7 +192,7 @@ export default async function EspetaculoDetalhePage({
       </section>
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">Nova coreografia</h2>
+        <h2 className="text-sm font-semibold text-foreground">Nova coreografia</h2>
         <div className="mt-3">
           <CoreografiaForm
             espetaculoId={id}
@@ -205,7 +205,7 @@ export default async function EspetaculoDetalhePage({
 
       <Card className="mt-6">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Personagens
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               {(personagens ?? []).length}

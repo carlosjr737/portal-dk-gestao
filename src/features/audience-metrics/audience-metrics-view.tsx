@@ -314,7 +314,7 @@ function ChartCard({
   return (
     <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {subtitle ? (
           <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         ) : null}

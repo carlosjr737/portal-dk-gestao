@@ -95,7 +95,7 @@ export function CalendarView({
             <p className="text-sm font-medium uppercase tracking-wide text-primary">
               Portal DK Gestão
             </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
               Calendário DK
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -129,7 +129,7 @@ export function CalendarView({
               <p className="text-sm font-medium text-muted-foreground">
                 Google Agenda
               </p>
-              <p className="mt-2 text-base font-semibold text-foreground">
+              <p className="mt-2 text-sm font-semibold text-foreground">
                 {googleCalendarStatus.connected ? "Conectado" : "Não conectado"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -227,7 +227,7 @@ export function CalendarView({
             >
               ‹
             </Link>
-            <p className="min-w-44 text-center text-base font-semibold text-foreground">
+            <p className="min-w-44 text-center text-sm font-semibold text-foreground">
               {formatMonthLabel(month)}
             </p>
             <Link
@@ -611,7 +611,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-4">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 truncate text-2xl font-semibold text-foreground">
+      <p className="mt-2 truncate text-[28px] leading-[34px] font-bold tabular-nums text-foreground">
         {value}
       </p>
     </Card>

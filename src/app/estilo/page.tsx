@@ -53,13 +53,13 @@ export default function EstiloPage() {
 
         <Secao titulo="Tipografia" nota="A escala e o peso que separam um nível do outro.">
           <Card className="space-y-4 p-5">
-            <h1 className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+            <h1 className="text-2xl font-bold leading-8 tracking-tight text-foreground">
               Título de página — Matrículas
             </h1>
             <h2 className="text-lg font-semibold text-foreground">
               Título de seção — Turmas do aluno
             </h2>
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-sm font-semibold text-foreground">
               Título de cartão — Contrato consolidado
             </h3>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -178,7 +178,7 @@ export default function EstiloPage() {
                 <TableHead>Aluno</TableHead>
                 <TableHead>Turma</TableHead>
                 <TableHead>Responsável</TableHead>
-                <TableHead className="text-right">Mensalidade</TableHead>
+                <TableHead className="text-right tabular-nums">Mensalidade</TableHead>
                 <TableHead>Situação</TableHead>
               </TableRow>
             </TableHeader>
@@ -245,7 +245,7 @@ export default function EstiloPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Alunos ativos
               </p>
-              <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+              <p className="mt-2 text-[28px] leading-[34px] font-bold tabular-nums text-foreground">
                 669
               </p>
             </Card>
@@ -253,7 +253,7 @@ export default function EstiloPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Receita prevista
               </p>
-              <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+              <p className="mt-2 text-[28px] leading-[34px] font-bold tabular-nums text-foreground">
                 R$ 214.080
               </p>
             </Card>
@@ -261,7 +261,7 @@ export default function EstiloPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Inadimplência
               </p>
-              <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+              <p className="mt-2 text-[28px] leading-[34px] font-bold tabular-nums text-foreground">
                 4,2%
               </p>
             </Card>

@@ -170,7 +170,7 @@ export function StudentForm({
 
       {shouldShowGuardianFlow ? (
         <Card className="p-5">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Responsável financeiro
           </h2>
           <input type="hidden" name="guardian_mode" value={guardianMode} />

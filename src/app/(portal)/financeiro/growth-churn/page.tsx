@@ -264,7 +264,7 @@ export default async function GrowthChurnPage({
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-4 py-3">
-          <h2 className="text-base font-semibold text-foreground">Lista de eventos</h2>
+          <h2 className="text-sm font-semibold text-foreground">Lista de eventos</h2>
         </div>
         <Table containerClassName="rounded-none border-0" minWidth="1180px">
           <TableHeader>
@@ -760,7 +760,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-5">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+      <p className="mt-3 text-[28px] leading-[34px] font-bold tabular-nums text-foreground">{value}</p>
     </Card>
   );
 }
@@ -777,7 +777,7 @@ function AnalyticTable({
   return (
     <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
       <div className="border-b border-border px-4 py-3">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
       <Table containerClassName="rounded-none border-0" minWidth="860px">
         <TableHeader>

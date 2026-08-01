@@ -93,7 +93,7 @@ export default async function AlunoDetalhePage({
       </section>
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">Observações</h2>
+        <h2 className="text-sm font-semibold text-foreground">Observações</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(student.notes)}
         </p>
@@ -102,7 +102,7 @@ export default async function AlunoDetalhePage({
       <section className="mt-6 space-y-6">
         <Card>
           <div className="border-b border-border p-5">
-            <h2 className="text-base font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               Responsáveis vinculados
             </h2>
           </div>

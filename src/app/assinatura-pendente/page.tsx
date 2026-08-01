@@ -34,7 +34,7 @@ export default async function AssinaturaPendentePage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           Portal DK Gestão
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">
+        <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
           {cancelada ? "Assinatura cancelada" : "Assinatura em atraso"}
         </h1>
 

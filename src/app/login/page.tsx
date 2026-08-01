@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <p className="text-sm font-medium uppercase tracking-wide text-primary">
           DK Studio
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">
+        <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
           Portal DK Gestão
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">

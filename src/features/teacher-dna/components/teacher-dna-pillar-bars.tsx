@@ -12,7 +12,7 @@ export function TeacherDnaPillarBars({
 }) {
   return (
     <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="mt-4 space-y-3">
         {teacherDnaPillars.map((pillar) => {
           const score = scores[pillar.key];

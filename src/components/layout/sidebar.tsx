@@ -119,7 +119,7 @@ export function Sidebar({
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between border-b border-border px-5">
           <div>
-            <p className="text-base font-semibold text-foreground">
+            <p className="text-sm font-semibold text-foreground">
               Portal DK Gestão
             </p>
             <p className="text-xs text-muted-foreground">DK Studio</p>

@@ -56,7 +56,7 @@ export function ClassRevenueView({ classes }: ClassRevenueViewProps) {
 
       <section className="overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-4 py-3">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Faturamento por turma
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -71,10 +71,10 @@ export function ClassRevenueView({ classes }: ClassRevenueViewProps) {
               <TableHead>Professor</TableHead>
               <TableHead>Nível</TableHead>
               <TableHead>Horário</TableHead>
-              <TableHead className="text-right">Alunos</TableHead>
-              <TableHead className="text-right">Desconto</TableHead>
-              <TableHead className="text-right">Ticket médio</TableHead>
-              <TableHead className="text-right">Faturamento</TableHead>
+              <TableHead className="text-right tabular-nums">Alunos</TableHead>
+              <TableHead className="text-right tabular-nums">Desconto</TableHead>
+              <TableHead className="text-right tabular-nums">Ticket médio</TableHead>
+              <TableHead className="text-right tabular-nums">Faturamento</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -31,7 +31,7 @@ export default async function ProfessoresPage() {
       />
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Novo professor/equipe
         </h2>
         <StaffMemberForm
@@ -42,7 +42,7 @@ export default async function ProfessoresPage() {
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Professores e equipe cadastrados
           </h2>
         </div>

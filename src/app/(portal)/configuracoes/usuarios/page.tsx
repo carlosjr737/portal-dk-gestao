@@ -410,7 +410,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <Card className="p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+      <p className="mt-2 text-[28px] leading-[34px] font-bold tabular-nums text-foreground">{value}</p>
     </Card>
   );
 }

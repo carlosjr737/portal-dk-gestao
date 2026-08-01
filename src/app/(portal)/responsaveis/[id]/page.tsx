@@ -74,7 +74,7 @@ export default async function ResponsavelDetalhePage({
       </section>
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">Observações</h2>
+        <h2 className="text-sm font-semibold text-foreground">Observações</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(guardian.notes)}
         </p>
@@ -84,7 +84,7 @@ export default async function ResponsavelDetalhePage({
       <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_420px]">
         <Card>
           <div className="border-b border-border p-5">
-            <h2 className="text-base font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               Alunos vinculados
             </h2>
           </div>
@@ -125,7 +125,7 @@ export default async function ResponsavelDetalhePage({
         </Card>
 
         <Card className="p-5">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Vincular a aluno
           </h2>
           <div className="mt-4">

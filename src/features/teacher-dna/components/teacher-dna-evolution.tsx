@@ -5,7 +5,7 @@ export function TeacherDnaEvolution({
 }) {
   return (
     <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-foreground">
+      <h2 className="text-sm font-semibold text-foreground">
         Evolução no tempo
       </h2>
       {rows.length > 0 ? (

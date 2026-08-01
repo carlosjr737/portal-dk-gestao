@@ -230,7 +230,7 @@ type PanelProps = {
 function Panel({ title, children }: PanelProps) {
   return (
     <Card className="p-5">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="mt-4">{children}</div>
     </Card>
   );
@@ -258,7 +258,7 @@ function StatusSummary({ title, description, value, tone }: StatusSummaryProps) 
           <p className="text-sm font-semibold">{title}</p>
           <p className="mt-1 text-xs opacity-80">{description}</p>
         </div>
-        <p className="text-2xl font-semibold">{value}</p>
+        <p className="text-[28px] leading-[34px] font-bold tabular-nums">{value}</p>
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ export default async function EspetaculosPage() {
       />
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">Novo espetáculo</h2>
+        <h2 className="text-sm font-semibold text-foreground">Novo espetáculo</h2>
         <div className="mt-3">
           <EspetaculoForm />
         </div>
@@ -29,7 +29,7 @@ export default async function EspetaculosPage() {
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-foreground">Espetáculos cadastrados</h2>
+          <h2 className="text-sm font-semibold text-foreground">Espetáculos cadastrados</h2>
         </div>
         <ul className="divide-y divide-border">
           {(espetaculos ?? []).length > 0 ? (

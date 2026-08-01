@@ -60,7 +60,7 @@ export default async function FinanceiroProfessoresPage({
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Resumo — {data.monthLabel}
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -75,8 +75,8 @@ export default async function FinanceiroProfessoresPage({
           <TableHeader>
             <TableRow>
               <TableHead>Professor</TableHead>
-              <TableHead className="text-right">Turmas</TableHead>
-              <TableHead className="text-right">Total a pagar</TableHead>
+              <TableHead className="text-right tabular-nums">Turmas</TableHead>
+              <TableHead className="text-right tabular-nums">Total a pagar</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -72,7 +72,7 @@ export function TeacherBusinessMetrics({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Matrículas e receita
         </h2>
         <p className="text-sm text-muted-foreground">

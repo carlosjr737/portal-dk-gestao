@@ -82,7 +82,7 @@ export function StudentEnrollmentsSection({
   return (
     <div className="w-full min-w-0 overflow-hidden rounded-md border border-border bg-white">
       <div className="border-b border-border p-5">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Matrículas do aluno
         </h2>
       </div>

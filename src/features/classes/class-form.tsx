@@ -228,7 +228,7 @@ export function ClassForm({
 
       <Card className="p-4">
         <div>
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Dias e horários das aulas
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">

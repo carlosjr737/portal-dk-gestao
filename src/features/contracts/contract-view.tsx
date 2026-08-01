@@ -298,9 +298,9 @@ function ParcelaTable({ parcelas }: { parcelas: ContractParcela[] }) {
         <tr className="bg-neutral-100">
           <th className="border border-black px-1 py-1 text-left">Referente</th>
           <th className="border border-black px-1 py-1 text-left">Vencimento</th>
-          <th className="border border-black px-1 py-1 text-right">Valor Bruto</th>
-          <th className="border border-black px-1 py-1 text-right">Desconto</th>
-          <th className="border border-black px-1 py-1 text-right">Valor a Pagar</th>
+          <th className="border border-black px-1 py-1 text-right tabular-nums">Valor Bruto</th>
+          <th className="border border-black px-1 py-1 text-right tabular-nums">Desconto</th>
+          <th className="border border-black px-1 py-1 text-right tabular-nums">Valor a Pagar</th>
         </tr>
       </thead>
       <tbody>
@@ -308,11 +308,11 @@ function ParcelaTable({ parcelas }: { parcelas: ContractParcela[] }) {
           <tr key={i}>
             <td className="border border-black px-1 py-1">{p.referente}</td>
             <td className="border border-black px-1 py-1">{p.vencimento ?? "-"}</td>
-            <td className="border border-black px-1 py-1 text-right">{brl(p.bruto)}</td>
-            <td className="border border-black px-1 py-1 text-right">
+            <td className="border border-black px-1 py-1 text-right tabular-nums">{brl(p.bruto)}</td>
+            <td className="border border-black px-1 py-1 text-right tabular-nums">
               {p.desconto > 0 ? brl(p.desconto) : "-"}
             </td>
-            <td className="border border-black px-1 py-1 text-right font-semibold">
+            <td className="border border-black px-1 py-1 text-right font-semibold tabular-nums">
               {brl(p.valorPagar)}
             </td>
           </tr>

@@ -204,7 +204,7 @@ function PillarList({
 }) {
   return (
     <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="mt-3 space-y-2">
         {rows.map((row) => (
           <div
@@ -234,7 +234,7 @@ function AiNotes({
 
   return (
     <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-foreground">
+      <h2 className="text-sm font-semibold text-foreground">
         Observações da IA
       </h2>
       {latestWithSummary ? (

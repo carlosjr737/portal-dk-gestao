@@ -76,7 +76,7 @@ export default async function InadimplenciaPage() {
                 <TableHead>Aluno(s)</TableHead>
                 <TableHead>Atraso</TableHead>
                 <TableHead>Venceu em</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right tabular-nums">Valor</TableHead>
                 <TableHead>Cobrar</TableHead>
               </TableRow>
             </TableHeader>
@@ -147,7 +147,7 @@ function Indicador({
         {rotulo}
       </p>
       <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
+        className={`mt-1 text-[28px] leading-[34px] font-bold tabular-nums ${
           destaque ? "text-rose-700" : "text-foreground"
         }`}
       >

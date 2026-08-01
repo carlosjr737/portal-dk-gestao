@@ -6,6 +6,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableEmpty,
 } from "@/components/ui/table";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
@@ -30,7 +31,7 @@ export function MonthlyBaseView({ points }: { points: MonthlyBasePoint[] }) {
   return (
     <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
       <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Base ativa por mês
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -48,13 +49,18 @@ export function MonthlyBaseView({ points }: { points: MonthlyBasePoint[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Mês</TableHead>
-            <TableHead className="text-right">Matrículas ativas</TableHead>
-            <TableHead className="text-right">Variação</TableHead>
-            <TableHead className="text-right">Alunos ativos</TableHead>
-            <TableHead className="text-right">Variação</TableHead>
+            <TableHead className="text-right tabular-nums">Matrículas ativas</TableHead>
+            <TableHead className="text-right tabular-nums">Variação</TableHead>
+            <TableHead className="text-right tabular-nums">Alunos ativos</TableHead>
+            <TableHead className="text-right tabular-nums">Variação</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
+          {points.length === 0 ? (
+            <TableEmpty colSpan={5}>
+              Ainda não há meses fechados para comparar.
+            </TableEmpty>
+          ) : null}
           {points.map((point, index) => {
             const prev = index > 0 ? points[index - 1] : null;
             const dEnr = prev ? point.enrollments - prev.enrollments : 0;

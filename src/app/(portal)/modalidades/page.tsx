@@ -23,7 +23,7 @@ export default async function ModalidadesPage() {
       />
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Nova modalidade
         </h2>
         <CatalogItemForm
@@ -34,7 +34,7 @@ export default async function ModalidadesPage() {
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Modalidades cadastradas
           </h2>
         </div>

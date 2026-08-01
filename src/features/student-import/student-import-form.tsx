@@ -181,7 +181,7 @@ function Field({
 function Summary({ summary }: { summary: StudentImportSummary }) {
   return (
     <Card className="p-5">
-      <h2 className="text-base font-semibold text-foreground">
+      <h2 className="text-sm font-semibold text-foreground">
         Resumo do processamento
       </h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -202,7 +202,7 @@ function Report({ rows }: { rows: StudentImportReportRow[] }) {
   return (
     <section className="overflow-hidden rounded-md border border-border bg-white">
       <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Relatório da importação
         </h2>
         <Button

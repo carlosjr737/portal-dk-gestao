@@ -35,7 +35,14 @@ export function PageHeader({
           ocupava a primeira linha da página, o lugar onde o olho procura em
           que tela está. Quem lê agora encontra "Alunos", não a marca.
         */}
-        <h1 className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+        {/*
+          24px/700, um tamanho só. Antes era 24 no celular e 30 no desktop —
+          e o 24 do celular empatava exatamente com o número de destaque dos
+          cartões de indicador, então dado e título competiam. A direção
+          define um valor por papel; o peso 700 é o que separa este nível dos
+          demais, não o tamanho.
+        */}
+        <h1 className="text-2xl font-bold leading-8 tracking-tight text-foreground">
           {title}
         </h1>
         {description ? (

@@ -208,7 +208,7 @@ export function PersonagemRow({
           ) : null}
         </form>
       </td>
-      <td className="px-4 py-2 text-right align-top">
+      <td className="px-4 py-2 text-right align-top tabular-nums">
         <form action={deletePersonagem.bind(null, personagem.id, espetaculoId)}>
           <Button
             variant="outline"

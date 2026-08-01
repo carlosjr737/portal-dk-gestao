@@ -150,7 +150,7 @@ export default async function DnaProfessoresPage({
 function EmptyState() {
   return (
     <section className="mt-6 rounded-lg border border-dashed border-border bg-white px-6 py-12 text-center shadow-sm">
-      <p className="text-base font-semibold text-foreground">
+      <p className="text-sm font-semibold text-foreground">
         Nenhuma avaliação de DNA encontrada para o período selecionado.
       </p>
       <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">

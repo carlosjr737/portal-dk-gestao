@@ -280,7 +280,7 @@ function YearTable() {
   return (
     <section className="overflow-hidden rounded-md border border-border bg-white">
       <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">Resumo por ano</h2>
+        <h2 className="text-sm font-semibold text-foreground">Resumo por ano</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Base no fim do ano e fluxo acumulado de alunos.
         </p>
@@ -294,11 +294,11 @@ function YearTable() {
         <TableHeader>
           <TableRow>
             <TableHead>Ano</TableHead>
-            <TableHead className="text-right">Alunos (fim)</TableHead>
-            <TableHead className="text-right">Matrículas (fim)</TableHead>
-            <TableHead className="text-right">Novos</TableHead>
-            <TableHead className="text-right">Saídas</TableHead>
-            <TableHead className="text-right">Saldo</TableHead>
+            <TableHead className="text-right tabular-nums">Alunos (fim)</TableHead>
+            <TableHead className="text-right tabular-nums">Matrículas (fim)</TableHead>
+            <TableHead className="text-right tabular-nums">Novos</TableHead>
+            <TableHead className="text-right tabular-nums">Saídas</TableHead>
+            <TableHead className="text-right tabular-nums">Saldo</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -349,7 +349,7 @@ function ChartCard({
     <Card className="p-5">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           {subtitle ? (
             <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
           ) : null}

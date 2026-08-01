@@ -20,13 +20,13 @@ export default async function NiveisPage() {
       />
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">Novo nível</h2>
+        <h2 className="text-sm font-semibold text-foreground">Novo nível</h2>
         <CatalogItemForm action={createLevel} submitLabel="Cadastrar nível" />
       </Card>
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Níveis cadastrados
           </h2>
         </div>

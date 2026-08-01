@@ -80,7 +80,7 @@ export function ClassEnrollmentsSection({
   return (
     <Card className="mt-6">
       <div className="border-b border-border p-5">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Alunos matriculados
         </h2>
       </div>

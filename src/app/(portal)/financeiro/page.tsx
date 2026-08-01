@@ -12,7 +12,7 @@ export default function FinanceiroPage() {
       />
 
       <Card className="mt-6 p-5">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Operações financeiras
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">

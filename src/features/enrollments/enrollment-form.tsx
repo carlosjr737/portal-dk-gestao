@@ -475,7 +475,7 @@ function StepTitle({ number, title }: StepTitleProps) {
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
         {number}
       </span>
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
     </div>
   );
 }
