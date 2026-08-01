@@ -46,12 +46,34 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      fontFamily: {
+        // `font-sans` passa a resolver para a Inter carregada no layout.
+        // A pilha de sistema fica de reserva enquanto a fonte carrega.
+        sans: [
+          "var(--font-sans)",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+      },
+
       /*
-       * De propósito NÃO redefinimos `borderRadius`. A receita padrão do
-       * shadcn amarra `rounded-md` a `calc(var(--radius) - 2px)`, o que aqui
-       * encolheria de 6px para 4px TODO canto arredondado do portal — e o
-       * portal inteiro usa `rounded-md`. Mudança grande, sem ganho.
+       * Raio conforme a direção: 8px em campo, botão e chip; 12px em card e
+       * painel. Antes era 6px em tudo.
+       *
+       * `rounded-md` (o que campo e botão usam) vira 8px e `rounded-xl` (o
+       * card) vira 12px. Os dois saem do mesmo --radius, então mudam juntos.
        */
+      borderRadius: {
+        md: "var(--radius)",
+        lg: "calc(var(--radius) + 2px)",
+        xl: "calc(var(--radius) + 4px)",
+      },
+
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

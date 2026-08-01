@@ -29,7 +29,7 @@ export function Table({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-card",
+        "overflow-hidden rounded-xl border border-border bg-card",
         containerClassName,
       )}
     >
