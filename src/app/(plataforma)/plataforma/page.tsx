@@ -3,6 +3,7 @@ import {
   AssinaturaForm,
   type PlanoOption,
 } from "@/features/plataforma/assinatura-form";
+import { NovaEscolaForm } from "@/features/plataforma/nova-escola-form";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,10 @@ export default async function PlataformaEscolasPage() {
             </p>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-6">
+        <NovaEscolaForm />
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">

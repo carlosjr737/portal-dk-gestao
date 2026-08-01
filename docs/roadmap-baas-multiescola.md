@@ -137,11 +137,11 @@ da **própria plataforma**, nunca na subconta da escola e nunca misturada ao spl
 | Etapa | Entrega | Status |
 |---|---|---|
 | 3.1 | Papel de dono da plataforma + área `/plataforma` separada | ✅ |
-| 3.2 | Cadastro/entrada de uma escola nova no sistema | ⏳ |
+| 3.2 | Cadastro de escola nova (escola + primeiro admin + link de acesso) | ✅ |
 | 3.3 | Planos (Mensal R$ 390 · Anual R$ 4.212) | ✅ |
 | 3.4 | Assinatura recorrente na conta da plataforma | ✅ |
 | 3.5 | **Webhook de conciliação** — status muda sozinho ao pagar | ✅ |
-| 3.6 | Suspensão/reativação de acesso por inadimplência | ⏳ |
+| 3.6 | Suspensão/reativação de acesso por inadimplência (carência de 5 dias) | ✅ |
 
 **Validado ponta a ponta em 2026-08-01 (sandbox):** pagamento confirmado no
 provedor → `PAYMENT_CONFIRMED` recebido → assinatura `pendente → ativa` em
