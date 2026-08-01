@@ -1,10 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   criarSubcontaEscola,
   type CriarSubcontaEscolaState,
 } from "@/features/baas/subconta-actions";
+import {
+  consultarOnboarding,
+  type OnboardingState,
+} from "@/features/baas/onboarding-actions";
 import { AsaasSelo } from "@/components/brand/asaas-selo";
 
 const initial: CriarSubcontaEscolaState = {};
@@ -28,8 +32,16 @@ export function ContaPagamentosCard({
   ambiente: string;
 }) {
   const [state, formAction, pending] = useActionState(criarSubcontaEscola, initial);
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
+  const [consultando, startConsulta] = useTransition();
   const status = STATUS_LABEL[kycStatus ?? "pendente"] ?? STATUS_LABEL.pendente;
   const jaCriada = Boolean(accountId);
+
+  function verificarCadastro() {
+    startConsulta(async () => {
+      setOnboarding(await consultarOnboarding());
+    });
+  }
 
   return (
     <div>
@@ -74,16 +86,100 @@ export function ContaPagamentosCard({
       ) : null}
 
       {jaCriada ? (
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs text-muted-foreground">Identificador da conta</dt>
-            <dd className="font-mono text-xs text-foreground">{accountId}</dd>
+        <>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-muted-foreground">Identificador da conta</dt>
+              <dd className="font-mono text-xs text-foreground">{accountId}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Carteira (split)</dt>
+              <dd className="font-mono text-xs text-foreground">{walletId ?? "—"}</dd>
+            </div>
+          </dl>
+
+          <div className="mt-5 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Envio de documentos
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Necessário para liberar os recebimentos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={verificarCadastro}
+                disabled={consultando}
+                className="h-9 rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
+              >
+                {consultando ? "Consultando…" : "Verificar pendências"}
+              </button>
+            </div>
+
+            {onboarding?.message ? (
+              <p
+                className={`mt-3 rounded-md px-3 py-2 text-sm ${
+                  onboarding.ok
+                    ? "bg-muted text-foreground"
+                    : "bg-rose-50 text-rose-700"
+                }`}
+              >
+                {onboarding.message}
+              </p>
+            ) : null}
+
+            {onboarding?.ok && onboarding.etapas ? (
+              <ul className="mt-3 grid gap-1 text-xs sm:grid-cols-3">
+                {onboarding.etapas.map((e) => (
+                  <li key={e.nome} className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${
+                        e.status.toUpperCase() === "APPROVED"
+                          ? "bg-emerald-500"
+                          : e.status.toUpperCase() === "REJECTED"
+                            ? "bg-rose-500"
+                            : "bg-amber-400"
+                      }`}
+                    />
+                    <span className="text-muted-foreground">{e.nome}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {onboarding?.documentos?.length ? (
+              <ul className="mt-3 space-y-2">
+                {onboarding.documentos.map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{d.title}</p>
+                      <p className="text-xs text-muted-foreground">{d.status}</p>
+                    </div>
+                    {d.onboardingUrl ? (
+                      <a
+                        href={d.onboardingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-8 rounded-md bg-foreground px-3 text-xs font-medium leading-8 text-white transition hover:opacity-90"
+                      >
+                        Enviar documentos
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Envio pelo suporte
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Carteira (split)</dt>
-            <dd className="font-mono text-xs text-foreground">{walletId ?? "—"}</dd>
-          </div>
-        </dl>
+        </>
       ) : (
         <form action={formAction} className="mt-4 flex flex-wrap items-end gap-3">
           <label className="block">
