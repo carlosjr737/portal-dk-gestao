@@ -7,11 +7,12 @@ import {
   weekdayOptions,
   type AttendanceFilters,
 } from "@/features/attendance/data";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { AlertaFaltas } from "@/features/attendance/alerta-faltas";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,8 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
         }
       />
 
+      <AlertaFaltas />
+
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-3 xl:grid-cols-7">
         <Field label="Professor">
           <Select name="teacherId" defaultValue={filters.teacherId}>
@@ -71,18 +74,11 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
           </Select>
         </Field>
 
-        <label className="block">
-          <span className="text-sm font-medium text-foreground">Mês/Ano</span>
-          <Input
-            name="month"
-            type="month"
-            defaultValue={filters.month}
-            className="mt-1"
-          />
-        </label>
+        <Field label="Mês/Ano">
+          <Input name="month" type="month" defaultValue={filters.month} />
+        </Field>
 
         <Field label="Turma">
-
           <Select name="classId" defaultValue={filters.classId}>
             <option value="">Todas</option>
             {classes.map((danceClass) => (
@@ -90,14 +86,10 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                 {danceClass.name}
               </option>
             ))}
-
           </Select>
-
         </Field>
 
         <Field label="Modalidade">
-
-
           <Select name="modalityId" defaultValue={filters.modalityId}>
             <option value="">Todas</option>
             {filterOptions.modalities.map((modality) => (
@@ -105,16 +97,10 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                 {modality.name}
               </option>
             ))}
-
-
           </Select>
-
-
         </Field>
 
         <Field label="Nível">
-
-
           <Select name="levelId" defaultValue={filters.levelId}>
             <option value="">Todos</option>
             {filterOptions.levels.map((level) => (
@@ -122,16 +108,10 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                 {level.name}
               </option>
             ))}
-
-
           </Select>
-
-
         </Field>
 
         <Field label="Dia da semana">
-
-
           <Select name="weekday" defaultValue={filters.weekday}>
             <option value="">Todos</option>
             {weekdayOptions.map((weekday) => (
@@ -139,33 +119,18 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                 {weekday.label}
               </option>
             ))}
-
-
           </Select>
-
-
         </Field>
 
         <Field label="Status da turma">
-
-
           <Select name="status" defaultValue={filters.status}>
             <option value="active">Ativa</option>
             <option value="planning">Em planejamento</option>
-
-
           </Select>
-
-
         </Field>
 
         <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Filtrar
-          </button>
+          <Button type="submit">Filtrar</Button>
           <Link
             href="/chamada"
             className={buttonVariants({ variant: "outline" })}
@@ -178,8 +143,7 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
       <section className="mt-6 grid gap-4">
         {classes.length > 0 ? (
           classes.map((danceClass) => (
-            <Card key={danceClass.id}
-              className="p-5">
+            <Card key={danceClass.id} className="p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">
@@ -196,16 +160,21 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                     />
                   </dl>
                 </div>
+                {/*
+                  "Ver chamada" e "Imprimir" apontavam para o MESMO endereço —
+                  dois botões, um destino. Agora são coisas diferentes: fazer
+                  a chamada no sistema, ou levar a grade em papel.
+                */}
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href={`/chamada/${danceClass.id}${buildMonthQueryString(filters)}`}
-                    className={buttonVariants({ variant: "outline" })}
+                    href={`/chamada/${danceClass.id}/registrar${buildMonthQueryString(filters)}`}
+                    className={buttonVariants()}
                   >
-                    Ver chamada
+                    Fazer chamada
                   </Link>
                   <Link
                     href={`/chamada/${danceClass.id}${buildMonthQueryString(filters)}`}
-                    className={buttonVariants({ variant: "secondary" })}
+                    className={buttonVariants({ variant: "outline" })}
                   >
                     Imprimir
                   </Link>
