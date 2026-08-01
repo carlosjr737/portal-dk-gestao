@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -16,7 +17,16 @@ type ProfileRow = {
   escola_id: string | null;
 };
 
-export async function getAuthenticatedUser() {
+/**
+ * `cache()` memoriza o resultado DENTRO de um mesmo request.
+ *
+ * Sem isso, cada componente de servidor que precisa do usuário faz uma chamada
+ * à API de autenticação do Supabase — uma página só dispara várias, e sob
+ * carga isso estoura o rate limit (429 over_request_rate_limit).
+ * Com o cache, é uma chamada por request, independente de quantos componentes
+ * peçam. Entre requests nada é reaproveitado, então a sessão continua fresca.
+ */
+export const getAuthenticatedUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,9 +38,11 @@ export async function getAuthenticatedUser() {
   }
 
   return user;
-}
+});
 
-export async function getProfileByUserId(userId: string): Promise<UserProfile | null> {
+export const getProfileByUserId = cache(async function getProfileByUserId(
+  userId: string,
+): Promise<UserProfile | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("profiles")
@@ -47,7 +59,7 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
   }
 
   return normalizeProfile(data as ProfileRow);
-}
+});
 
 function normalizeProfile(profile: ProfileRow): UserProfile | null {
   if (!isUserRole(profile.role)) {

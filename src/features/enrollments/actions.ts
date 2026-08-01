@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   enrollmentCancellationReasonSchema,
@@ -269,9 +268,9 @@ export async function createEnrollment(
 }
 
 async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
-  const adminSupabase = createAdminClient();
+  const supabase = await createClient();
   const markerTimestamp = new Date().toISOString();
-  const { data: item, error: itemError } = await adminSupabase
+  const { data: item, error: itemError } = await supabase
     .from("guardian_financial_contract_items")
     .select("id, guardian_contract_id")
     .eq("enrollment_id", enrollmentId)
@@ -312,7 +311,7 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
     guardianContractId,
     timestamp: markerTimestamp,
   };
-  const { error: markerError } = await adminSupabase
+  const { error: markerError } = await supabase
     .from("guardian_financial_contracts")
     .update({
       status: "pending_sync",
@@ -337,7 +336,7 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
     guardianContractId,
   });
 
-  const { data: guardianContract, error: contractError } = await adminSupabase
+  const { data: guardianContract, error: contractError } = await supabase
     .from("guardian_financial_contracts")
     .select(
       "id, status, provider_contract_id, provider_customer_id, total_amount, start_date, end_date, first_due_date, guardian_id, year",
@@ -368,7 +367,7 @@ async function syncEnrollmentGuardianContractAfterRpc(enrollmentId: string) {
   if (guardianContract.provider_contract_id) {
     const reason =
       "Contrato já existe no Conta Azul. Nova matrícula pendente de sincronização.";
-    const { error: pendingError } = await adminSupabase
+    const { error: pendingError } = await supabase
       .from("guardian_financial_contracts")
       .update({
         status: "pending_replacement",
@@ -430,9 +429,9 @@ async function markEnrollmentContractAutoSyncFailure({
   stage: string;
   message: string;
 }) {
-  const adminSupabase = createAdminClient();
+  const supabase = await createClient();
   const timestamp = new Date().toISOString();
-  await adminSupabase
+  await supabase
     .from("guardian_financial_contracts")
     .update({
       status: "sync_failed",
@@ -535,9 +534,9 @@ export async function cancelEnrollment(
   const classId = enrollment.class_id as string | null;
   const previousStatus = enrollment.status as string | null;
 
-  // O log usa admin client porque enrollment_logs tem RLS que bloqueia
-  // INSERT do usuário autenticado (mesmo padrão das demais escritas internas).
-  const { error: logError } = await createAdminClient()
+  // enrollment_logs agora tem policy por escola (INSERT liberado p/ admin e
+  // equipe), então o log é gravado pelo cliente com RLS.
+  const { error: logError } = await supabase
     .from("enrollment_logs")
     .insert({
       enrollment_id: parsed.data.enrollment_id,

@@ -15,7 +15,6 @@ import { syncGuardianContractAction } from "@/features/finance/conta-azul/enroll
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -81,18 +80,6 @@ export default async function MatriculasPage({
   ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
 
-  console.log(
-    "[ENROLLMENTS LIST CONTRACT DEBUG]",
-    enrollments.slice(0, 5).map((enrollment) => ({
-      enrollmentId: enrollment.id,
-      guardianContractItemId: enrollment.guardianContractItemId,
-      guardianContractId: enrollment.guardianContractId,
-      guardianContractStatus: enrollment.guardianContractStatus,
-      guardianContractProviderContractId:
-        enrollment.guardianContractProviderContractId,
-      guardianContractTotalAmount: enrollment.guardianContractTotalAmount,
-    })),
-  );
 
   return (
     <div>
@@ -291,7 +278,6 @@ async function getCurrentProfile() {
 async function getEnrollments(): Promise<EnrollmentListRow[]> {
   try {
     const supabase = await createClient();
-    const adminSupabase = createAdminClient();
     const [
       { data: enrollments, error },
       { data: students, error: studentsError },
@@ -322,10 +308,10 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         )
         .eq("provider", "conta_azul")
         .order("created_at", { ascending: false }),
-      adminSupabase
+      supabase
         .from("guardian_financial_contract_items")
         .select("id, enrollment_id, guardian_contract_id"),
-      adminSupabase
+      supabase
         .from("guardian_financial_contracts")
         .select("id, status, provider_contract_id, total_amount, version, error_message"),
     ]);
