@@ -54,28 +54,22 @@ export function CobrancaAlunoButton({
     );
   }
 
+  // Sem cobrança: normalmente a matrícula é que a cria, automaticamente.
+  // Chegar aqui significa que algo impediu (responsável sem CPF, matrícula
+  // anterior ao módulo financeiro). O botão é o conserto, não o caminho.
   return (
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="contrato_id" value={contratoId} />
-      <select
-        name="billing_type"
-        defaultValue="UNDEFINED"
-        aria-label="Forma de pagamento"
-        className="h-7 w-full rounded-md border border-border bg-white px-1 text-xs outline-none focus:border-primary"
-      >
-        <option value="UNDEFINED">Responsável escolhe</option>
-        <option value="PIX">Somente Pix</option>
-        <option value="BOLETO">Somente boleto</option>
-        <option value="CREDIT_CARD">Somente cartão</option>
-      </select>
+      <input type="hidden" name="billing_type" value="UNDEFINED" />
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-8 items-center justify-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
+        className="inline-flex h-7 items-center justify-center rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground transition hover:bg-muted disabled:opacity-60"
+        title="A cobrança normalmente é criada junto com a matrícula"
       >
         {pending
           ? "Criando…"
-          : `Cobrar${valor ? ` ${brl.format(valor)}` : " mensalidade"}`}
+          : `Gerar cobrança${valor ? ` ${brl.format(valor)}` : ""}`}
       </button>
       {state.message ? (
         <p

@@ -143,6 +143,12 @@ export type AssinaturaAsaasInput = {
   description?: string;
   externalReference?: string;
   /**
+   * Data limite para gerar cobranças. Sem ela a assinatura cobraria PARA
+   * SEMPRE — inclusive depois de a matrícula terminar. Vem do fim da
+   * matrícula: matrícula até dezembro, cobrança até dezembro.
+   */
+  endDate?: string;
+  /**
    * Split da taxa da plataforma. Hoje sempre ausente: a plataforma não retém
    * nada da mensalidade do aluno (decisão de negócio em aberto). O campo
    * existe para ligar isso sem refazer o fluxo.
@@ -219,6 +225,54 @@ export async function registrarWebhookSubconta(
   const data = await res.json().catch(() => null);
   if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
   return { ok: true, id: data.id as string };
+}
+
+/**
+ * Ajusta uma assinatura existente.
+ *
+ * O contrato do responsável é consolidado: uma matrícula nova soma ao mesmo
+ * contrato. Quando isso acontece, o valor da assinatura precisa acompanhar —
+ * senão a família continuaria pagando o valor antigo.
+ *
+ * `updatePendingPayments` faz a mudança valer também para a cobrança já
+ * emitida e ainda não paga. Sem isso, o valor novo só entraria no mês
+ * seguinte.
+ */
+export async function atualizarAssinaturaAsaas(
+  subscriptionId: string,
+  patch: { value?: number; endDate?: string; billingType?: FormaPagamento },
+  chave?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = chave ?? getAsaasApiKey();
+  if (!apiKey) return { ok: false, error: "asaas_not_configured" };
+
+  const res = await fetch(`${ASAAS_API_BASE}/subscriptions/${subscriptionId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", access_token: apiKey },
+    body: JSON.stringify({ ...patch, updatePendingPayments: true }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true };
+}
+
+/** Encerra a assinatura — usado quando a matrícula é cancelada. */
+export async function cancelarAssinaturaAsaas(
+  subscriptionId: string,
+  chave?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = chave ?? getAsaasApiKey();
+  if (!apiKey) return { ok: false, error: "asaas_not_configured" };
+
+  const res = await fetch(`${ASAAS_API_BASE}/subscriptions/${subscriptionId}`, {
+    method: "DELETE",
+    headers: { access_token: apiKey },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return { ok: false, error: mensagemErro(data, res.status) };
+  }
+  return { ok: true };
 }
 
 /**

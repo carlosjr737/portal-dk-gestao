@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { garantirCobrancaDaMatricula } from "@/features/baas/cobranca-automatica";
 import {
   enrollmentCancellationReasonSchema,
   enrollmentFormSchema,
@@ -170,9 +171,7 @@ export async function createEnrollment(
   });
 
   let guardianContractFailed = false;
-  let guardianContractLinkNotFound = false;
-  let contaAzulAutoSyncSucceeded = false;
-  let contaAzulAutoSyncFailed = false;
+  let cobrancaFalhou: string | null = null;
 
   if (enrollment.status === "active") {
     await ensureGrowthChurnEvent({
@@ -217,16 +216,16 @@ export async function createEnrollment(
         error: rpcError,
       });
     } else {
-      const autoSyncResult = await syncEnrollmentGuardianContractAfterRpc(
-        enrollment.id as string,
-      );
-
-      if (autoSyncResult.status === "synced") {
-        contaAzulAutoSyncSucceeded = true;
-      } else if (autoSyncResult.status === "contract_link_not_found") {
-        guardianContractLinkNotFound = true;
-      } else if (autoSyncResult.status === "failed") {
-        contaAzulAutoSyncFailed = true;
+      // Cobrança nasce junto com a matrícula. Se a escola não usa o módulo
+      // financeiro, isto não faz nada. Não derruba a matrícula se falhar —
+      // a matrícula é o ato principal.
+      const cobranca = await garantirCobrancaDaMatricula(enrollment.id as string);
+      if (cobranca.status === "falhou") {
+        cobrancaFalhou = cobranca.detalhe;
+        console.error("[MATRICULA] cobrança automática falhou", {
+          enrollmentId: enrollment.id,
+          detalhe: cobranca.detalhe,
+        });
       }
     }
   }
@@ -245,16 +244,8 @@ export async function createEnrollment(
     redirectParams.set("guardianContract", "failed");
   }
 
-  if (guardianContractLinkNotFound) {
-    redirectParams.set("guardianContract", "contract_link_not_found");
-  }
-
-  if (contaAzulAutoSyncSucceeded) {
-    redirectParams.set("guardianContract", "auto_sync_success");
-  }
-
-  if (contaAzulAutoSyncFailed) {
-    redirectParams.set("guardianContract", "auto_sync_failed");
+  if (cobrancaFalhou) {
+    redirectParams.set("cobranca", "falhou");
   }
 
   const redirectQuery = redirectParams.toString();
@@ -569,6 +560,17 @@ export async function cancelEnrollment(
     reasonNotes: parsed.data.cancellation_notes,
     source: "enrollment_cancelled",
   });
+
+  // A cobrança acompanha o cancelamento: se o responsável ainda tem outra
+  // matrícula, o valor baixa; se era a última, a assinatura é encerrada.
+  // Sem isto, a família seguiria sendo cobrada por aula que não tem mais.
+  const cobranca = await garantirCobrancaDaMatricula(parsed.data.enrollment_id);
+  if (cobranca.status === "falhou") {
+    console.error("[CANCELAMENTO] cobrança não acompanhou", {
+      enrollmentId: parsed.data.enrollment_id,
+      detalhe: cobranca.detalhe,
+    });
+  }
 
   revalidatePath("/turmas");
   revalidatePath("/matriculas");
