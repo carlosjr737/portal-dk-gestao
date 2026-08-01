@@ -53,8 +53,9 @@
 | 1.3 | RLS por escola em todas as tabelas (`multitenant_04_rls.sql`) | ⏳ pronto p/ rodar |
 | 1.4 | Converter os arquivos que usam admin client como contorno → cliente RLS | ✅ 207 → 33 queries |
 | 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ✅ |
-| 1.6 | `NOT NULL` + remover o fallback DK do default | ⏳ |
+| 1.6 | `NOT NULL` em `escola_id` (`scripts/multitenant_05_notnull.sql`) | ⏳ pronto p/ rodar |
 | 1.7 | CRUD de escolas (cadastro/edição) | ⏳ |
+| 1.9 | **Antes da 2ª escola:** token-store grava `escola_id` + remover fallback DK do default | ⏳ bloqueante |
 | 1.8 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
 
 ### Diagnóstico do isolamento (2026-07-31)
