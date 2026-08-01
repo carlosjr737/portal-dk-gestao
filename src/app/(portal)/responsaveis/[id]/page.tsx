@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  getAuthenticatedUser,
-  getProfileByUserId,
-} from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   linkGuardianToStudent,
@@ -32,11 +28,10 @@ export default async function ResponsavelDetalhePage({
   params,
 }: ResponsavelDetalhePageProps) {
   const { id } = await params;
-  const [guardian, students, linkedStudents, profile] = await Promise.all([
+  const [guardian, students, linkedStudents] = await Promise.all([
     getGuardian(id),
     getStudentOptions(),
     getLinkedStudents(id),
-    getCurrentProfile(),
   ]);
 
   if (!guardian) {
@@ -47,26 +42,26 @@ export default async function ResponsavelDetalhePage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title={guardian.full_name}
-          description="Detalhes cadastrais e vínculos do responsável."
-        />
-        <div className="flex gap-2">
-          <Link
-            href="/responsaveis"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-          >
-            Voltar
-          </Link>
-          <Link
-            href={`/responsaveis/${guardian.id}/editar`}
-            className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Editar
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title={guardian.full_name}
+        description="Detalhes cadastrais e vínculos do responsável."
+        actions={
+          <>
+            <Link
+              href="/responsaveis"
+              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
+              Voltar
+            </Link>
+            <Link
+              href={`/responsaveis/${guardian.id}/editar`}
+              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Editar
+            </Link>
+          </>
+        }
+      />
 
       <section className="mt-6 grid gap-4 lg:grid-cols-3">
         <InfoCard label="Documento">{formatText(guardian.document)}</InfoCard>
@@ -144,16 +139,6 @@ export default async function ResponsavelDetalhePage({
       </section>
     </div>
   );
-}
-
-async function getCurrentProfile() {
-  const user = await getAuthenticatedUser();
-
-  if (!user) {
-    return null;
-  }
-
-  return getProfileByUserId(user.id);
 }
 
 async function getGuardian(id: string): Promise<Guardian | null> {

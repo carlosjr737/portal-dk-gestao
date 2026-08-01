@@ -27,12 +27,11 @@ export default async function RodizioSalasPage({
 
   return (
     <div>
-      <div className="no-print border-b border-border pb-6">
-        <PageHeader
-          title="Rodízio de Salas"
-          description="Monte visualmente a distribuição das turmas por sala e horário."
-        />
-      </div>
+      <PageHeader
+        className="no-print"
+        title="Rodízio de Salas"
+        description="Monte visualmente a distribuição das turmas por sala e horário."
+      />
 
       <div className="mt-6">
         <RoomRotationPlanner data={data} filters={filters} />

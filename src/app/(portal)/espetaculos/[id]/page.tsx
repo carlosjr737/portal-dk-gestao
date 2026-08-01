@@ -122,26 +122,26 @@ export default async function EspetaculoDetalhePage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title={espetaculo.nome as string}
-          description={
-            ((espetaculo.temporada as string | null) ?? "") +
-            (espetaculo.data_evento
-              ? ` · ${(espetaculo.data_evento as string).split("-").reverse().join("/")}`
-              : "")
-          }
-        />
-        <div className="flex gap-2">
-          <Link
-            href="/espetaculos"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-          >
-            Voltar
-          </Link>
-          <OpenInPinaButton espetaculoId={espetaculo.id as string} pinaUrl={PINA_APP_URL} />
-        </div>
-      </div>
+      <PageHeader
+        title={espetaculo.nome as string}
+        description={
+          ((espetaculo.temporada as string | null) ?? "") +
+          (espetaculo.data_evento
+            ? ` · ${(espetaculo.data_evento as string).split("-").reverse().join("/")}`
+            : "")
+        }
+        actions={
+          <>
+            <Link
+              href="/espetaculos"
+              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
+              Voltar
+            </Link>
+            <OpenInPinaButton espetaculoId={espetaculo.id as string} pinaUrl={PINA_APP_URL} />
+          </>
+        }
+      />
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-3">

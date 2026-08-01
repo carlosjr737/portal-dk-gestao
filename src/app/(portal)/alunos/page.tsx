@@ -30,18 +30,20 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title="Alunos"
-          description="Cadastro, consulta e acompanhamento de alunos."
-        />
-        <Link
-          href="/alunos/novo"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Novo aluno
-        </Link>
-      </div>
+      <PageHeader
+        title="Alunos"
+        description="Cadastro, consulta e acompanhamento de alunos."
+        actions={
+          <>
+            <Link
+              href="/alunos/novo"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Novo aluno
+            </Link>
+          </>
+        }
+      />
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_220px_auto]">
         <label className="block">

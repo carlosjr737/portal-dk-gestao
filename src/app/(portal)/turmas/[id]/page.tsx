@@ -47,34 +47,34 @@ export default async function TurmaDetalhePage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title={danceClass.name}
-          description="Detalhes operacionais da turma."
-        />
-        <div className="flex gap-2">
-          <Link
-            href="/turmas"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-          >
-            Voltar
-          </Link>
-          <Link
-            href={`/turmas/${danceClass.id}/editar`}
-            className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Editar
-          </Link>
-          <span className="inline-flex h-10 items-center rounded-md border border-rose-200 px-4">
-            <DeleteClassButton
-              classId={danceClass.id}
-              className={danceClass.name}
-              enrollmentsCount={danceClass.total_enrollments_count}
-              redirectOnSuccess
-            />
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title={danceClass.name}
+        description="Detalhes operacionais da turma."
+        actions={
+          <>
+            <Link
+              href="/turmas"
+              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
+              Voltar
+            </Link>
+            <Link
+              href={`/turmas/${danceClass.id}/editar`}
+              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Editar
+            </Link>
+            <span className="inline-flex h-10 items-center rounded-md border border-rose-200 px-4">
+              <DeleteClassButton
+                classId={danceClass.id}
+                className={danceClass.name}
+                enrollmentsCount={danceClass.total_enrollments_count}
+                redirectOnSuccess
+              />
+            </span>
+          </>
+        }
+      />
 
       <section className="mt-6 grid gap-4 lg:grid-cols-3">
         <InfoCard label="Status">

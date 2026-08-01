@@ -257,37 +257,6 @@ export async function createEnrollment(
   );
 }
 
-
-async function markEnrollmentContractAutoSyncFailure({
-  guardianContractId,
-  enrollmentId,
-  stage,
-  message,
-}: {
-  guardianContractId: string;
-  enrollmentId: string;
-  stage: string;
-  message: string;
-}) {
-  const supabase = await createClient();
-  const timestamp = new Date().toISOString();
-  await supabase
-    .from("guardian_financial_contracts")
-    .update({
-      status: "sync_failed",
-      error_message: message,
-      last_sync_payload: {
-        stage,
-        message,
-        enrollmentId,
-        guardianContractId,
-        timestamp,
-      },
-      updated_at: timestamp,
-    })
-    .eq("id", guardianContractId);
-}
-
 export async function cancelEnrollment(
   _previousState: EnrollmentActionState,
   formData: FormData,

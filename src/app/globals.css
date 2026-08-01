@@ -31,6 +31,32 @@ a {
   text-decoration: none;
 }
 
+/*
+ * Foco visível.
+ *
+ * Sem isto, quem navega por teclado não enxerga onde está: o Tailwind zera o
+ * outline do navegador no preflight e nada põe de volta. Quem usa leitor de
+ * tela, quem opera só com teclado e quem preenche a chamada com uma mão no
+ * mouse e outra no papel ficam todos sem referência.
+ *
+ * :focus-visible, não :focus — o navegador só mostra o anel quando o foco veio
+ * do teclado, então clicar num botão com o mouse não deixa a marca acesa.
+ *
+ * Regra global em vez de classe por componente: valeria para o que já existe
+ * hoje, e continua valendo para o que for criado amanhã sem ninguém lembrar.
+ */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Elemento que recebe foco só por programação (uma <section> com tabindex="-1",
+   por exemplo) não deve piscar um anel: o foco não é do usuário. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
 .print-only {
   display: none;
 }

@@ -1,9 +1,5 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  getAuthenticatedUser,
-  getProfileByUserId,
-} from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatEnrollmentStatus,
@@ -28,14 +24,11 @@ export default async function MatriculasPage({
   searchParams,
 }: MatriculasPageProps) {
   const params = await searchParams;
-  const [enrollments, profile, cobrancas, usaPagamentos] =
-    await Promise.all([
-      getEnrollments(),
-      getCurrentProfile(),
-      getCobrancasPorContrato(),
-      escolaUsaPagamentos(),
-    ]);
-  const canGenerateReceivable = profile?.active && profile.role === "admin";
+  const [enrollments, cobrancas, usaPagamentos] = await Promise.all([
+    getEnrollments(),
+    getCobrancasPorContrato(),
+    escolaUsaPagamentos(),
+  ]);
   // Colunas visíveis variam por escola: quem não optou pelo módulo de
   // pagamento não vê a coluna "Cobrança" — fica com a tela limpa.
   const colunas = 9 + (usaPagamentos ? 1 : 0);
@@ -43,18 +36,20 @@ export default async function MatriculasPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title="Matrículas"
-          description="Gestão de vínculos entre alunos e turmas."
-        />
-        <Link
-          href="/matriculas/nova"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Nova matrícula
-        </Link>
-      </div>
+      <PageHeader
+        title="Matrículas"
+        description="Gestão de vínculos entre alunos e turmas."
+        actions={
+          <>
+            <Link
+              href="/matriculas/nova"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Nova matrícula
+            </Link>
+          </>
+        }
+      />
 
       {params?.created === "without-financial-guardian" ? (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -207,16 +202,6 @@ export default async function MatriculasPage({
       </div>
     </div>
   );
-}
-
-async function getCurrentProfile() {
-  const user = await getAuthenticatedUser();
-
-  if (!user) {
-    return null;
-  }
-
-  return getProfileByUserId(user.id);
 }
 
 type CobrancaResumo = { status: string; proximo_vencimento: string | null };
@@ -451,76 +436,4 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
     );
     return [];
   }
-}
-
-function ConsolidatedContractStatus({
-  enrollment,
-}: {
-  enrollment: EnrollmentListRow;
-}) {
-  if (!enrollment.guardianContractId) {
-    return (
-      <span className="text-sm text-muted-foreground">
-        Contrato consolidado não criado
-      </span>
-    );
-  }
-
-  const statusLabel =
-    enrollment.guardianContractStatus === "pending_sync"
-      ? "Sincronização em andamento"
-      : enrollment.guardianContractStatus === "draft" &&
-          !enrollment.guardianContractProviderContractId
-        ? "Contrato consolidado pendente"
-        : enrollment.guardianContractStatus === "active" &&
-            enrollment.guardianContractProviderContractId
-          ? "Contrato consolidado ativo"
-          : enrollment.guardianContractStatus === "pending_replacement"
-            ? "Pendente de sincronização"
-            : enrollment.guardianContractStatus === "sync_failed"
-              ? "Falha na sincronização"
-              : enrollment.guardianContractStatus ?? "Contrato consolidado";
-
-  return (
-    <div className="space-y-1 text-sm">
-      <div className="font-medium text-foreground">{statusLabel}</div>
-      {enrollment.guardianContractProviderContractId ? (
-        <div className="font-mono text-xs text-muted-foreground">
-          {enrollment.guardianContractProviderContractId}
-        </div>
-      ) : null}
-      <div className="text-xs text-muted-foreground">
-        {formatMoney(enrollment.guardianContractTotalAmount)} · v
-        {enrollment.guardianFinancialContract?.version ?? 1}
-      </div>
-      {enrollment.guardianFinancialContract?.error_message ? (
-        <div className="max-w-[260px] text-xs text-red-600">
-          {enrollment.guardianFinancialContract.error_message}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function shouldShowGuardianContractSync(enrollment: EnrollmentListRow) {
-  return (
-    (enrollment.guardianContractStatus === "draft" &&
-      !enrollment.guardianContractProviderContractId) ||
-    enrollment.guardianContractStatus === "pending_replacement" ||
-    enrollment.guardianContractStatus === "sync_failed"
-  );
-}
-
-function getGuardianContractSyncButtonLabel(enrollment: EnrollmentListRow) {
-  const status = enrollment.guardianContractStatus;
-
-  if (status === "pending_replacement") {
-    return "Sincronizar atualização";
-  }
-
-  if (status === "sync_failed") {
-    return "Tentar novamente";
-  }
-
-  return "Sincronizar";
 }

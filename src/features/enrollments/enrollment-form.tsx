@@ -142,7 +142,11 @@ export function EnrollmentForm({
       params.set("classSearch", nextClassSearch.trim());
     }
 
-    router.push(`/matriculas/nova?${params.toString()}`);
+    // replace, não push: cada busca de aluno ou turma vira uma entrada no
+    // histórico se empilhar. Quem digita "Maria", refina para "Mariana" e
+    // desiste precisa apertar Voltar uma vez por tecla para sair da tela.
+    // Trocar a URL no lugar mantém o Voltar significando "sair da matrícula".
+    router.replace(`/matriculas/nova?${params.toString()}`);
   }
 
   return (

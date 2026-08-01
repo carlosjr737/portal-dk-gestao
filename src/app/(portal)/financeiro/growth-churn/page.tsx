@@ -60,27 +60,27 @@ export default async function GrowthChurnPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title="Growth & Churn"
-          description="Indicadores de entradas, saídas e impacto financeiro por matrícula."
-        />
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/financeiro"
-            className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-          >
-            Financeiro
-          </Link>
-          <button
-            type="button"
-            disabled
-            className="h-10 cursor-not-allowed rounded-md border border-border bg-muted px-4 text-sm font-medium text-muted-foreground"
-          >
-            Importar histórico
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Growth & Churn"
+        description="Indicadores de entradas, saídas e impacto financeiro por matrícula."
+        actions={
+          <>
+            <Link
+              href="/financeiro"
+              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+            >
+              Financeiro
+            </Link>
+            <button
+              type="button"
+              disabled
+              className="h-10 cursor-not-allowed rounded-md border border-border bg-muted px-4 text-sm font-medium text-muted-foreground"
+            >
+              Importar histórico
+            </button>
+          </>
+        }
+      />
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 lg:grid-cols-6">
         <div className="flex flex-wrap gap-2 lg:col-span-6">

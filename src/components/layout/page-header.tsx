@@ -1,21 +1,51 @@
+import type { ReactNode } from "react";
+
 type PageHeaderProps = {
   title: string;
   description?: string;
+  /**
+   * Botões da página (Novo, Editar, Voltar, Imprimir...).
+   *
+   * Existe para o cabeçalho inteiro — título, descrição e ações — ser um
+   * componente só. Antes cada página montava a linha na mão, num `div` com
+   * `border-b pb-6` em volta do PageHeader, que também trazia a própria borda:
+   * duas linhas coladas. Com as ações aqui dentro, a borda tem um dono só.
+   */
+  actions?: ReactNode;
+  /** Classes extras do cabeçalho (ex.: `no-print` na tela de rodízio). */
+  className?: string;
 };
 
-export function PageHeader({ title, description }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  className,
+}: PageHeaderProps) {
   return (
-    <section className="border-b border-border pb-6">
-      <p className="text-sm font-medium uppercase tracking-wide text-primary">
-        Portal DK Gestão
-      </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
-        {title}
-      </h1>
-      {description ? (
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
+    <section
+      className={`flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between${
+        className ? ` ${className}` : ""
+      }`}
+    >
+      <div>
+        {/*
+          A sobrancelha "PORTAL DK GESTÃO" saiu daqui: o nome já aparece na
+          barra lateral e no topo, então era a terceira vez na mesma tela — e
+          ocupava a primeira linha da página, o lugar onde o olho procura em
+          que tela está. Quem lê agora encontra "Alunos", não a marca.
+        */}
+        <h1 className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      {actions ? (
+        <div className="flex flex-wrap gap-2">{actions}</div>
       ) : null}
     </section>
   );

@@ -33,18 +33,20 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title="Lista de chamada"
-          description="Gere e imprima listas de chamada por turma ou por professor."
-        />
-        <Link
-          href={printAllHref}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          Imprimir todas
-        </Link>
-      </div>
+      <PageHeader
+        title="Lista de chamada"
+        description="Gere e imprima listas de chamada por turma ou por professor."
+        actions={
+          <>
+            <Link
+              href={printAllHref}
+              className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              Imprimir todas
+            </Link>
+          </>
+        }
+      />
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
         <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>

@@ -19,18 +19,20 @@ export default async function ResponsaveisPage({
 
   return (
     <div>
-      <div className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeader
-          title="Responsáveis"
-          description="Cadastro, consulta e vínculo de responsáveis com alunos."
-        />
-        <Link
-          href="/responsaveis/novo"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Novo responsável
-        </Link>
-      </div>
+      <PageHeader
+        title="Responsáveis"
+        description="Cadastro, consulta e vínculo de responsáveis com alunos."
+        actions={
+          <>
+            <Link
+              href="/responsaveis/novo"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Novo responsável
+            </Link>
+          </>
+        }
+      />
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_auto]">
         <label className="block">
