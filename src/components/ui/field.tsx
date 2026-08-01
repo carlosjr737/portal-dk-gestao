@@ -35,7 +35,13 @@ export function Field({
   children,
 }: FieldProps) {
   const generatedId = React.useId();
-  const id = htmlFor ?? generatedId;
+  // Precedência: id explícito do campo > htmlFor > id gerado. Sem isto, um
+  // campo que já tinha id (porque outra coisa aponta para ele) perderia o seu
+  // e a referência quebraria em silêncio.
+  const idDoFilho = React.isValidElement<{ id?: string }>(children)
+    ? children.props.id
+    : undefined;
+  const id = idDoFilho ?? htmlFor ?? generatedId;
   const errorId = `${id}-erro`;
   const hintId = `${id}-ajuda`;
 

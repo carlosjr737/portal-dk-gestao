@@ -9,6 +9,9 @@ import {
   type StaffMemberFormData,
 } from "@/features/staff/schemas";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Field as FormField } from "@/components/ui/field";
 
 type StaffMemberFormProps = {
   action: (
@@ -161,19 +164,14 @@ function Field({
   required,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         defaultValue={defaultValue}
         required={required}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
       />
-      {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      ) : null}
-    </label>
+    </FormField>
   );
 }
 
@@ -195,17 +193,17 @@ function SelectField({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
+      <Select
         name={name}
         defaultValue={defaultValue}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+        className="mt-1"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
       {error ? (
         <span className="mt-1 block text-xs text-red-600">{error}</span>
       ) : null}

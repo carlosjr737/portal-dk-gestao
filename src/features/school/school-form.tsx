@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { updateSchool, type SchoolActionState } from "@/features/school/actions";
+import { Input } from "@/components/ui/input";
+import { Field as FormField } from "@/components/ui/field";
 
 export type SchoolData = {
   nome: string;
@@ -127,16 +129,14 @@ function Field({
   hint?: string;
 }) {
   return (
-    <label className={`block ${className}`}>
-      <span className="text-xs font-medium text-foreground">{label}</span>
-      <input
-        name={name}
-        defaultValue={defaultValue ?? ""}
-        required={required}
-        className="mt-1 h-9 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
-      />
-      {hint ? <span className="mt-0.5 block text-[11px] text-muted-foreground">{hint}</span> : null}
-      {error ? <span className="mt-0.5 block text-xs text-red-600">{error}</span> : null}
-    </label>
+    <FormField
+      label={label}
+      error={error}
+      hint={hint}
+      required={required}
+      className={className}
+    >
+      <Input name={name} defaultValue={defaultValue ?? ""} required={required} className="h-9" />
+    </FormField>
   );
 }

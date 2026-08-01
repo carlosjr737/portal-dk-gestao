@@ -5,6 +5,7 @@ import type { GuardianActionState } from "@/features/guardians/actions";
 import { guardianRelationshipOptions } from "@/features/guardians/schemas";
 import type { StudentOption } from "@/features/guardians/types";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 type LinkStudentFormProps = {
   action: (
@@ -29,9 +30,9 @@ export function LinkStudentForm({ action, students }: LinkStudentFormProps) {
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Aluno</span>
-        <select
+        <Select
           name="student_id"
-          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+          className="mt-1 py-2"
           defaultValue=""
         >
           <option value="" disabled>
@@ -42,7 +43,7 @@ export function LinkStudentForm({ action, students }: LinkStudentFormProps) {
               {student.full_name}
             </option>
           ))}
-        </select>
+        </Select>
         {state.errors?.student_id?.[0] ? (
           <span className="mt-1 block text-xs text-red-600">
             {state.errors.student_id[0]}
@@ -52,9 +53,9 @@ export function LinkStudentForm({ action, students }: LinkStudentFormProps) {
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Tipo de vínculo</span>
-        <select
+        <Select
           name="relationship_type"
-          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+          className="mt-1 py-2"
           defaultValue="financial"
         >
           {guardianRelationshipOptions.map((option) => (
@@ -62,7 +63,7 @@ export function LinkStudentForm({ action, students }: LinkStudentFormProps) {
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="flex items-center gap-2 text-sm text-foreground">

@@ -6,6 +6,8 @@ import { formatDate, formatText } from "@/features/students/formatters";
 import { StatusBadge } from "@/features/students/status-badge";
 import type { Student } from "@/features/students/types";
 import { buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type StudentListRow = Student & {
   financialGuardian: {
@@ -49,20 +51,20 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_220px_auto]">
         <label className="block">
           <span className="text-sm font-medium text-foreground">Buscar por nome</span>
-          <input
+          <Input
             name="q"
             defaultValue={search}
             placeholder="Digite o nome do aluno"
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            className="mt-1 py-2"
           />
         </label>
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Status</span>
-          <select
+          <Select
             name="status"
             defaultValue={status}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            className="mt-1 py-2"
           >
             <option value="">Todos</option>
             {studentStatusOptions.map((option) => (
@@ -70,7 +72,7 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <div className="flex items-end gap-2">

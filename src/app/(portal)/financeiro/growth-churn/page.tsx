@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -714,11 +716,11 @@ function FilterInput({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+      <Input
         name={name}
         type={type}
         defaultValue={value}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+        className="mt-1"
       />
     </label>
   );
@@ -738,10 +740,10 @@ function FilterSelect({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
+      <Select
         name={name}
         defaultValue={value}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+        className="mt-1"
       >
         <option value="">Todos</option>
         {options.map((option) => (
@@ -749,7 +751,7 @@ function FilterSelect({
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

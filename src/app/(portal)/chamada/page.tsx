@@ -8,6 +8,9 @@ import {
   type AttendanceFilters,
 } from "@/features/attendance/data";
 import { buttonVariants } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -50,75 +53,110 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
       />
 
       <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
-        <Select name="teacherId" label="Professor" defaultValue={filters.teacherId}>
-          <option value="">Todos</option>
-          {filterOptions.teachers.length > 0 ? (
-            filterOptions.teachers.map((teacher) => (
-              <option key={teacher.id} value={teacher.id}>
-                {teacher.artistic_name?.trim() || teacher.full_name}
+        <Field label="Professor">
+          <Select name="teacherId" defaultValue={filters.teacherId}>
+            <option value="">Todos</option>
+            {filterOptions.teachers.length > 0 ? (
+              filterOptions.teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.artistic_name?.trim() || teacher.full_name}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>
+                Nenhum professor cadastrado
               </option>
-            ))
-          ) : (
-            <option value="" disabled>
-              Nenhum professor cadastrado
-            </option>
-          )}
-        </Select>
+            )}
+          </Select>
+        </Field>
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Mês/Ano</span>
-          <input
+          <Input
             name="month"
             type="month"
             defaultValue={filters.month}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="mt-1"
           />
         </label>
 
-        <Select name="classId" label="Turma" defaultValue={filters.classId}>
-          <option value="">Todas</option>
-          {classes.map((danceClass) => (
-            <option key={danceClass.id} value={danceClass.id}>
-              {danceClass.name}
-            </option>
-          ))}
-        </Select>
+        <Field label="Turma">
 
-        <Select
-          name="modalityId"
-          label="Modalidade"
-          defaultValue={filters.modalityId}
-        >
-          <option value="">Todas</option>
-          {filterOptions.modalities.map((modality) => (
-            <option key={modality.id} value={modality.id}>
-              {modality.name}
-            </option>
-          ))}
-        </Select>
+          <Select name="classId" defaultValue={filters.classId}>
+            <option value="">Todas</option>
+            {classes.map((danceClass) => (
+              <option key={danceClass.id} value={danceClass.id}>
+                {danceClass.name}
+              </option>
+            ))}
 
-        <Select name="levelId" label="Nível" defaultValue={filters.levelId}>
-          <option value="">Todos</option>
-          {filterOptions.levels.map((level) => (
-            <option key={level.id} value={level.id}>
-              {level.name}
-            </option>
-          ))}
-        </Select>
+          </Select>
 
-        <Select name="weekday" label="Dia da semana" defaultValue={filters.weekday}>
-          <option value="">Todos</option>
-          {weekdayOptions.map((weekday) => (
-            <option key={weekday.value} value={weekday.value}>
-              {weekday.label}
-            </option>
-          ))}
-        </Select>
+        </Field>
 
-        <Select name="status" label="Status da turma" defaultValue={filters.status}>
-          <option value="active">Ativa</option>
-          <option value="planning">Em planejamento</option>
-        </Select>
+        <Field label="Modalidade">
+
+
+          <Select name="modalityId" defaultValue={filters.modalityId}>
+            <option value="">Todas</option>
+            {filterOptions.modalities.map((modality) => (
+              <option key={modality.id} value={modality.id}>
+                {modality.name}
+              </option>
+            ))}
+
+
+          </Select>
+
+
+        </Field>
+
+        <Field label="Nível">
+
+
+          <Select name="levelId" defaultValue={filters.levelId}>
+            <option value="">Todos</option>
+            {filterOptions.levels.map((level) => (
+              <option key={level.id} value={level.id}>
+                {level.name}
+              </option>
+            ))}
+
+
+          </Select>
+
+
+        </Field>
+
+        <Field label="Dia da semana">
+
+
+          <Select name="weekday" defaultValue={filters.weekday}>
+            <option value="">Todos</option>
+            {weekdayOptions.map((weekday) => (
+              <option key={weekday.value} value={weekday.value}>
+                {weekday.label}
+              </option>
+            ))}
+
+
+          </Select>
+
+
+        </Field>
+
+        <Field label="Status da turma">
+
+
+          <Select name="status" defaultValue={filters.status}>
+            <option value="active">Ativa</option>
+            <option value="planning">Em planejamento</option>
+
+
+          </Select>
+
+
+        </Field>
 
         <div className="flex items-end gap-2">
           <button
@@ -185,31 +223,6 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
         )}
       </section>
     </div>
-  );
-}
-
-function Select({
-  name,
-  label,
-  defaultValue,
-  children,
-}: {
-  name: string;
-  label: string;
-  defaultValue?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
-        name={name}
-        defaultValue={defaultValue ?? ""}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
-      >
-        {children}
-      </select>
-    </label>
   );
 }
 

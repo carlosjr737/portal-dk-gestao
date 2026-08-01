@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { RoomActionState } from "@/features/rooms/actions";
 import type { RoomFormData } from "@/features/rooms/schemas";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type RoomFormProps = {
   action: (
@@ -48,12 +49,12 @@ export function RoomForm({
       <div className="grid gap-3 md:grid-cols-3">
         <label className="block">
           <span className="text-sm font-medium text-foreground">Nome da sala</span>
-          <input
+          <Input
             name="name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.name?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
@@ -64,7 +65,7 @@ export function RoomForm({
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Slug</span>
-          <input
+          <Input
             name="slug"
             value={slug}
             onChange={(event) => {
@@ -72,7 +73,7 @@ export function RoomForm({
               setSlug(event.target.value);
             }}
             required
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.slug?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
@@ -83,12 +84,12 @@ export function RoomForm({
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Capacidade</span>
-          <input
+          <Input
             name="capacity"
             type="number"
             min="1"
             defaultValue={String(defaultValues?.capacity ?? "")}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.capacity?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
@@ -119,11 +120,11 @@ export function RoomForm({
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Ordem</span>
-          <input
+          <Input
             name="sort_order"
             type="number"
             defaultValue={String(defaultValues?.sort_order ?? 0)}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.sort_order?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">

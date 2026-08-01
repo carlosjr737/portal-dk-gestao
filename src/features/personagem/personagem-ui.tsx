@@ -7,6 +7,7 @@ import {
   updatePersonagem,
   type PersonagemActionState,
 } from "@/features/personagem/actions";
+import { Input } from "@/components/ui/input";
 
 export type AlunoOption = { id: string; nome: string };
 export type PersonagemItem = {
@@ -57,7 +58,7 @@ function AlunoCombobox({
     <div className="relative">
       <input type="hidden" name={name} value={selectedId} />
       <div className="flex items-center gap-1">
-        <input
+        <Input
           type="text"
           value={query}
           placeholder="Buscar aluno… (opcional)"
@@ -71,7 +72,7 @@ function AlunoCombobox({
           onBlur={() => {
             blurTimer.current = setTimeout(() => setOpen(false), 120);
           }}
-          className="h-9 w-56 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+          className="h-9 w-56 px-2"
         />
         {selectedId || query ? (
           <button
@@ -126,11 +127,11 @@ export function PersonagemCreate({
       ) : null}
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-foreground">Nome do personagem</span>
-        <input
+        <Input
           name="nome"
           required
           placeholder="Morticia"
-          className="h-9 w-56 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+          className="h-9 w-56"
         />
         {state.errors?.nome?.[0] ? (
           <span className="block text-xs text-red-600">{state.errors.nome[0]}</span>
@@ -138,11 +139,11 @@ export function PersonagemCreate({
       </label>
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-foreground">Cor</span>
-        <input
+        <Input
           name="cor"
           type="color"
           defaultValue="#8b5cf6"
-          className="h-9 w-16 cursor-pointer rounded-md border border-border bg-white"
+          className="h-9 w-16 cursor-pointer"
         />
       </label>
       <label className="block">
@@ -182,17 +183,17 @@ export function PersonagemRow({
             className="inline-block h-5 w-5 shrink-0 rounded-full border border-border"
             style={{ backgroundColor: personagem.cor }}
           />
-          <input
+          <Input
             name="nome"
             defaultValue={personagem.nome}
             required
-            className="h-9 w-44 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+            className="h-9 w-44 px-2"
           />
-          <input
+          <Input
             name="cor"
             type="color"
             defaultValue={personagem.cor}
-            className="h-9 w-12 cursor-pointer rounded-md border border-border bg-white"
+            className="h-9 w-12 cursor-pointer"
           />
           <AlunoCombobox name="aluno_id" alunos={alunos} defaultId={personagem.aluno_id} />
           <button

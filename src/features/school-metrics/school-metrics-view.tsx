@@ -12,6 +12,7 @@ import type {
   SchoolMetrics,
   SchoolTeacherMetric,
 } from "@/features/school-metrics/queries";
+import { Select } from "@/components/ui/select";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -665,8 +666,8 @@ function FilterSelect({
   return (
     <label className="text-sm font-medium text-foreground">
       {label}
-      <select
-        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm"
+      <Select
+        className="mt-1 py-2"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -676,7 +677,7 @@ function FilterSelect({
             {option.name}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

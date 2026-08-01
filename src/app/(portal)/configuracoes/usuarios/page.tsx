@@ -12,6 +12,8 @@ import {
 } from "@/features/users/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -73,20 +75,20 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
       <form className="grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-4">
         <label className="block md:col-span-2">
           <span className="text-sm font-medium text-foreground">Buscar</span>
-          <input
+          <Input
             name="search"
             defaultValue={filters.search}
             placeholder="Nome ou e-mail"
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="mt-1"
           />
         </label>
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Perfil</span>
-          <select
+          <Select
             name="role"
             defaultValue={filters.role ?? ""}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="mt-1"
           >
             <option value="">Todos</option>
             {roles.map((role) => (
@@ -94,20 +96,20 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
                 {roleLabels[role]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="block">
           <span className="text-sm font-medium text-foreground">Status</span>
-          <select
+          <Select
             name="status"
             defaultValue={filters.status ?? ""}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="mt-1"
           >
             <option value="">Todos</option>
             <option value="active">Ativo</option>
             <option value="inactive">Inativo</option>
-          </select>
+          </Select>
         </label>
 
         <div className="flex items-end gap-2 md:col-span-4">
@@ -274,10 +276,10 @@ function EditUserForm({ user }: { user: PortalUser }) {
         <TextField name="name" label="Nome" defaultValue={user.name ?? ""} required />
         <label className="block">
           <span className="text-sm font-medium text-foreground">E-mail</span>
-          <input
+          <Input
             value={user.email ?? ""}
             disabled
-            className="mt-1 h-10 w-full rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground"
+            className="mt-1 bg-muted text-muted-foreground"
           />
         </label>
         <RoleField defaultValue={user.role} />
@@ -339,13 +341,13 @@ function TextField({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+      <Input
         name={name}
         type={type}
         defaultValue={defaultValue}
         minLength={minLength}
         required={required}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+        className="mt-1"
       />
     </label>
   );
@@ -355,17 +357,17 @@ function RoleField({ defaultValue = "equipe" }: { defaultValue?: UserRole }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">Perfil</span>
-      <select
+      <Select
         name="role"
         defaultValue={defaultValue}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+        className="mt-1"
       >
         {roles.map((role) => (
           <option key={role} value={role}>
             {roleLabels[role]}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime, formatText } from "@/features/students/formatters";
 import type { Guardian } from "@/features/guardians/types";
 import { buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type ResponsaveisPageProps = {
   searchParams?: Promise<{
@@ -40,11 +41,11 @@ export default async function ResponsaveisPage({
           <span className="text-sm font-medium text-foreground">
             Buscar por nome, telefone ou e-mail
           </span>
-          <input
+          <Input
             name="q"
             defaultValue={search}
             placeholder="Digite nome, telefone ou e-mail"
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            className="mt-1 py-2"
           />
         </label>
 

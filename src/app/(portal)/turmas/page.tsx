@@ -17,6 +17,7 @@ import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
 import { buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type TurmasPageProps = {
   searchParams?: Promise<{
@@ -60,11 +61,11 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
           <span className="text-sm font-medium text-foreground">
             Buscar por nome, modalidade, nível ou professor
           </span>
-          <input
+          <Input
             name="q"
             defaultValue={search}
             placeholder="Digite sua busca"
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary"
+            className="mt-1 py-2"
           />
         </label>
         <div className="flex items-end gap-2">

@@ -11,6 +11,10 @@ import type { CatalogOption } from "@/features/class-catalog/types";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Field as FormField } from "@/components/ui/field";
 
 type ClassFormProps = {
   action: (
@@ -108,12 +112,12 @@ export function ClassForm({
         ) : null}
         <label className="block">
           <span className="text-sm font-medium text-foreground">Professor</span>
-          <select
+          <Select
             name="teacher_id"
             defaultValue={defaultValues?.teacher_id ?? ""}
             required
             disabled={!hasTeachers}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+            className="mt-1 py-2"
           >
             <option value="">
               {hasTeachers
@@ -125,7 +129,7 @@ export function ClassForm({
                 {getStaffDisplayName(teacher)}
               </option>
             ))}
-          </select>
+          </Select>
           {state.errors?.teacher_id?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
               {state.errors.teacher_id[0]}
@@ -151,12 +155,12 @@ export function ClassForm({
           <span className="text-sm font-medium text-foreground">
             Modalidade
           </span>
-          <select
+          <Select
             name="modality_id"
             defaultValue={defaultValues?.modality_id ?? ""}
             required
             disabled={!hasModalities}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+            className="mt-1 py-2"
           >
             <option value="">
               {hasModalities
@@ -168,7 +172,7 @@ export function ClassForm({
                 {modality.name}
               </option>
             ))}
-          </select>
+          </Select>
           {state.errors?.modality_id?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
               {state.errors.modality_id[0]}
@@ -183,12 +187,12 @@ export function ClassForm({
         </label>
         <label className="block">
           <span className="text-sm font-medium text-foreground">Nível</span>
-          <select
+          <Select
             name="level_id"
             defaultValue={defaultValues?.level_id ?? ""}
             required
             disabled={!hasLevels}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+            className="mt-1 py-2"
           >
             <option value="">
               {hasLevels ? "Selecione um nível" : "Nenhum nível cadastrado"}
@@ -198,7 +202,7 @@ export function ClassForm({
                 {level.name}
               </option>
             ))}
-          </select>
+          </Select>
           {state.errors?.level_id?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
               {state.errors.level_id[0]}
@@ -300,7 +304,7 @@ export function ClassForm({
                           ) : null}
                         </td>
                         <td className="px-3 py-2 align-middle">
-                          <input
+                          <Input
                             name={
                               schedule.enabled
                                 ? "schedule_start_time"
@@ -317,11 +321,11 @@ export function ClassForm({
                                 event.target.value,
                               )
                             }
-                            className="h-9 w-28 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+                            className="h-9 w-28"
                           />
                         </td>
                         <td className="px-3 py-2 align-middle">
-                          <input
+                          <Input
                             name={
                               schedule.enabled ? "schedule_end_time" : undefined
                             }
@@ -336,11 +340,11 @@ export function ClassForm({
                                 event.target.value,
                               )
                             }
-                            className="h-9 w-28 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+                            className="h-9 w-28"
                           />
                         </td>
                         <td className="px-3 py-2 align-middle">
-                          <input
+                          <Input
                             name={schedule.enabled ? "schedule_room" : undefined}
                             value={schedule.room ?? ""}
                             disabled={!schedule.enabled}
@@ -348,7 +352,7 @@ export function ClassForm({
                             onChange={(event) =>
                               updateSchedule(index, "room", event.target.value)
                             }
-                            className="h-9 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+                            className="h-9"
                           />
                         </td>
                       </tr>
@@ -373,11 +377,11 @@ export function ClassForm({
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Observações</span>
-        <textarea
+        <Textarea
           name="notes"
           defaultValue={defaultValues?.notes ?? ""}
           rows={5}
-          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+          className="mt-1"
         />
         {state.errors?.notes?.[0] ? (
           <span className="mt-1 block text-xs text-red-600">
@@ -428,9 +432,8 @@ function Field({
   onChange,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         min={min}
@@ -439,11 +442,8 @@ function Field({
         required={required}
         disabled={disabled}
         onChange={(event) => onChange?.(event.target.value)}
-        className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+        className="py-2"
       />
-      {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      ) : null}
-    </label>
+    </FormField>
   );
 }

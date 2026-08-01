@@ -5,6 +5,7 @@ import {
   criarAssinaturaEscola,
   type AssinaturaState,
 } from "@/features/plataforma/assinatura-actions";
+import { Select } from "@/components/ui/select";
 
 export type PlanoOption = {
   id: string;
@@ -53,11 +54,11 @@ export function AssinaturaForm({
         <span className="text-xs font-medium text-slate-700">
           Plano para {escolaNome}
         </span>
-        <select
+        <Select
           name="plano_id"
           required
           defaultValue=""
-          className="mt-1 h-9 w-64 rounded-md border border-slate-300 bg-white px-2 text-sm outline-none focus:border-slate-900"
+          className="mt-1 h-9 w-64 border-slate-300 px-2 focus:border-slate-900"
         >
           <option value="">Selecione…</option>
           {planos.map((p) => (
@@ -66,20 +67,20 @@ export function AssinaturaForm({
               {p.periodicidade === "mensal" ? "/mês" : "/ano"}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="block">
         <span className="text-xs font-medium text-slate-700">Forma de cobrança</span>
-        <select
+        <Select
           name="billing_type"
           defaultValue="PIX"
-          className="mt-1 h-9 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm outline-none focus:border-slate-900"
+          className="mt-1 h-9 w-40 border-slate-300 px-2 focus:border-slate-900"
         >
           <option value="PIX">Pix</option>
           <option value="BOLETO">Boleto</option>
           <option value="CREDIT_CARD">Cartão</option>
-        </select>
+        </Select>
       </label>
 
       <button

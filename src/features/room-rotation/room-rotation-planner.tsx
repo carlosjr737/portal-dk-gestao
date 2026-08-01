@@ -26,6 +26,9 @@ import type {
 } from "@/features/room-rotation/types";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 const slotHeight = 34;
 const minBlockHeight = 28;
@@ -329,35 +332,54 @@ export function RoomRotationPlanner({
     <div className="space-y-5">
       <section className="no-print rounded-lg border border-border bg-white p-4 shadow-sm">
         <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-7">
-          <Field label="Ano" name="year" type="number" value={filters.year} />
-          <Select label="Mês" name="month" value={String(filters.month)}>
-            {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-              <option key={month} value={month}>
-                {new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(
-                  new Date(filters.year, month - 1, 1),
-                )}
-              </option>
-            ))}
-          </Select>
-          <Select label="Grupo de dias" name="dayGroup" value={filters.dayGroup}>
-            {roomRotationDayGroupOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-          <Select label="Rodízio" name="rotationLabel" value={filters.rotationLabel}>
-            {roomRotationLabels.map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
-          </Select>
-          <Select label="Status" name="status" value={filters.status ?? ""}>
-            <option value="">Todos</option>
-            <option value="draft">Rascunho</option>
-            <option value="published">Publicado</option>
-          </Select>
+          <Field label="Ano">
+            <Input name="year" type="number" defaultValue={filters.year} />
+          </Field>
+          <Field label="Mês">
+            <Select name="month" defaultValue={String(filters.month)}>
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                <option key={month} value={month}>
+                  {new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(
+                    new Date(filters.year, month - 1, 1),
+                  )}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Grupo de dias">
+
+            <Select name="dayGroup" defaultValue={filters.dayGroup}>
+              {roomRotationDayGroupOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+
+            </Select>
+
+          </Field>
+          <Field label="Rodízio">
+
+            <Select name="rotationLabel" defaultValue={filters.rotationLabel}>
+              {roomRotationLabels.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+
+            </Select>
+
+          </Field>
+          <Field label="Status">
+
+            <Select name="status" defaultValue={filters.status ?? ""}>
+              <option value="">Todos</option>
+              <option value="draft">Rascunho</option>
+              <option value="published">Publicado</option>
+
+            </Select>
+
+          </Field>
           <div className="flex items-end gap-2 xl:col-span-2">
             <button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
               Filtrar
@@ -416,16 +438,15 @@ export function RoomRotationPlanner({
                     name="rotationPlanId"
                     value={currentPlan.id}
                   />
-                  <select
+                  <Select
                     name="sourcePlanId"
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm"
                   >
                     {sourcePlans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
                         {plan.rotation_label} · {plan.status}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <button className="h-10 rounded-md border border-border px-4 text-sm font-medium">
                     Copiar rodízio
                   </button>
@@ -1087,54 +1108,5 @@ function HiddenFilters({ filters }: { filters: PlannerFilters }) {
         <input type="hidden" name="planId" value={filters.planId} />
       ) : null}
     </>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  value,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  value: string | number;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium">{label}</span>
-      <input
-        name={name}
-        type={type}
-        defaultValue={value}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm"
-      />
-    </label>
-  );
-}
-
-function Select({
-  label,
-  name,
-  value,
-  children,
-}: {
-  label: string;
-  name: string;
-  value: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium">{label}</span>
-      <select
-        name={name}
-        defaultValue={value}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm"
-      >
-        {children}
-      </select>
-    </label>
   );
 }

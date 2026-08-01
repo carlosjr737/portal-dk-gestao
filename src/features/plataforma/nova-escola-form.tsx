@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { criarEscola, type NovaEscolaState } from "@/features/plataforma/escola-actions";
+import { Input } from "@/components/ui/input";
 
 const initial: NovaEscolaState = {};
 
@@ -46,11 +47,11 @@ export function NovaEscolaForm() {
             Link de acesso (expira em algumas horas)
           </label>
           <div className="mt-1 flex gap-2">
-            <input
+            <Input
               readOnly
               value={state.linkAcesso}
               onFocus={(e) => e.currentTarget.select()}
-              className="w-full rounded-md border border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs"
+              className="border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs"
             />
             <button
               type="button"
@@ -148,12 +149,12 @@ function Campo({
   return (
     <label className="block">
       <span className="text-xs font-medium text-slate-700">{label}</span>
-      <input
+      <Input
         name={name}
         type={type}
         placeholder={placeholder}
         required={required}
-        className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900"
+        className="mt-1 h-9 border-slate-300 focus:border-slate-900"
       />
       {erro ? <span className="mt-0.5 block text-xs text-rose-600">{erro}</span> : null}
     </label>

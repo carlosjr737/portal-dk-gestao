@@ -10,6 +10,8 @@ import {
   type OnboardingState,
 } from "@/features/baas/onboarding-actions";
 import { AsaasSelo } from "@/components/brand/asaas-selo";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 const initial: CriarSubcontaEscolaState = {};
 
@@ -191,30 +193,30 @@ export function ContaPagamentosCard({
             <span className="text-xs font-medium text-foreground">
               Faturamento mensal estimado
             </span>
-            <input
+            <Input
               name="faturamento"
               type="number"
               min="1"
               step="0.01"
               required
               placeholder="0,00"
-              className="mt-1 h-9 w-48 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+              className="mt-1 h-9 w-48"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-foreground">Tipo de empresa</span>
-            <select
+            <Select
               name="company_type"
               required
               defaultValue=""
-              className="mt-1 h-9 w-48 rounded-md border border-border bg-white px-2 text-sm outline-none focus:border-primary"
+              className="mt-1 h-9 w-48 px-2"
             >
               <option value="">Selecione…</option>
               <option value="MEI">MEI</option>
               <option value="LIMITED">Ltda</option>
               <option value="INDIVIDUAL">Empresário individual</option>
               <option value="ASSOCIATION">Associação</option>
-            </select>
+            </Select>
           </label>
           <button
             type="submit"

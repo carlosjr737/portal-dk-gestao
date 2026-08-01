@@ -2,6 +2,10 @@
 
 import { useActionState } from "react";
 import { login, type LoginActionState } from "@/features/auth/actions";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 const initialState: LoginActionState = {};
 
@@ -16,40 +20,32 @@ export function LoginForm({ message }: LoginFormProps) {
   return (
     <form action={formAction} className="mt-8 space-y-4">
       {displayMessage ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {displayMessage}
-        </div>
+        <Alert tone="warning">{displayMessage}</Alert>
       ) : null}
 
-      <label className="block">
-        <span className="text-sm font-medium text-foreground">E-mail</span>
-        <input
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
-        />
-      </label>
+      <Field label="E-mail">
+        <Input name="email" type="email" autoComplete="email" required className="h-11" />
+      </Field>
 
-      <label className="block">
-        <span className="text-sm font-medium text-foreground">Senha</span>
-        <input
+      <Field label="Senha">
+        <Input
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+          className="h-11"
         />
-      </label>
+      </Field>
 
-      <button
+      <Button
         type="submit"
+        size="lg"
+        variant="secondary"
         disabled={isPending}
-        className="inline-flex h-11 w-full items-center justify-center rounded-md bg-foreground px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full"
       >
         {isPending ? "Entrando..." : "Entrar"}
-      </button>
+      </Button>
     </form>
   );
 }

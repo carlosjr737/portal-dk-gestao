@@ -24,6 +24,8 @@ import type {
 } from "@/features/calendar/types";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type CalendarViewProps = {
   events: CalendarEvent[];
@@ -145,10 +147,10 @@ export function CalendarView({
               <div className="space-y-2">
                 {googleCalendarStatus.calendars.length > 0 ? (
                   <form action={changeGoogleCalendarAction} className="flex gap-2">
-                    <select
+                    <Select
                       name="calendar_id"
                       defaultValue={googleCalendarStatus.calendarId ?? "primary"}
-                      className="h-9 min-w-0 flex-1 rounded-md border border-border bg-white px-2 text-xs text-foreground outline-none transition focus:border-primary"
+                      className="h-9 min-w-0 flex-1 px-2 text-xs"
                     >
                       {googleCalendarStatus.calendars.map((calendar) => (
                         <option key={calendar.id} value={calendar.id}>
@@ -156,7 +158,7 @@ export function CalendarView({
                           {calendar.primary ? " (principal)" : ""}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <button
                       type="submit"
                       className="h-9 rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
@@ -244,19 +246,17 @@ export function CalendarView({
             <input type="hidden" name="view" value={view} />
             <label>
               <span className="sr-only">Mês/Ano</span>
-              <input
+              <Input
                 type="month"
                 name="month"
                 defaultValue={month}
-                className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
               />
             </label>
             <label>
               <span className="sr-only">Tipo de evento</span>
-              <select
+              <Select
                 name="event_type"
                 defaultValue={eventType ?? ""}
-                className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
               >
                 <option value="">Todos os tipos</option>
                 {calendarEventTypes.map((type) => (
@@ -264,19 +264,18 @@ export function CalendarView({
                     {type.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label>
               <span className="sr-only">Afeta aulas</span>
-              <select
+              <Select
                 name="affects_classes"
                 defaultValue={affectsClasses}
-                className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
               >
                 <option value="all">Afeta aulas: todos</option>
                 <option value="yes">Afeta aulas: sim</option>
                 <option value="no">Afeta aulas: não</option>
-              </select>
+              </Select>
             </label>
             <Button
               type="submit"

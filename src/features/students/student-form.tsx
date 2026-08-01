@@ -8,6 +8,10 @@ import {
 } from "@/features/students/schemas";
 import type { StudentActionState } from "@/features/students/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Field as FormField } from "@/components/ui/field";
 
 type StudentFormProps = {
   action: (
@@ -129,17 +133,17 @@ export function StudentForm({
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Status</span>
-        <select
+        <Select
           name="status"
           defaultValue={defaultValues?.status ?? "active"}
-          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+          className="mt-1 py-2"
         >
           {studentStatusOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
         {state.errors?.status?.[0] ? (
           <span className="mt-1 block text-xs text-red-600">
             {state.errors.status[0]}
@@ -149,11 +153,11 @@ export function StudentForm({
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Observações</span>
-        <textarea
+        <Textarea
           name="notes"
           defaultValue={defaultValues?.notes ?? ""}
           rows={5}
-          className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+          className="mt-1"
         />
         {state.errors?.notes?.[0] ? (
           <span className="mt-1 block text-xs text-red-600">
@@ -206,11 +210,11 @@ export function StudentForm({
                   <span className="text-sm font-medium text-foreground">
                     Buscar responsável
                   </span>
-                  <input
+                  <Input
                     value={guardianSearch}
                     onChange={(event) => setGuardianSearch(event.target.value)}
                     placeholder="Nome, telefone, e-mail ou CPF"
-                    className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+                    className="mt-1 py-2"
                   />
                 </label>
                 <button
@@ -385,20 +389,16 @@ function Field({
   onChange,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         defaultValue={defaultValue}
         required={required}
         onChange={(event) => onChange?.(event.target.value)}
-        className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+        className="py-2"
       />
-      {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      ) : null}
-    </label>
+    </FormField>
   );
 }
 

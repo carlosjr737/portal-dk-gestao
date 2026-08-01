@@ -7,6 +7,10 @@ import {
   type CatalogItemFormData,
 } from "@/features/class-catalog/schemas";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Field as FormField } from "@/components/ui/field";
 
 type CatalogItemFormProps = {
   action: (
@@ -65,11 +69,11 @@ export function CatalogItemForm({
           <span className="text-sm font-medium text-foreground">
             Descrição
           </span>
-          <textarea
+          <Textarea
             name="description"
             defaultValue={defaultValues?.description ?? ""}
             rows={compact ? 3 : 4}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.description?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
@@ -107,19 +111,14 @@ function Field({
   required,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         defaultValue={defaultValue}
         required={required}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
       />
-      {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      ) : null}
-    </label>
+    </FormField>
   );
 }
 
@@ -141,17 +140,17 @@ function SelectField({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
+      <Select
         name={name}
         defaultValue={defaultValue}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+        className="mt-1"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
       {error ? (
         <span className="mt-1 block text-xs text-red-600">{error}</span>
       ) : null}

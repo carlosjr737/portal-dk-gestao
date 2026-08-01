@@ -8,6 +8,9 @@ import type {
   StudentImportSummary,
 } from "@/features/student-import/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Field as FormField } from "@/components/ui/field";
 
 const initialState: StudentImportState = {
   status: "ready",
@@ -43,11 +46,11 @@ export function StudentImportForm() {
             <span className="text-sm font-medium text-foreground">
               Planilha de alunos
             </span>
-            <input
+            <Input
               name="spreadsheet"
               type="file"
               accept=".xls,.xlsx,.csv"
-              className="mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground"
+              className="mt-1 block py-2"
             />
           </label>
           <Field
@@ -81,15 +84,15 @@ export function StudentImportForm() {
             <span className="text-sm font-medium text-foreground">
               Status padrão
             </span>
-            <select
+            <Select
               name="status"
               defaultValue={state.defaults?.status ?? "active"}
-              className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+              className="mt-1"
             >
               <option value="active">Ativa</option>
               <option value="paused">Pausada</option>
               <option value="evaluation">Em avaliação</option>
-            </select>
+            </Select>
           </label>
         </div>
 
@@ -152,18 +155,16 @@ function Field({
   required,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} required={required}>
+      <Input
         name={name}
         type={type}
         min={min}
         step={step}
         defaultValue={defaultValue}
         required={required}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
       />
-    </label>
+    </FormField>
   );
 }
 

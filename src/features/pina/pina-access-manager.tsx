@@ -7,6 +7,7 @@ import {
   type BackfillRow,
   type ProvisionOneState,
 } from "@/features/pina/access-actions";
+import { Input } from "@/components/ui/input";
 
 type Professor = { id: string; nome: string; email: string | null };
 
@@ -102,11 +103,11 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
                         <p className="text-xs text-emerald-700">
                           {res.created ? "Conta criada." : "Conta atualizada."} Copie e envie o link:
                         </p>
-                        <input
+                        <Input
                           readOnly
                           value={res.resetLink}
                           onFocus={(e) => e.currentTarget.select()}
-                          className="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs"
+                          className="bg-muted/40 px-2 py-1 text-xs"
                         />
                         <p className="text-xs text-amber-700">⏱ Expira em ~1h — envie agora.</p>
                       </div>

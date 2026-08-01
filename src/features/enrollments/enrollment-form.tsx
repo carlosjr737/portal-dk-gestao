@@ -20,6 +20,10 @@ import type {
 import { formatCapacity } from "@/features/classes/formatters";
 import { formatText } from "@/features/students/formatters";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Field as FormField } from "@/components/ui/field";
 
 type EnrollmentFormProps = {
   action: (
@@ -168,10 +172,10 @@ export function EnrollmentForm({
             <span className="text-sm font-medium text-foreground">
               Buscar aluno por nome, telefone ou e-mail
             </span>
-            <input
+            <Input
               value={studentSearch}
               onChange={(event) => setStudentSearch(event.target.value)}
-              className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+              className="mt-1"
               placeholder="Digite pelo menos parte do nome, telefone ou e-mail"
             />
           </label>
@@ -241,10 +245,10 @@ export function EnrollmentForm({
             <span className="text-sm font-medium text-foreground">
               Buscar turma por nome, modalidade, nível ou professor
             </span>
-            <input
+            <Input
               value={classSearch}
               onChange={(event) => setClassSearch(event.target.value)}
-              className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+              className="mt-1"
               placeholder="Digite nome, modalidade, nível ou professor"
             />
           </label>
@@ -335,14 +339,14 @@ export function EnrollmentForm({
             <span className="text-sm font-medium text-foreground">
               Responsável financeiro
             </span>
-            <select
+            <Select
               name="financial_guardian_id"
               value={selectedFinancialGuardianId}
               onChange={(event) =>
                 setSelectedFinancialGuardianId(event.target.value)
               }
               disabled={!selectedStudentId || selectedGuardianLinks.length === 0}
-              className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary disabled:bg-muted disabled:text-muted-foreground"
+              className="mt-1"
             >
               <option value="">Sem responsável financeiro informado</option>
               {selectedGuardianLinks.map((link) => (
@@ -350,7 +354,7 @@ export function EnrollmentForm({
                   {formatGuardianOption(link)}
                 </option>
               ))}
-            </select>
+            </Select>
             {state.errors?.financial_guardian_id?.[0] ? (
               <span className="mt-1 block text-xs text-red-600">
                 {state.errors.financial_guardian_id[0]}
@@ -403,10 +407,10 @@ export function EnrollmentForm({
 
         <label className="mt-4 block">
           <span className="text-sm font-medium text-foreground">Observações</span>
-          <textarea
+          <Textarea
             name="notes"
             rows={5}
-            className="mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+            className="mt-1"
           />
           {state.errors?.notes?.[0] ? (
             <span className="mt-1 block text-xs text-red-600">
@@ -548,21 +552,16 @@ function Field({
   required,
 }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         min={min}
         step={step}
         defaultValue={defaultValue}
         required={required}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
       />
-      {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      ) : null}
-    </label>
+    </FormField>
   );
 }
 
@@ -586,18 +585,18 @@ function SelectField({
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
+      <Select
         name={name}
         required={required}
         defaultValue={defaultValue}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-primary"
+        className="mt-1"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
       {error ? (
         <span className="mt-1 block text-xs text-red-600">{error}</span>
       ) : null}

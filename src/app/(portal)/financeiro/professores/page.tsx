@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { getTeacherPaymentData } from "@/features/teacher-payments/queries";
+import { Input } from "@/components/ui/input";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,11 @@ export default async function FinanceiroProfessoresPage({
       <form className="mt-6 flex flex-wrap items-end gap-3 rounded-md border border-border bg-white p-4">
         <label className="block">
           <span className="text-sm font-medium text-foreground">Mês</span>
-          <input
+          <Input
             type="month"
             name="month"
             defaultValue={month}
-            className="mt-1 h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+            className="mt-1"
           />
         </label>
         <button

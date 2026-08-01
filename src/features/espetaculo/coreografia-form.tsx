@@ -11,6 +11,9 @@ import {
   type CoreografiaTipo,
 } from "@/features/espetaculo/schemas";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Field as FormField } from "@/components/ui/field";
 
 type Option = { id: string; nome: string };
 
@@ -73,16 +76,16 @@ export function CoreografiaForm({
         />
         <label className="block">
           <span className="text-sm font-medium text-foreground">Tipo</span>
-          <select
+          <Select
             name="tipo"
             value={tipo}
             onChange={(e) => setTipo(e.target.value as CoreografiaTipo)}
-            className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
+            className="mt-1"
           >
             {coreografiaTipoOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
-          </select>
+          </Select>
         </label>
         <div className="grid grid-cols-2 gap-3">
           <Field
@@ -159,18 +162,15 @@ function Field({
   defaultValue?: string;
 }) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
+    <FormField label={label} error={error} required={required}>
+      <Input
         name={name}
         type={type}
         placeholder={placeholder}
         required={required}
         defaultValue={defaultValue}
-        className="mt-1 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none focus:border-primary"
       />
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
-    </label>
+    </FormField>
   );
 }
 

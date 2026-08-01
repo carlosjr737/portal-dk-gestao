@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { enrollmentCancellationReasons } from "@/features/enrollments/schemas";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type CancelEnrollmentModalProps = {
   open: boolean;
@@ -107,13 +109,13 @@ export function CancelEnrollmentModal({
             <span className="text-sm font-medium text-foreground">
               Motivo do cancelamento
             </span>
-            <select
+            <Select
               value={cancellationReason}
               onChange={(event) => {
                 setCancellationReason(event.target.value);
                 setErrorMessage("");
               }}
-              className="mt-1 h-11 w-full rounded-md border px-3 text-sm text-foreground outline-none transition focus:border-primary"
+              className="mt-1 h-11"
             >
               <option value="">Selecione um motivo</option>
               {enrollmentCancellationReasons.map((reason) => (
@@ -121,7 +123,7 @@ export function CancelEnrollmentModal({
                   {reason}
                 </option>
               ))}
-            </select>
+            </Select>
             {showReasonError ? (
               <span className="mt-1 block text-xs text-red-600">
                 Selecione um motivo.
@@ -133,7 +135,7 @@ export function CancelEnrollmentModal({
             <span className="text-sm font-medium text-foreground">
               Observação complementar
             </span>
-            <textarea
+            <Textarea
               value={cancellationNotes}
               onChange={(event) => {
                 setCancellationNotes(event.target.value);
@@ -144,7 +146,7 @@ export function CancelEnrollmentModal({
                   ? "Descreva o motivo do cancelamento"
                   : "Opcional"
               }
-              className="mt-1 min-h-28 w-full resize-none rounded-md border px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+              className="mt-1 min-h-28 resize-none"
             />
             {showNotesError ? (
               <span className="mt-1 block text-xs text-red-600">
