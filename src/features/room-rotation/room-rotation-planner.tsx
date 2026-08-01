@@ -627,7 +627,7 @@ function RotationScheduleBoard({
           <div
             key={room.id}
             className="rotation-room-header"
-            style={{ backgroundColor: room.color ?? "#f8fafc" }}
+            style={{ backgroundColor: room.color ?? "hsl(var(--muted))" }}
           >
             {room.name.toUpperCase()}
           </div>

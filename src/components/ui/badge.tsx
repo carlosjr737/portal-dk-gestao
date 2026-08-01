@@ -21,10 +21,10 @@ export const badgeVariants = cva(
     variants: {
       tone: {
         neutral: "bg-muted text-muted-foreground",
-        success: "bg-emerald-50 text-emerald-700",
-        warning: "bg-amber-50 text-amber-800",
-        danger: "bg-red-50 text-red-700",
-        info: "bg-sky-50 text-sky-700",
+        success: "bg-success-tint text-success-fg",
+        warning: "bg-warning-tint text-warning-fg",
+        danger: "bg-danger-tint text-danger-fg",
+        info: "bg-info-tint text-info-fg",
         /** Destaque na cor da marca — usar com parcimônia. */
         brand: "bg-primary text-primary-foreground",
       },

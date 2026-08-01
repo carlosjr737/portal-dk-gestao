@@ -4,6 +4,7 @@ import type {
   AudienceSlice,
 } from "@/features/audience-metrics/queries";
 import { Alert } from "@/components/ui/alert";
+import { PALETA_CATEGORICA } from "@/lib/chart-palette";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -18,12 +19,6 @@ function formatPercent(part: number, total: number) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
-// Paleta com contraste suficiente para até 14 fatias (níveis).
-const PALETTE = [
-  "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4",
-  "#a855f7", "#ec4899", "#84cc16", "#f97316", "#14b8a6",
-  "#eab308", "#3b82f6", "#d946ef", "#10b981",
-];
 
 type AudienceMetricsViewProps = {
   metrics: AudienceMetrics;
@@ -176,7 +171,7 @@ function PieChart({ slices }: { slices: AudienceSlice[] }) {
     const endAngle = (cursor / total) * 360;
     return {
       ...slice,
-      color: PALETTE[index % PALETTE.length],
+      color: PALETA_CATEGORICA[index % PALETA_CATEGORICA.length],
       path:
         slices.length === 1
           ? null // círculo cheio renderizado à parte
@@ -200,7 +195,7 @@ function PieChart({ slices }: { slices: AudienceSlice[] }) {
               key={arc.label}
               d={arc.path ?? ""}
               fill={arc.color}
-              stroke="#ffffff"
+              stroke="hsl(var(--card))"
               strokeWidth={1.5}
             />
           ))
@@ -258,7 +253,7 @@ function BarList({ slices }: { slices: AudienceSlice[] }) {
               className="h-full rounded-full"
               style={{
                 width: `${max > 0 ? (slice.count / max) * 100 : 0}%`,
-                backgroundColor: PALETTE[index % PALETTE.length],
+                backgroundColor: PALETA_CATEGORICA[index % PALETA_CATEGORICA.length],
               }}
             />
           </div>

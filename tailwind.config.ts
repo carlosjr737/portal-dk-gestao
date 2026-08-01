@@ -45,6 +45,32 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+
+        /*
+         * Tons semânticos. Nomeados pelo SIGNIFICADO, nunca pela cor: quem
+         * escreve `tone="danger"` não decide qual vermelho, e o dia em que o
+         * vermelho mudar, muda em todo lugar.
+         */
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          fg: "hsl(var(--info-fg))",
+          tint: "hsl(var(--info-tint))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          fg: "hsl(var(--success-fg))",
+          tint: "hsl(var(--success-tint))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          fg: "hsl(var(--warning-fg))",
+          tint: "hsl(var(--warning-tint))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          fg: "hsl(var(--danger-fg))",
+          tint: "hsl(var(--danger-tint))",
+        },
       },
       fontFamily: {
         // `font-sans` passa a resolver para a Inter carregada no layout.

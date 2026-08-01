@@ -58,6 +58,38 @@
    */
   --destructive: 0 72% 42%;
   --destructive-foreground: 0 0% 100%;
+
+  /*
+   * Paleta semântica — três valores por tom, e a razão de serem três importa.
+   *
+   * As cores da direção funcionam como PREENCHIMENTO (barra de gráfico, ponto,
+   * ícone de estado). Como TEXTO sobre branco, três das quatro reprovam em
+   * contraste: 2,29:1 a 4,34:1. Por isso cada tom tem um valor escurecido para
+   * texto, e um bem claro para fundo de pílula e de aviso.
+   *
+   *   preenchimento -> barra, gráfico, ícone
+   *   -fg           -> texto e número colorido
+   *   -tint         -> fundo de pílula e de caixa de aviso
+   *
+   * Antes cada tela escolhia o seu: o código tinha emerald-700 E emerald-800,
+   * amber-700 E amber-800, rose-600/700/800 — todos querendo dizer a mesma
+   * coisa. Um par por tom, sem exceção.
+   */
+  --info: 214 75% 53%;
+  --info-fg: 214 75% 45%;
+  --info-tint: 213 77% 95%;
+
+  --success: 156 76% 36%;
+  --success-fg: 156 77% 27%;
+  --success-tint: 152 45% 94%;
+
+  --warning: 38 83% 50%;
+  --warning-fg: 38 84% 32%;
+  --warning-tint: 39 88% 94%;
+
+  --danger: 353 64% 55%;
+  --danger-fg: 353 64% 47%;
+  --danger-tint: 353 68% 95%;
 }
 
 * {

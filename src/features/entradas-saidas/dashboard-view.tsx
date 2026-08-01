@@ -85,15 +85,15 @@ export function EntradasSaidasDashboard() {
         title="Total de alunos e matrículas"
         subtitle="Evolução mês a mês desde 2023"
         legend={[
-          { name: "Alunos", color: "#6366f1" },
-          { name: "Matrículas", color: "#22c55e" },
+          { name: "Alunos", color: "hsl(var(--info))" },
+          { name: "Matrículas", color: "hsl(var(--success))" },
         ]}
       >
         <LineChart
           labels={labels}
           series={[
-            { color: "#6366f1", values: ES_DATA.map((d) => d.totalAlunos) },
-            { color: "#22c55e", values: ES_DATA.map((d) => d.totalMatriculas) },
+            { color: "hsl(var(--info))", values: ES_DATA.map((d) => d.totalAlunos) },
+            { color: "hsl(var(--success))", values: ES_DATA.map((d) => d.totalMatriculas) },
           ]}
         />
       </ChartCard>
@@ -109,16 +109,16 @@ export function EntradasSaidasDashboard() {
         title="Growth % e Churn % (alunos)"
         subtitle="Percentual de crescimento e de saída sobre a base do mês"
         legend={[
-          { name: "Growth", color: "#22c55e" },
-          { name: "Churn", color: "#ef4444" },
+          { name: "Growth", color: "hsl(var(--success))" },
+          { name: "Churn", color: "hsl(var(--danger))" },
         ]}
       >
         <LineChart
           labels={labels}
           percent
           series={[
-            { color: "#22c55e", values: ES_DATA.map((d) => d.growth) },
-            { color: "#ef4444", values: ES_DATA.map((d) => d.churnAlunos) },
+            { color: "hsl(var(--success))", values: ES_DATA.map((d) => d.growth) },
+            { color: "hsl(var(--danger))", values: ES_DATA.map((d) => d.churnAlunos) },
           ]}
         />
       </ChartCard>
@@ -165,10 +165,10 @@ function LineChart({
               x2={W - padR}
               y1={y(gv)}
               y2={y(gv)}
-              stroke="#e5e7eb"
+              stroke="hsl(var(--border))"
               strokeWidth={1}
             />
-            <text x={4} y={y(gv) + 4} fontSize={10} fill="#9ca3af">
+            <text x={4} y={y(gv) + 4} fontSize={10} fill="hsl(var(--muted-foreground))">
               {percent ? pf.format(gv) : nf.format(Math.round(gv))}
             </text>
           </g>
@@ -180,7 +180,7 @@ function LineChart({
               x={x(i)}
               y={H - 8}
               fontSize={10}
-              fill="#9ca3af"
+              fill="hsl(var(--muted-foreground))"
               textAnchor="middle"
             >
               {lb}

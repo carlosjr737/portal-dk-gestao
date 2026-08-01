@@ -24,10 +24,10 @@ export const alertVariants = cva(
   {
     variants: {
       tone: {
-        info: "border-border bg-muted text-foreground",
-        success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-        warning: "border-amber-200 bg-amber-50 text-amber-800",
-        danger: "border-red-200 bg-red-50 text-red-700",
+        info: "border-info/30 bg-info-tint text-info-fg",
+        success: "border-success/30 bg-success-tint text-success-fg",
+        warning: "border-warning/40 bg-warning-tint text-warning-fg",
+        danger: "border-danger/30 bg-danger-tint text-danger-fg",
       },
     },
     defaultVariants: {

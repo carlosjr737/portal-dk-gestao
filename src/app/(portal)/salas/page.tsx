@@ -67,7 +67,7 @@ export default async function SalasPage() {
                     <div className="flex items-center gap-3">
                       <span
                         className="h-6 w-6 rounded border border-border"
-                        style={{ backgroundColor: room.color ?? "#f8fafc" }}
+                        style={{ backgroundColor: room.color ?? "hsl(var(--muted))" }}
                       />
                       <div>
                         <p className="font-medium text-foreground">{room.name}</p>
