@@ -16,6 +16,11 @@ function statusPorEvento(event: string): string | null {
     case "PAYMENT_RECEIVED":
       return "ativa";
 
+    // Nova cobrança do ciclo seguinte: ainda não venceu, então continua ativa.
+    // Serve para mover o próximo vencimento (ver abaixo).
+    case "PAYMENT_CREATED":
+      return null;
+
     case "PAYMENT_OVERDUE":
       return "atrasada";
 
@@ -52,7 +57,12 @@ export async function processarEventoPagamento(
   const admin = createAdminClient();
 
   const novoStatus = statusPorEvento(evento.event);
-  if (!novoStatus) {
+  // PAYMENT_CREATED não muda status, mas move o vencimento: é o único momento
+  // em que sabemos a data da PRÓXIMA cobrança. Usar a data do evento de
+  // pagamento não serve — aquela é a da cobrança que acabou de ser quitada.
+  const moveVencimento = evento.event === "PAYMENT_CREATED";
+
+  if (!novoStatus && !moveVencimento) {
     return { aplicado: false, detalhe: `evento ${evento.event} não altera status` };
   }
 
@@ -74,14 +84,9 @@ export async function processarEventoPagamento(
     };
   }
 
-  const patch: Record<string, unknown> = {
-    status: novoStatus,
-    updated_at: new Date().toISOString(),
-  };
-  // Quando pago, o próximo vencimento passa a ser o da cobrança seguinte.
-  if (novoStatus === "ativa" && evento.dueDate) {
-    patch.proximo_vencimento = evento.dueDate;
-  }
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (novoStatus) patch.status = novoStatus;
+  if (moveVencimento && evento.dueDate) patch.proximo_vencimento = evento.dueDate;
 
   const { error } = await admin
     .from("plataforma_assinatura")
@@ -94,6 +99,8 @@ export async function processarEventoPagamento(
 
   return {
     aplicado: true,
-    detalhe: `assinatura ${assinatura.id}: ${assinatura.status} -> ${novoStatus}`,
+    detalhe: novoStatus
+      ? `assinatura ${assinatura.id}: ${assinatura.status} -> ${novoStatus}`
+      : `assinatura ${assinatura.id}: próximo vencimento -> ${evento.dueDate}`,
   };
 }

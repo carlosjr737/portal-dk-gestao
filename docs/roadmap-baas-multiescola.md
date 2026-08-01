@@ -134,11 +134,31 @@ Os logs acusaram **429 `over_request_rate_limit`** do Supabase Auth. Causa: cada
 **Objetivo:** a escola é cliente do SaaS e paga assinatura fixa — cobrada na conta
 da **própria plataforma**, nunca na subconta da escola e nunca misturada ao split.
 
-- 3.1 Papel de **dono da plataforma** (enxerga todas as escolas; hoje não existe).
-- 3.2 Cadastro/entrada de uma escola nova no sistema.
-- 3.3 Planos e assinatura por escola (valor, periodicidade).
-- 3.4 Cobrança recorrente da assinatura na conta da plataforma.
-- 3.5 Suspensão/reativação de acesso por inadimplência da escola.
+| Etapa | Entrega | Status |
+|---|---|---|
+| 3.1 | Papel de dono da plataforma + área `/plataforma` separada | ✅ |
+| 3.2 | Cadastro/entrada de uma escola nova no sistema | ⏳ |
+| 3.3 | Planos (Mensal R$ 390 · Anual R$ 4.212) | ✅ |
+| 3.4 | Assinatura recorrente na conta da plataforma | ✅ |
+| 3.5 | **Webhook de conciliação** — status muda sozinho ao pagar | ✅ |
+| 3.6 | Suspensão/reativação de acesso por inadimplência | ⏳ |
+
+**Validado ponta a ponta em 2026-08-01 (sandbox):** pagamento confirmado no
+provedor → `PAYMENT_CONFIRMED` recebido → assinatura `pendente → ativa` em
+2 segundos, sem intervenção.
+
+### Armadilha do webhook (vivida, não teórica)
+
+A fila foi **interrompida** antes do primeiro teste: o webhook foi criado no
+provedor antes de a variável existir na Vercel, o endpoint respondeu erro e,
+após 15 tentativas, o Asaas **pausou a entrega de todos os eventos** — em
+silêncio. Religar exige ação manual (painel, ou `PUT /v3/webhooks/{id}` com
+`interrupted: false`).
+
+É exatamente por isso que o endpoint grava o evento **antes** de processar e
+responde 2xx mesmo quando não consegue tratar: um bug no processamento não
+pode derrubar a conciliação inteira. O evento fica salvo com o erro e pode ser
+reprocessado.
 
 ---
 
