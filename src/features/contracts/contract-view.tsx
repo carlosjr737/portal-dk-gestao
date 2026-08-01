@@ -108,9 +108,16 @@ export function ContractView({
           II - A taxa de matrícula será paga como sinal, à vista, como condição
           para concretização e celebração deste contrato.
         </p>
+        {/*
+          Genérico de propósito: não cita o provedor de pagamento.
+          Ao entrar no BaaS, o Asaas EXIGE uma cláusula própria identificando-o
+          como instituição responsável (modelo no playbook de BaaS, pág. 11) —
+          ela entra como cláusula adicional, sem precisar reescrever esta.
+        */}
         <p>
-          III - Todas as parcelas serão pagas através da plataforma ContaAzul,
-          que o CONTRATANTE desde já autoriza emitir em seu nome.
+          III - Todas as parcelas serão pagas através da plataforma de pagamentos
+          indicada pelo CONTRATADO, que o CONTRATANTE desde já autoriza emitir
+          cobrança em seu nome.
         </p>
         <p>
           V - Após o vencimento, será acrescida ao valor uma multa de 2%, somada
