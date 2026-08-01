@@ -225,24 +225,48 @@ export default async function MatriculasPage({
                       {formatMoney(enrollment.monthly_amount)}
                     </td>
                     <td className="px-4 py-3">
-                      {enrollment.guardianContractId ? (
-                        (() => {
-                          const c = cobrancas.get(enrollment.guardianContractId);
+                      {(() => {
+                        const c = enrollment.guardianContractId
+                          ? cobrancas.get(enrollment.guardianContractId)
+                          : undefined;
+
+                        // Cobrança já existente aparece mesmo em matrícula
+                        // cancelada — o histórico importa.
+                        if (c && enrollment.guardianContractId) {
                           return (
                             <CobrancaAlunoButton
                               contratoId={enrollment.guardianContractId}
                               valor={enrollment.guardianContractTotalAmount ?? null}
-                              jaTemCobranca={Boolean(c)}
-                              statusCobranca={c?.status ?? null}
-                              proximoVencimento={c?.proximo_vencimento ?? null}
+                              jaTemCobranca
+                              statusCobranca={c.status}
+                              proximoVencimento={c.proximo_vencimento}
                             />
                           );
-                        })()
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Sem contrato
-                        </span>
-                      )}
+                        }
+
+                        // Não oferece cobrar quem não está estudando.
+                        if (enrollment.status !== "active") {
+                          return (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          );
+                        }
+
+                        if (!enrollment.guardianContractId) {
+                          return (
+                            <span className="text-xs text-muted-foreground">
+                              Sem contrato
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <CobrancaAlunoButton
+                            contratoId={enrollment.guardianContractId}
+                            valor={enrollment.guardianContractTotalAmount ?? null}
+                            jaTemCobranca={false}
+                          />
+                        );
+                      })()}
                     </td>
                     {usaContaAzul ? (
                       <td className="px-4 py-3">
