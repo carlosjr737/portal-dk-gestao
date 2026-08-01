@@ -15,6 +15,7 @@ import { syncGuardianContractAction } from "@/features/finance/conta-azul/enroll
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
+import { CobrancaAlunoButton } from "@/features/baas/cobranca-aluno-button";
 
 export const dynamic = "force-dynamic";
 
@@ -74,11 +75,16 @@ export default async function MatriculasPage({
   const guardianContractMessage = params?.guardianContract
     ? guardianContractMessages[params.guardianContract]
     : null;
-  const [enrollments, profile] = await Promise.all([
+  const [enrollments, profile, cobrancas, usaContaAzul] = await Promise.all([
     getEnrollments(),
     getCurrentProfile(),
+    getCobrancasPorContrato(),
+    escolaUsaContaAzul(),
   ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
+  // Colunas visíveis variam: só a escola que realmente conectou o Conta Azul
+  // vê as colunas dele. Escola nova entra direto no fluxo novo, sem legado.
+  const colunas = 10 + (usaContaAzul ? 1 : 0) + (canGenerateReceivable && usaContaAzul ? 1 : 0);
 
 
   return (
@@ -154,8 +160,11 @@ export default async function MatriculasPage({
                 <th className="px-4 py-3 font-semibold">1º vencimento</th>
                 <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
                 <th className="px-4 py-3 font-semibold">Valor mensal</th>
-                <th className="px-4 py-3 font-semibold">Conta Azul</th>
-                {canGenerateReceivable ? (
+                <th className="px-4 py-3 font-semibold">Cobrança</th>
+                {usaContaAzul ? (
+                  <th className="px-4 py-3 font-semibold">Conta Azul</th>
+                ) : null}
+                {canGenerateReceivable && usaContaAzul ? (
                   <th className="px-4 py-3 font-semibold">Ação</th>
                 ) : null}
               </tr>
@@ -216,9 +225,31 @@ export default async function MatriculasPage({
                       {formatMoney(enrollment.monthly_amount)}
                     </td>
                     <td className="px-4 py-3">
-                      <ConsolidatedContractStatus enrollment={enrollment} />
+                      {enrollment.guardianContractId ? (
+                        (() => {
+                          const c = cobrancas.get(enrollment.guardianContractId);
+                          return (
+                            <CobrancaAlunoButton
+                              contratoId={enrollment.guardianContractId}
+                              valor={enrollment.guardianContractTotalAmount ?? null}
+                              jaTemCobranca={Boolean(c)}
+                              statusCobranca={c?.status ?? null}
+                              proximoVencimento={c?.proximo_vencimento ?? null}
+                            />
+                          );
+                        })()
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Sem contrato
+                        </span>
+                      )}
                     </td>
-                    {canGenerateReceivable ? (
+                    {usaContaAzul ? (
+                      <td className="px-4 py-3">
+                        <ConsolidatedContractStatus enrollment={enrollment} />
+                      </td>
+                    ) : null}
+                    {canGenerateReceivable && usaContaAzul ? (
                       <td className="px-4 py-3">
                         {shouldShowGuardianContractSync(enrollment) ? (
                           <form action={syncGuardianContractAction}>
@@ -250,7 +281,7 @@ export default async function MatriculasPage({
               ) : (
                 <tr>
                   <td
-                    colSpan={canGenerateReceivable ? 11 : 10}
+                    colSpan={colunas}
                     className="px-4 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhuma matrícula encontrada.
@@ -273,6 +304,44 @@ async function getCurrentProfile() {
   }
 
   return getProfileByUserId(user.id);
+}
+
+type CobrancaResumo = { status: string; proximo_vencimento: string | null };
+
+/** Cobranças recorrentes já criadas, indexadas pelo contrato do responsável. */
+async function getCobrancasPorContrato(): Promise<Map<string, CobrancaResumo>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("aluno_assinatura")
+    .select("guardian_contract_id, status, proximo_vencimento");
+
+  return new Map(
+    (data ?? []).map((c) => [
+      c.guardian_contract_id as string,
+      {
+        status: c.status as string,
+        proximo_vencimento: (c.proximo_vencimento as string | null) ?? null,
+      },
+    ]),
+  );
+}
+
+/**
+ * A escola conectou o Conta Azul?
+ *
+ * Se não, as colunas dele nem aparecem: escola nova entra direto no fluxo
+ * novo, sem carregar legado que não é dela. Baseado em dado, não em regra
+ * fixa para o DK Studio.
+ */
+async function escolaUsaContaAzul(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("integration_connections")
+    .select("id")
+    .eq("provider", "conta_azul")
+    .eq("status", "connected")
+    .maybeSingle();
+  return Boolean(data);
 }
 
 async function getEnrollments(): Promise<EnrollmentListRow[]> {
