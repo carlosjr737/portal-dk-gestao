@@ -35,6 +35,14 @@ type IntegrationConnectionRow = {
   status: string | null;
 };
 
+/**
+ * ⚠️ Single-school por premissa: o Conta Azul é exclusivo do DK Studio e não
+ * será oferecido às demais escolas (ADR 0001 — no multi-escola quem assume é
+ * o Asaas). Por isso as consultas aqui não filtram por escola e usam
+ * `maybeSingle()`. Se algum dia uma segunda escola conectar o Conta Azul,
+ * estas queries precisam receber `escola_id` antes — senão retornam a
+ * conexão errada ou quebram por múltiplas linhas.
+ */
 export async function getContaAzulTokens(): Promise<ContaAzulTokens | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase

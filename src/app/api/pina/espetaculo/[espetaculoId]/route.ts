@@ -45,21 +45,30 @@ export async function GET(
   } catch {
     return json({ error: "unauthorized" }, 401);
   }
-  // As claims foram assinadas por nós no /sso-token.
+  // As claims foram assinadas por nós no /sso-token (ou no provisionamento).
   const viewer = {
     role: claims.role === "professor" ? ("professor" as const) : ("master" as const),
     staffMemberId: (claims.professorId as string | null) ?? null,
+    escolaId: (claims.escolaId as string | null) ?? null,
   };
 
   const admin = createAdminClient();
 
   const { data: espetaculo, error: espError } = await admin
     .from("espetaculo")
-    .select("id, nome")
+    .select("id, nome, escola_id")
     .eq("id", espetaculoId)
     .maybeSingle();
 
   if (espError || !espetaculo) {
+    return json({ error: "not_found" }, 404);
+  }
+
+  // Fronteira de escola: este client ignora a RLS, então o isolamento entre
+  // escolas depende desta checagem. Sem ela, bastaria conhecer o id de um
+  // espetáculo de outra escola para ler o elenco inteiro dela.
+  // 404 em vez de 403: não confirma sequer que o espetáculo existe.
+  if (espetaculo.escola_id !== viewer.escolaId) {
     return json({ error: "not_found" }, 404);
   }
 

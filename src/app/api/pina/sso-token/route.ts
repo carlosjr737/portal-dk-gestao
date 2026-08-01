@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/features/auth/session";
+import { getAuthenticatedUser, getCurrentEscolaId } from "@/features/auth/session";
 import { resolvePinaViewer } from "@/features/pina/auth";
 import { getPinaFirebaseAuth } from "@/features/pina/firebase-admin";
 
@@ -36,7 +36,9 @@ export async function POST() {
   try {
     const token = await auth.createCustomToken(uid, {
       role,
-      escolaId: null, // tenant-ready: preenchido quando o multi-escola (ADR 0002) existir
+      // A API do Pina usa admin client (ignora RLS), então a fronteira de
+      // escola precisa vir assinada no token.
+      escolaId: await getCurrentEscolaId(),
       professorId: viewer.staffMemberId,
     });
     return NextResponse.json({ token });

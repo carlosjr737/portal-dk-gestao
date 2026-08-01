@@ -37,14 +37,20 @@ export async function GET(request: NextRequest) {
   }
   const role = claims.role === "professor" ? "professor" : "master";
   const professorId = (claims.professorId as string | null) ?? null;
+  const escolaId = (claims.escolaId as string | null) ?? null;
+
+  // Este client ignora a RLS: sem escola na claim, não há como delimitar o
+  // que devolver. Falha fechado em vez de vazar dados de todas as escolas.
+  if (!escolaId) return json({ espetaculos: [] });
 
   const admin = createAdminClient();
 
-  // master vê todos; professor vê só onde participa (coreografia_professor)
+  // master vê todos os da SUA escola; professor, só onde participa.
   if (role !== "professor") {
     const { data } = await admin
       .from("espetaculo")
       .select("id, nome")
+      .eq("escola_id", escolaId)
       .order("created_at", { ascending: false });
     return json({ espetaculos: data ?? [] });
   }
@@ -70,6 +76,7 @@ export async function GET(request: NextRequest) {
     .from("espetaculo")
     .select("id, nome")
     .in("id", espIds)
+    .eq("escola_id", escolaId)
     .order("created_at", { ascending: false });
 
   return json({ espetaculos: esps ?? [] });

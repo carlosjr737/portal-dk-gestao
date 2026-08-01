@@ -28,7 +28,7 @@ export async function provisionPinaProfessor(
   const admin = createAdminClient();
   const { data: staff } = await admin
     .from("staff_members")
-    .select("id, email, role")
+    .select("id, email, role, escola_id")
     .eq("id", staffMemberId)
     .maybeSingle();
 
@@ -48,7 +48,13 @@ export async function provisionPinaProfessor(
       : "professor";
 
   const uid = staffMemberId;
-  const claims = { role, professorId: staffMemberId, escolaId: null };
+  // escolaId vai na claim: é o que permite a API do Pina barrar acesso a
+  // espetáculo de outra escola (o admin client de lá ignora a RLS).
+  const claims = {
+    role,
+    professorId: staffMemberId,
+    escolaId: (staff.escola_id as string | null) ?? null,
+  };
 
   // upsert do usuário Firebase
   let created = false;

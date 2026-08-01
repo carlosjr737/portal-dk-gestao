@@ -40,7 +40,7 @@ export async function resolvePinaViewer(
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, email, role, active")
+    .select("id, email, role, active, escola_id")
     .eq("id", userId)
     .maybeSingle();
 
@@ -54,11 +54,14 @@ export async function resolvePinaViewer(
 
   let staffMemberId: string | null = null;
   if (profile.email) {
-    const { data: staff } = await admin
+    // O vínculo é por e-mail, e este client ignora a RLS: sem escopar por
+    // escola, um e-mail repetido em duas escolas casaria com o staff errado.
+    let q = admin
       .from("staff_members")
       .select("id")
-      .ilike("email", profile.email as string)
-      .maybeSingle();
+      .ilike("email", profile.email as string);
+    if (profile.escola_id) q = q.eq("escola_id", profile.escola_id as string);
+    const { data: staff } = await q.maybeSingle();
     staffMemberId = (staff?.id as string | undefined) ?? null;
   }
 

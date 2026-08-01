@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
+import {
+  getAuthenticatedUser,
+  getCurrentEscolaId,
+  getProfileByUserId,
+} from "@/features/auth/session";
 import { isUserRole, type UserRole } from "@/features/auth/permissions";
 
 export type PortalUser = {
@@ -37,10 +41,15 @@ const usersPath = "/configuracoes/usuarios";
 export async function listUsers(filters: UserFilters = {}) {
   await requireAdmin();
 
+  // Admin client ignora a RLS: sem este filtro a tela listaria os usuários
+  // de todas as escolas.
+  const escolaId = await getCurrentEscolaId();
+
   const supabase = createAdminClient();
   let query = supabase
     .from("profiles")
     .select("id, name, email, role, active, created_at, updated_at")
+    .eq("escola_id", escolaId ?? "")
     .order("created_at", { ascending: false });
 
   if (filters.search) {
@@ -98,12 +107,17 @@ export async function createUser(formData: FormData) {
     redirectWithMessage("error", authError?.message ?? "Não foi possível criar o usuário.");
   }
 
+  // O admin client ignora a RLS e o DEFAULT da coluna cairia no fallback DK.
+  // O usuário novo tem que nascer na escola de quem o está criando.
+  const escolaId = await getCurrentEscolaId();
+
   const { error: profileError } = await supabase.from("profiles").insert({
     id: authData.user.id,
     name,
     email,
     role,
     active,
+    escola_id: escolaId,
     updated_at: new Date().toISOString(),
   });
 
@@ -133,6 +147,8 @@ export async function updateUserProfile(formData: FormData) {
     redirectWithMessage("error", "Você não pode desativar o próprio usuário.");
   }
 
+  const escolaId = await getCurrentEscolaId();
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("profiles")
@@ -142,7 +158,9 @@ export async function updateUserProfile(formData: FormData) {
       active,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    // trava de escola: impede editar usuário de outra escola por id
+    .eq("escola_id", escolaId ?? "");
 
   if (error) {
     redirectWithMessage("error", error.message);
@@ -165,6 +183,8 @@ export async function toggleUserActive(formData: FormData) {
     redirectWithMessage("error", "Você não pode desativar o próprio usuário.");
   }
 
+  const escolaId = await getCurrentEscolaId();
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("profiles")
@@ -172,7 +192,9 @@ export async function toggleUserActive(formData: FormData) {
       active: nextActive,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    // trava de escola: impede ativar/desativar usuário de outra escola
+    .eq("escola_id", escolaId ?? "");
 
   if (error) {
     redirectWithMessage("error", error.message);

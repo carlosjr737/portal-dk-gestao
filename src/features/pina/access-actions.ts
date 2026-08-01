@@ -1,6 +1,10 @@
 "use server";
 
-import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
+import {
+  getAuthenticatedUser,
+  getCurrentEscolaId,
+  getProfileByUserId,
+} from "@/features/auth/session";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -43,11 +47,17 @@ export async function provisionAllPinaAction(): Promise<{
   error?: string;
 }> {
   if (!(await isAdmin())) return { ok: false, error: "forbidden" };
+  // Este client ignora a RLS: sem o filtro, o backfill provisionaria os
+  // professores de todas as escolas.
+  const escolaId = await getCurrentEscolaId();
+  if (!escolaId) return { ok: false, error: "sem_escola" };
+
   const admin = createAdminClient();
   const { data: profs } = await admin
     .from("staff_members")
     .select("id, full_name, artistic_name, email")
     .eq("role", "professor")
+    .eq("escola_id", escolaId)
     .order("full_name");
 
   const rows: BackfillRow[] = [];
