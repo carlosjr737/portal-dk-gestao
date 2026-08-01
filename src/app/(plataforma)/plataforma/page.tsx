@@ -1,6 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  AssinaturaForm,
+  type PlanoOption,
+} from "@/features/plataforma/assinatura-form";
 
 export const dynamic = "force-dynamic";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+const ASSINATURA_LABEL: Record<string, { texto: string; classe: string }> = {
+  pendente: { texto: "Aguardando pagamento", classe: "bg-amber-100 text-amber-800" },
+  ativa: { texto: "Ativa", classe: "bg-emerald-100 text-emerald-800" },
+  atrasada: { texto: "Em atraso", classe: "bg-rose-100 text-rose-800" },
+  cancelada: { texto: "Cancelada", classe: "bg-slate-200 text-slate-600" },
+};
 
 const KYC_LABEL: Record<string, { texto: string; classe: string }> = {
   pendente: { texto: "Sem conta", classe: "bg-slate-100 text-slate-600" },
@@ -31,6 +44,31 @@ export default async function PlataformaEscolasPage() {
     alunosPorEscola.set(k, (alunosPorEscola.get(k) ?? 0) + 1);
   }
 
+  const [{ data: assinaturas }, { data: planosRows }] = await Promise.all([
+    admin
+      .from("plataforma_assinatura")
+      .select("escola_id, status, valor, proximo_vencimento"),
+    admin
+      .from("plataforma_plano")
+      .select("id, nome, periodicidade, valor")
+      .eq("ativo", true)
+      .order("valor"),
+  ]);
+
+  const assinaturaPorEscola = new Map(
+    (assinaturas ?? []).map((a) => [a.escola_id as string, a]),
+  );
+  const planos: PlanoOption[] = (planosRows ?? []).map((p) => ({
+    id: p.id as string,
+    nome: p.nome as string,
+    periodicidade: p.periodicidade as string,
+    valor: Number(p.valor),
+  }));
+
+  const receitaMensal = (assinaturas ?? [])
+    .filter((a) => a.status === "ativa")
+    .reduce((s, a) => s + Number(a.valor), 0);
+
   return (
     <div>
       <div className="flex items-end justify-between">
@@ -40,9 +78,16 @@ export default async function PlataformaEscolasPage() {
             Clientes da plataforma. A assinatura é o que libera o acesso ao sistema.
           </p>
         </div>
-        <span className="text-sm text-slate-500">
-          {lista.length} {lista.length === 1 ? "escola" : "escolas"}
-        </span>
+        <div className="text-right">
+          <p className="text-sm text-slate-500">
+            {lista.length} {lista.length === 1 ? "escola" : "escolas"}
+          </p>
+          {receitaMensal > 0 ? (
+            <p className="text-xs text-slate-500">
+              Assinaturas ativas: <strong>{brl.format(receitaMensal)}</strong>
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -83,9 +128,37 @@ export default async function PlataformaEscolasPage() {
                       {alunosPorEscola.get(e.id as string) ?? 0}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                        Não configurada
-                      </span>
+                      {(() => {
+                        const a = assinaturaPorEscola.get(e.id as string);
+                        if (!a) {
+                          return (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              Sem assinatura
+                            </span>
+                          );
+                        }
+                        const label =
+                          ASSINATURA_LABEL[a.status as string] ??
+                          ASSINATURA_LABEL.pendente;
+                        return (
+                          <div>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${label.classe}`}
+                            >
+                              {label.texto}
+                            </span>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {brl.format(Number(a.valor))}
+                              {a.proximo_vencimento
+                                ? ` · vence ${(a.proximo_vencimento as string)
+                                    .split("-")
+                                    .reverse()
+                                    .join("/")}`
+                                : ""}
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -108,10 +181,27 @@ export default async function PlataformaEscolasPage() {
         </table>
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">
-        A coluna <strong>Assinatura</strong> ainda não tem cobrança ligada — é a
-        próxima etapa (planos e cobrança recorrente na conta da plataforma).
-      </p>
+      {lista.filter((e) => !assinaturaPorEscola.has(e.id as string)).length > 0 ? (
+        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
+          <h2 className="text-base font-semibold text-slate-900">Nova assinatura</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Cobrada na conta da plataforma. É separada da conta de pagamentos da
+            escola, usada para receber dos alunos dela.
+          </p>
+          <div className="mt-4 space-y-5">
+            {lista
+              .filter((e) => !assinaturaPorEscola.has(e.id as string))
+              .map((e) => (
+                <AssinaturaForm
+                  key={e.id as string}
+                  escolaId={e.id as string}
+                  escolaNome={e.nome as string}
+                  planos={planos}
+                />
+              ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

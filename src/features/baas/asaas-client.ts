@@ -69,6 +69,83 @@ export async function criarSubcontaAsaas(
 }
 
 // ---------------------------------------------------------------------------
+// Fluxo 2 — assinatura da plataforma (plataforma cobra da escola)
+//
+// Usa a chave DA PLATAFORMA (env), não a da subconta: o dinheiro da assinatura
+// é receita da plataforma e cai na conta dela. Não confundir com o Fluxo 1
+// (escola cobra aluno, com split), que roda na subconta da escola.
+// ---------------------------------------------------------------------------
+
+export type ClienteAsaasInput = {
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  mobilePhone?: string;
+  postalCode?: string;
+  address?: string;
+  addressNumber?: string;
+  province?: string;
+  externalReference?: string;
+};
+
+export type ClienteAsaasResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
+
+export async function criarClienteAsaas(
+  input: ClienteAsaasInput,
+): Promise<ClienteAsaasResult> {
+  const apiKey = getAsaasApiKey();
+  if (!apiKey) return { ok: false, error: "asaas_not_configured" };
+
+  const res = await fetch(`${ASAAS_API_BASE}/customers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", access_token: apiKey },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true, id: data.id as string };
+}
+
+export type AssinaturaAsaasInput = {
+  customer: string;
+  value: number;
+  nextDueDate: string; // AAAA-MM-DD
+  cycle: "MONTHLY" | "YEARLY";
+  billingType: "PIX" | "BOLETO" | "CREDIT_CARD";
+  description?: string;
+  externalReference?: string;
+};
+
+export type AssinaturaAsaasResult =
+  | { ok: true; id: string; status: string; nextDueDate: string }
+  | { ok: false; error: string };
+
+export async function criarAssinaturaAsaas(
+  input: AssinaturaAsaasInput,
+): Promise<AssinaturaAsaasResult> {
+  const apiKey = getAsaasApiKey();
+  if (!apiKey) return { ok: false, error: "asaas_not_configured" };
+
+  const res = await fetch(`${ASAAS_API_BASE}/subscriptions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", access_token: apiKey },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return {
+    ok: true,
+    id: data.id as string,
+    status: (data.status as string) ?? "ACTIVE",
+    nextDueDate: (data.nextDueDate as string) ?? input.nextDueDate,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Onboarding / KYC da subconta
 //
 // ATENÇÃO: estes dois endpoints usam a chave DA SUBCONTA (não a da plataforma).
