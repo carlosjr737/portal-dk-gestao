@@ -64,35 +64,67 @@ export async function tornarAlunoProprioResponsavel(
     };
   }
 
-  // Cria o responsável com os dados do próprio aluno.
-  const { data: guardian, error: guardianError } = await supabase
-    .from("guardians")
-    .insert({
-      full_name: student.full_name,
-      document: student.document,
-      phone: student.phone,
-      email: student.email,
-      notes: "Responsável financeiro é o próprio aluno (maior de idade).",
-    })
-    .select("id")
-    .single();
+  // Mesma pessoa = mesmo cadastro. Se já existe um responsável com o CPF do
+  // aluno (ele pode já responder por um irmão, por exemplo), reaproveita —
+  // criar outro violaria o índice único de documento.
+  let guardianId: string | null = null;
+  const documento = (student.document as string | null)?.trim() || null;
 
-  if (guardianError || !guardian) {
-    return {
-      ok: false,
-      message: `Não foi possível criar o responsável: ${guardianError?.message ?? "erro desconhecido"}`,
-    };
+  if (documento) {
+    const { data: existente } = await supabase
+      .from("guardians")
+      .select("id")
+      .eq("document", documento)
+      .maybeSingle();
+    if (existente) guardianId = existente.id as string;
   }
 
-  const { error: linkError } = await supabase.from("student_guardians").insert({
-    student_id: studentId,
-    guardian_id: guardian.id,
-    relationship: RELACAO_PROPRIO_ALUNO,
-    is_financial_responsible: true,
-    is_primary_contact: true,
-    is_emergency_contact: false,
-    is_primary: true,
-  });
+  if (!guardianId) {
+    const { data: guardian, error: guardianError } = await supabase
+      .from("guardians")
+      .insert({
+        full_name: student.full_name,
+        document: documento,
+        phone: student.phone,
+        email: student.email,
+        notes: "Responsável financeiro é o próprio aluno (maior de idade).",
+      })
+      .select("id")
+      .single();
+
+    if (guardianError || !guardian) {
+      return {
+        ok: false,
+        message: `Não foi possível criar o responsável: ${guardianError?.message ?? "erro desconhecido"}`,
+      };
+    }
+    guardianId = guardian.id as string;
+  }
+
+  // O vínculo pode já existir com outro rótulo (ex.: aluno já cadastrado como
+  // responsável de si mesmo). Nesse caso, só marca como financeiro.
+  const vinculoExistente = (existingLinks ?? []).find(
+    (l) => (l.guardian_id as string) === guardianId,
+  );
+
+  const { error: linkError } = vinculoExistente
+    ? await supabase
+        .from("student_guardians")
+        .update({
+          relationship: RELACAO_PROPRIO_ALUNO,
+          is_financial_responsible: true,
+        })
+        .eq("student_id", studentId)
+        .eq("guardian_id", guardianId)
+    : await supabase.from("student_guardians").insert({
+        student_id: studentId,
+        guardian_id: guardianId,
+        relationship: RELACAO_PROPRIO_ALUNO,
+        is_financial_responsible: true,
+        is_primary_contact: true,
+        is_emergency_contact: false,
+        is_primary: true,
+      });
 
   if (linkError) {
     return {
@@ -106,7 +138,7 @@ export async function tornarAlunoProprioResponsavel(
 
   return {
     ok: true,
-    guardianId: guardian.id as string,
+    guardianId,
     nome: student.full_name as string,
     criado: true,
   };
