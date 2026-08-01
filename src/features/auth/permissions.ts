@@ -43,6 +43,7 @@ export const navigationItems = [
   { href: "/financeiro/vinculos-conta-azul", label: "Vínculos Conta Azul" },
   { href: "/financeiro/configuracoes", label: "Configurações financeiras" },
   { href: "/configuracoes", label: "Configurações" },
+  { href: "/configuracoes/escola", label: "Minha escola" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
   { href: "/configuracoes/pina-acessos", label: "Acessos ao Pina" },
 ] as const;

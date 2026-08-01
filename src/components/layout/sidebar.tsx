@@ -61,7 +61,12 @@ const navigationGroups = [
   {
     title: "Sistema",
     accordion: true,
-    items: ["/configuracoes/usuarios", "/configuracoes/pina-acessos", "/configuracoes"],
+    items: [
+      "/configuracoes/escola",
+      "/configuracoes/usuarios",
+      "/configuracoes/pina-acessos",
+      "/configuracoes",
+    ],
   },
 ] as const;
 
