@@ -17,9 +17,21 @@ import { cn } from "@/lib/utils";
  * dependência nova.
  */
 export const buttonVariants = cva(
-  // Base: o que todo botão tem. O anel de foco vem daqui, então nenhum botão
-  // novo nasce invisível para quem navega por teclado.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition disabled:pointer-events-none disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0",
+  /*
+   * Base: o que todo botão tem. O anel de foco vem daqui, então nenhum botão
+   * novo nasce invisível para quem navega por teclado.
+   *
+   * Desabilitado é CINZA, não transparente. Era `opacity-60`, e isso falhava
+   * de duas formas opostas: no botão de contorno, que já é quase todo branco,
+   * 60% de opacidade quase não mudava nada — desabilitado e ativo ficavam
+   * lado a lado praticamente iguais. No destrutivo, o vermelho a 60% virava
+   * um marrom-rosado que não parece nem perigo nem indisponível.
+   *
+   * Cinza chapado diz a mesma coisa em todas as variantes: não está
+   * disponível. Ghost e link desfazem o fundo mais abaixo, porque neles um
+   * bloco cinza seria estranho.
+   */
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition [&_svg]:size-4 [&_svg]:shrink-0 disabled:pointer-events-none disabled:border-transparent disabled:bg-muted disabled:text-muted-foreground",
   {
     variants: {
       variant: {
@@ -40,9 +52,9 @@ export const buttonVariants = cva(
         /** Ênfase intermediária, em escuro (usado em Imprimir). */
         secondary: "bg-foreground text-white hover:opacity-90",
         /** Sem moldura, para ação terciária dentro de listas e cartões. */
-        ghost: "text-foreground hover:bg-muted",
+        ghost: "text-foreground hover:bg-muted disabled:bg-transparent",
         /** Aparência de link, mantendo área de clique de botão. */
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline disabled:bg-transparent",
       },
       size: {
         /** Altura padrão do portal — a mesma dos campos de formulário. */

@@ -56,12 +56,6 @@ export function Field({
         ) : null}
       </label>
 
-      {hint ? (
-        <p id={hintId} className="mt-0.5 text-xs text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-
       <div className="mt-1">
         {/*
           Injeta id e as ligações de acessibilidade no controle, para a página
@@ -79,6 +73,23 @@ export function Field({
             })
           : children}
       </div>
+
+      {/*
+        Ajuda e erro vêm DEPOIS do campo, não entre o rótulo e ele.
+        Antes o hint ficava no meio e empurrava só o campo que o tinha para
+        baixo: numa grade de duas colunas, "Nome completo" e "CPF" ficavam em
+        alturas diferentes na mesma linha, e a leitura de que são um par se
+        perdia. Agora a distância rótulo→campo é sempre 4px, então todos os
+        campos de uma linha alinham independentemente do que vem embaixo.
+
+        Para leitor de tela não muda nada: quem liga o texto ao campo é o
+        aria-describedby, não a posição no DOM.
+      */}
+      {hint ? (
+        <p id={hintId} className="mt-1 text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
 
       {error ? (
         <p id={errorId} className="mt-1 text-xs text-destructive">
