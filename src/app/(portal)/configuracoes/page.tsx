@@ -16,7 +16,7 @@ export default function ConfiguracoesPage() {
         >
           <h2 className="text-lg font-semibold text-foreground">Usuários</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Gerencie acessos, perfis e status dos usuários do Portal DK.
+            Gerencie acessos, perfis e status dos usuários do sistema.
           </p>
         </Link>
       </section>

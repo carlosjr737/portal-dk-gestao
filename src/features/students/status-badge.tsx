@@ -1,4 +1,5 @@
 import type { StudentStatus } from "@/features/students/schemas";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 const statusLabels: Record<StudentStatus, string> = {
   active: "Ativo",
@@ -6,10 +7,10 @@ const statusLabels: Record<StudentStatus, string> = {
   evaluation: "Em avaliação",
 };
 
-const statusClasses: Record<StudentStatus, string> = {
-  active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  inactive: "border-slate-200 bg-slate-50 text-slate-600",
-  evaluation: "border-amber-200 bg-amber-50 text-amber-700",
+const statusTones: Record<StudentStatus, NonNullable<BadgeProps["tone"]>> = {
+  active: "success",
+  inactive: "neutral",
+  evaluation: "warning",
 };
 
 type StatusBadgeProps = {
@@ -17,11 +18,5 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses[status]}`}
-    >
-      {statusLabels[status]}
-    </span>
-  );
+  return <Badge tone={statusTones[status]}>{statusLabels[status]}</Badge>;
 }

@@ -4,9 +4,32 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  BarChart3,
+  BookUser,
+  CalendarCheck,
+  CalendarDays,
+  ChevronDown,
+  ClipboardList,
+  Drama,
+  FileSpreadsheet,
+  GraduationCap,
+  LayoutDashboard,
+  LineChart,
+  Receipt,
+  Repeat,
+  Settings,
+  Sparkles,
+  TrendingUp,
+  UserRound,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+import {
   getNavigationForRole,
   type UserRole,
 } from "@/features/auth/permissions";
+import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +38,45 @@ type SidebarProps = {
   onClose: () => void;
   role: UserRole;
   usaModuloFinanceiro?: boolean;
+  /** Nome da escola do usuário logado. O produto serve várias. */
+  escolaNome?: string | null;
+};
+
+/**
+ * Ícone por rota.
+ *
+ * Fica aqui e não em `permissions.ts` de propósito: aquele arquivo decide
+ * QUEM vê o quê, e não deve carregar um componente de UI junto. Rota sem
+ * entrada aqui cai num ícone neutro em vez de quebrar.
+ */
+const iconByHref: Record<string, LucideIcon> = {
+  "/dashboard": LayoutDashboard,
+  "/metricas-escola": BarChart3,
+  "/metricas-publico": Sparkles,
+  "/alunos": Users,
+  "/responsaveis": BookUser,
+  "/matriculas": ClipboardList,
+  "/importar-alunos": FileSpreadsheet,
+  "/turmas": GraduationCap,
+  "/salas": LayoutDashboard,
+  "/rodizio-salas": Repeat,
+  "/chamada": CalendarCheck,
+  "/professores": UserRound,
+  "/modalidades": Drama,
+  "/niveis": LineChart,
+  "/calendario": CalendarDays,
+  "/dna-professores": Sparkles,
+  "/espetaculos": Drama,
+  "/financeiro": Wallet,
+  "/financeiro/faturamento-turmas": Receipt,
+  "/financeiro/professores": Wallet,
+  "/financeiro/inadimplencia": Receipt,
+  "/financeiro/growth-churn": TrendingUp,
+  "/financeiro/entradas-saidas": Wallet,
+  "/configuracoes": Settings,
+  "/configuracoes/escola": Settings,
+  "/configuracoes/usuarios": Users,
+  "/configuracoes/pina-acessos": Settings,
 };
 
 const navigationGroups = [
@@ -75,6 +137,7 @@ export function Sidebar({
   onClose,
   role,
   usaModuloFinanceiro = true,
+  escolaNome,
 }: SidebarProps) {
   const pathname = usePathname();
   const navigation = getNavigationForRole(role, usaModuloFinanceiro);
@@ -101,101 +164,116 @@ export function Sidebar({
   const activeGroupTitle = visibleGroups.find((group) =>
     group.visibleItems.some((item) => item.href === activeHref),
   )?.title;
-  const [openGroup, setOpenGroup] = useState<string | null>(
-    activeGroupTitle ?? null,
+
+  /*
+   * Conjunto, não um grupo só. Antes abrir "Financeiro" fechava "Turmas e
+   * aulas", e quem trabalha entre os dois pagava dois cliques por ida e
+   * volta. O grupo ativo entra aberto e o resto continua como o usuário
+   * deixou.
+   */
+  const [openGroups, setOpenGroups] = useState<string[]>(
+    activeGroupTitle ? [activeGroupTitle] : [],
   );
 
   useEffect(() => {
-    setOpenGroup(activeGroupTitle ?? null);
+    if (!activeGroupTitle) return;
+    setOpenGroups((current) =>
+      current.includes(activeGroupTitle) ? current : [...current, activeGroupTitle],
+    );
   }, [activeGroupTitle]);
 
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 w-72 border-r border-border bg-white shadow-xl transition-transform duration-200 md:translate-x-0 md:shadow-none",
+        "fixed inset-y-0 left-0 z-40 w-64 bg-inverse text-white/70 transition-transform duration-200 md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
       <div className="flex h-full flex-col">
-        <div className="flex h-16 items-center justify-between border-b border-border px-5">
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Portal DK Gestão
-            </p>
-            <p className="text-xs text-muted-foreground">DK Studio</p>
+        <div className="flex h-16 items-center justify-between gap-2 px-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-[13px] font-bold text-primary-foreground">
+              {initial(escolaNome)}
+            </span>
+            {/*
+              A linha grande é a ESCOLA: quem está aqui trabalha numa escola,
+              não numa plataforma. O nome do produto aparece uma vez só, e o
+              cabeçalho não repete.
+            */}
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-sm font-semibold text-white">
+                {escolaNome ?? PLATFORM_NAME}
+              </span>
+              <span className="block truncate text-[11px] text-white/55">
+                {escolaNome ? PLATFORM_NAME : PLATFORM_TAGLINE}
+              </span>
+            </span>
           </div>
           <Button
             variant="outline"
             size="sm"
             type="button"
+            className="rounded-md px-2 py-1 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white md:hidden"
             onClick={onClose}
-            className="text-xs text-muted-foreground md:hidden"
           >
             Fechar
           </Button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-4">
           {visibleGroups.map((group) => {
             if (!group.accordion) {
-              return group.visibleItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    "rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                    activeHref === item.href
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ));
+              return (
+                <div key={group.title} className="space-y-0.5">
+                  {group.visibleItems.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      active={activeHref === item.href}
+                      onClose={onClose}
+                    />
+                  ))}
+                </div>
+              );
             }
 
-            const isOpenGroup = openGroup === group.title;
-            const hasActiveItem = group.title === activeGroupTitle;
+            const isOpenGroup = openGroups.includes(group.title);
 
             return (
-              <div key={group.title} className="mt-1">
+              <div key={group.title} className="space-y-0.5">
                 <button
                   type="button"
+                  aria-expanded={isOpenGroup}
                   onClick={() =>
-                    setOpenGroup((current) =>
-                      current === group.title ? null : group.title,
+                    setOpenGroups((current) =>
+                      current.includes(group.title)
+                        ? current.filter((title) => title !== group.title)
+                        : [...current, group.title],
                     )
                   }
-                  className={cn(
-                    "flex h-10 w-full items-center justify-between rounded-lg px-3 text-left text-[13px] font-semibold uppercase tracking-wide transition",
-                    hasActiveItem || isOpenGroup
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
+                  className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/55 transition hover:text-white"
                 >
                   <span>{group.title}</span>
-                  <span className="text-xs" aria-hidden="true">
-                    {isOpenGroup ? "▾" : "▸"}
-                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      isOpenGroup ? "rotate-0" : "-rotate-90",
+                    )}
+                    aria-hidden="true"
+                  />
                 </button>
 
                 {isOpenGroup ? (
-                  <div className="mt-1 flex flex-col gap-0.5 pl-3">
+                  <div className="space-y-0.5">
                     {group.visibleItems.map((item) => (
-                      <Link
+                      <NavLink
                         key={item.href}
                         href={item.href}
-                        onClick={onClose}
-                        className={cn(
-                          "rounded-lg px-3 py-2 text-sm font-medium transition",
-                          activeHref === item.href
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        {item.label}
-                      </Link>
+                        label={item.label}
+                        active={activeHref === item.href}
+                        onClose={onClose}
+                      />
                     ))}
                   </div>
                 ) : null}
@@ -203,16 +281,47 @@ export function Sidebar({
             );
           })}
         </nav>
-
-        <div className="border-t border-border px-5 py-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Operação interna
-          </p>
-          <p className="mt-1 text-sm text-foreground">Gestão artística e administrativa</p>
-        </div>
       </div>
     </aside>
   );
+}
+
+function NavLink({
+  href,
+  label,
+  active,
+  onClose,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  onClose: () => void;
+}) {
+  const Icon = iconByHref[href] ?? LayoutDashboard;
+
+  return (
+    <Link
+      href={href}
+      onClick={onClose}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-white/70 hover:bg-white/10 hover:text-white",
+      )}
+    >
+      <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
+/** Inicial da escola para a marca d'água do topo. Sem escola, sem letra. */
+function initial(escolaNome?: string | null) {
+  const nome = escolaNome?.trim();
+  if (!nome) return "•";
+  return nome[0]?.toUpperCase() ?? "•";
 }
 
 function getActiveHref(pathname: string, hrefs: string[]) {

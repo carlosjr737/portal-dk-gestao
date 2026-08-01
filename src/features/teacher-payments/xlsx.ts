@@ -1,6 +1,8 @@
 import "server-only";
 
 import ExcelJS from "exceljs";
+
+import { PLATFORM_NAME } from "@/lib/branding";
 import type { TeacherPaymentData } from "@/features/teacher-payments/queries";
 
 const MONEY = '"R$"\\ #,##0.00';
@@ -51,7 +53,7 @@ export async function buildTeacherPaymentsWorkbook(
   data: TeacherPaymentData,
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Portal DK Gestão";
+  wb.creator = PLATFORM_NAME;
   wb.calcProperties.fullCalcOnLoad = true; // Excel recalcula as fórmulas ao abrir
 
   // RESUMO fica como primeira aba, mas é preenchido DEPOIS (pra referenciar as abas).
@@ -204,7 +206,7 @@ export async function buildTeacherPaymentsWorkbook(
   rs.columns = [{ width: 4 }, { width: 30 }, { width: 12 }, { width: 18 }];
   rs.mergeCells("B2:D2");
   const title = rs.getCell("B2");
-  title.value = `FINANCEIRO DK — ${data.monthLabel.toUpperCase()}`;
+  title.value = `FINANCEIRO — ${data.monthLabel.toUpperCase()}`;
   title.font = { bold: true, size: 16, color: { argb: BLACK } };
   rs.mergeCells("B3:D3");
   rs.getCell("B3").value =

@@ -92,11 +92,8 @@ export function CalendarView({
       <section className="border-b border-border pb-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">
-              Portal DK Gestão
-            </p>
-            <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
-              Calendário DK
+            <h1 className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+              Calendário
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               Feriados, eventos, ensaios, recessos e aulas suspensas.

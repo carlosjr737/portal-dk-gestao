@@ -30,10 +30,9 @@ export function PageHeader({
     >
       <div>
         {/*
-          A sobrancelha "PORTAL DK GESTÃO" saiu daqui: o nome já aparece na
-          barra lateral e no topo, então era a terceira vez na mesma tela — e
-          ocupava a primeira linha da página, o lugar onde o olho procura em
-          que tela está. Quem lê agora encontra "Alunos", não a marca.
+          Sem sobrancelha de marca: o nome do produto aparece uma vez só,
+          na barra lateral. Aqui a primeira linha é o lugar onde o olho
+          procura em que tela está — quem lê encontra "Alunos".
         */}
         {/*
           24px/700, um tamanho só. Antes era 24 no celular e 30 no desktop —

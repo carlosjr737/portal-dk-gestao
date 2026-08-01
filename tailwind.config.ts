@@ -45,48 +45,39 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-
+        /* Barra lateral e outras áreas de contraste alto. */
+        inverse: "hsl(var(--surface-inverse))",
         /*
-         * Tons semânticos. Nomeados pelo SIGNIFICADO, nunca pela cor: quem
-         * escreve `tone="danger"` não decide qual vermelho, e o dia em que o
-         * vermelho mudar, muda em todo lugar.
+         * Semânticas com três papéis. `DEFAULT` é PREENCHIMENTO (barra,
+         * ponto, ícone), `text` é a variante legível sobre branco e `tint`
+         * é o fundo do selo. Usar `text-warning` num rótulo dá 2,29:1 —
+         * é para isso que `text-warning-text` existe.
          */
-        info: {
-          DEFAULT: "hsl(var(--info))",
-          fg: "hsl(var(--info-fg))",
-          tint: "hsl(var(--info-tint))",
-        },
         success: {
           DEFAULT: "hsl(var(--success))",
-          fg: "hsl(var(--success-fg))",
+          text: "hsl(var(--success-text))",
           tint: "hsl(var(--success-tint))",
+          strong: "hsl(var(--success-strong))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
-          fg: "hsl(var(--warning-fg))",
+          text: "hsl(var(--warning-text))",
           tint: "hsl(var(--warning-tint))",
         },
         danger: {
           DEFAULT: "hsl(var(--danger))",
-          fg: "hsl(var(--danger-fg))",
+          text: "hsl(var(--danger-text))",
           tint: "hsl(var(--danger-tint))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          text: "hsl(var(--info-text))",
+          tint: "hsl(var(--info-tint))",
         },
       },
       fontFamily: {
-        // `font-sans` passa a resolver para a Inter carregada no layout.
-        // A pilha de sistema fica de reserva enquanto a fonte carrega.
-        sans: [
-          "var(--font-sans)",
-          "system-ui",
-          "-apple-system",
-          "Segoe UI",
-          "Roboto",
-          "Helvetica",
-          "Arial",
-          "sans-serif",
-        ],
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
-
       /*
        * Raio conforme a direção: 8px em campo, botão e chip; 12px em card e
        * painel. Antes era 6px em tudo.

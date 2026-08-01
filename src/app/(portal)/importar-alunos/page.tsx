@@ -8,7 +8,7 @@ export default function ImportarAlunosPage() {
     <div>
       <PageHeader
         title="Importar alunos"
-        description="Analise a planilha do DK Studio antes de gravar alunos, responsáveis e matrículas."
+        description="Analise a planilha antes de gravar alunos, responsáveis e matrículas."
       />
       <StudentImportForm />
     </div>

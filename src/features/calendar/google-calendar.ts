@@ -418,7 +418,7 @@ function toGoogleEvent(event: CalendarEvent) {
   const descriptionParts = [event.description ?? ""];
 
   if (event.affects_classes) {
-    descriptionParts.push("Afeta aulas no Portal DK.");
+    descriptionParts.push("Afeta aulas no sistema.");
   }
 
   if (event.all_day) {

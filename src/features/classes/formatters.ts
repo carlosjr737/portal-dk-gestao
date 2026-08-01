@@ -58,19 +58,21 @@ export function getClassOperationalStatus({
   activeEnrollmentsCount: number;
 }) {
   if (status === "inactive") {
-    return { label: "Inativa", tone: "slate" as const };
+    return { label: "Inativa", tone: "neutral" as const };
   }
 
   if (status === "planning") {
-    return { label: "Em planejamento", tone: "amber" as const };
+    return { label: "Em planejamento", tone: "info" as const };
   }
 
   const performance = getClassPerformanceStatus(activeEnrollmentsCount);
+  // Tons do <Badge>, não nomes de cor: no dia em que o verde mudar, muda
+  // no token e não em cinco arquivos.
   const toneByPerformance = {
-    danger: "rose",
-    warning: "amber",
-    success: "emerald",
-    premium: "violet",
+    danger: "danger",
+    warning: "warning",
+    success: "success",
+    success_strong: "success",
   } as const;
 
   return {

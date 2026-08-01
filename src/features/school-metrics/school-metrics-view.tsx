@@ -221,7 +221,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Receita mensal líquida (mensalidade menos descontos) das matrículas
-          ativas do Portal DK.
+          ativas do sistema.
         </p>
       </div>
 

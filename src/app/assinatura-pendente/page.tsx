@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser, getCurrentEscolaId } from "@/features/auth/session";
 import { getSituacaoAssinatura } from "@/features/plataforma/assinatura-guard";
 import { buttonVariants } from "@/components/ui/button";
+import { PLATFORM_NAME } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function AssinaturaPendentePage() {
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6">
       <div className="w-full max-w-lg rounded-lg border border-border bg-white p-8 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          Portal DK Gestão
+          {PLATFORM_NAME}
         </p>
         <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
           {cancelada ? "Assinatura cancelada" : "Assinatura em atraso"}

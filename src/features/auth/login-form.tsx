@@ -37,13 +37,8 @@ export function LoginForm({ message }: LoginFormProps) {
         />
       </Field>
 
-      <Button
-        type="submit"
-        size="lg"
-        variant="secondary"
-        disabled={isPending}
-        className="w-full"
-      >
+      {/* Entrar é a ação principal da tela — variante primária, cobalto. */}
+      <Button type="submit" size="lg" disabled={isPending} className="w-full">
         {isPending ? "Entrando..." : "Entrar"}
       </Button>
     </form>

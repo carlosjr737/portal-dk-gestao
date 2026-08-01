@@ -2,15 +2,23 @@ import type { AttendanceClassSheet } from "@/features/attendance/data";
 
 type AttendanceSheetProps = {
   sheet: AttendanceClassSheet;
+  /**
+   * Nome da escola. A folha vai impressa para a mão do professor e é o
+   * único lugar onde o papel diz de quem ele é — então aqui é a escola,
+   * nunca o nome da plataforma.
+   */
+  escolaNome?: string | null;
 };
 
-export function AttendanceSheet({ sheet }: AttendanceSheetProps) {
+export function AttendanceSheet({ sheet, escolaNome }: AttendanceSheetProps) {
   return (
     <section className="attendance-print-sheet bg-white text-black">
       <header className="attendance-print-header border-b border-black pb-4">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <p className="text-lg font-bold">DK Studio</p>
+            {escolaNome ? (
+              <p className="text-lg font-bold">{escolaNome}</p>
+            ) : null}
             <h1 className="mt-1 text-2xl font-bold">Lista de chamada</h1>
           </div>
           <div className="text-right text-sm">

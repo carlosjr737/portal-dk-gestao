@@ -57,7 +57,7 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <PageHeader
           title="Usuários"
-          description="Crie usuários, defina perfis de acesso e controle quem pode entrar no Portal DK."
+          description="Crie usuários, defina perfis de acesso e controle quem pode entrar no sistema."
         />
         <Link
           href="/configuracoes/usuarios?mode=new"

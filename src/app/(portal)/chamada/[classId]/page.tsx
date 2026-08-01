@@ -10,6 +10,8 @@ import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { CatalogOption } from "@/features/class-catalog/types";
 import type { TeacherOption } from "@/features/staff/types";
 import { PrintButton } from "@/features/print/print-button";
+import { getEscolaNome } from "@/features/school/escola-nome";
+import { getCurrentEscolaId } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Alert } from "@/components/ui/alert";
 
@@ -60,6 +62,7 @@ export default async function ChamadaTurmaPage({
   const query = await searchParams;
   const month = normalizeAttendanceMonth(query?.month);
   const { sheet, schedulesError } = await getChamadaSheet(classId, month);
+  const escolaNome = await getEscolaNome(await getCurrentEscolaId());
 
   if (!sheet) {
     return (
@@ -83,7 +86,7 @@ export default async function ChamadaTurmaPage({
         <PrintButton />
       </div>
 
-      <AttendanceSheet sheet={sheet} />
+      <AttendanceSheet sheet={sheet} escolaNome={escolaNome} />
     </div>
   );
 }

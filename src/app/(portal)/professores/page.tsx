@@ -27,7 +27,7 @@ export default async function ProfessoresPage() {
     <div>
       <PageHeader
         title="Professores"
-        description="Cadastro de professores e equipe interna do DK Studio."
+        description="Cadastro de professores e equipe interna da escola."
       />
 
       <Card className="mt-6 p-5">

@@ -4,11 +4,18 @@ export type ClassPerformanceKey =
   | "high"
   | "high_performance";
 
+/*
+ * Ocupação é uma SEQUÊNCIA, não quatro categorias soltas: dois estados de
+ * problema e dois de saúde. `success` e `success_strong` dividem o mesmo
+ * verde em duas intensidades porque são o mesmo estado com pesos
+ * diferentes — o violeta que estava aqui sugeria uma quarta natureza que
+ * não existe.
+ */
 export type ClassPerformanceTone =
   | "danger"
   | "warning"
   | "success"
-  | "premium";
+  | "success_strong";
 
 export type ClassPerformanceStatus = {
   key: ClassPerformanceKey;
@@ -53,6 +60,6 @@ export function getClassPerformanceStatus(
     key: "high_performance",
     label: "Alta performance",
     description: "Turma com 16 ou mais alunos ativos.",
-    tone: "premium",
+    tone: "success_strong",
   };
 }

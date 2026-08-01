@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PLATFORM_NAME } from "@/lib/branding";
 
 /**
  * Guia de estilo — todos os componentes numa página só.
@@ -33,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
  * Fora do grupo (portal) de propósito: não exige sessão, e não toca no banco.
  */
 export const metadata = {
-  title: "Guia de estilo — Portal DK Gestão",
+  title: `Guia de estilo — ${PLATFORM_NAME}`,
 };
 
 export default function EstiloPage() {

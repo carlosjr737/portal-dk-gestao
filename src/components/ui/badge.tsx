@@ -19,12 +19,17 @@ export const badgeVariants = cva(
   "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
   {
     variants: {
+      /*
+       * Tinta clara de fundo + variante ESCURA de texto. A cor cheia do
+       * token (`bg-warning`) reprova como texto: âmbar sobre branco dá
+       * 2,29:1. Cada par abaixo fica entre 4,6:1 e 4,8:1.
+       */
       tone: {
         neutral: "bg-muted text-muted-foreground",
-        success: "bg-success-tint text-success-fg",
-        warning: "bg-warning-tint text-warning-fg",
-        danger: "bg-danger-tint text-danger-fg",
-        info: "bg-info-tint text-info-fg",
+        success: "bg-success-tint text-success-text",
+        warning: "bg-warning-tint text-warning-text",
+        danger: "bg-danger-tint text-danger-text",
+        info: "bg-info-tint text-info-text",
         /** Destaque na cor da marca — usar com parcimônia. */
         brand: "bg-primary text-primary-foreground",
       },

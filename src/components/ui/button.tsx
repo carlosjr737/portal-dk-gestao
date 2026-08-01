@@ -48,7 +48,9 @@ export const buttonVariants = cva(
          * que o campo vizinho na mesma linha.
          */
         outline:
-          "border border-input bg-transparent text-foreground hover:bg-muted",
+          // `border-input`, não `border-border`: senão o botão fica mais
+          // claro que o campo ao lado dele na mesma linha de filtro.
+          "border border-input bg-card text-foreground hover:bg-muted",
         /** Ênfase intermediária, em escuro (usado em Imprimir). */
         secondary: "bg-foreground text-white hover:opacity-90",
         /** Sem moldura, para ação terciária dentro de listas e cartões. */

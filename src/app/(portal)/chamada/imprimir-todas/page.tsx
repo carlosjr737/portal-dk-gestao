@@ -9,6 +9,8 @@ import {
   weekdayOptions,
 } from "@/features/attendance/data";
 import { PrintButton } from "@/features/print/print-button";
+import { getEscolaNome } from "@/features/school/escola-nome";
+import { getCurrentEscolaId } from "@/features/auth/session";
 import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +33,7 @@ export default async function ImprimirTodasPage({
   const params = await searchParams;
   const filters = parseFilters(params);
   const sheets = await getSheetsForPrint(filters);
+  const escolaNome = await getEscolaNome(await getCurrentEscolaId());
 
   return (
     <div className="bg-white">
@@ -48,7 +51,7 @@ export default async function ImprimirTodasPage({
         {sheets.length > 0 ? (
           sheets.map((sheet) => (
             <div key={sheet.id} className="attendance-print-page">
-              <AttendanceSheet sheet={sheet} />
+              <AttendanceSheet sheet={sheet} escolaNome={escolaNome} />
             </div>
           ))
         ) : (

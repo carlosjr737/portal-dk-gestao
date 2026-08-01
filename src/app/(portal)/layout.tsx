@@ -5,6 +5,7 @@ import {
   canAccessPath,
   exigeModuloFinanceiro,
 } from "@/features/auth/permissions";
+import { getEscolaNome } from "@/features/school/escola-nome";
 import { escolaUsaModuloFinanceiro } from "@/features/school/modulo-financeiro";
 import {
   getAuthenticatedUser,
@@ -53,8 +54,14 @@ export default async function PortalLayout({
     redirect("/assinatura-pendente");
   }
 
+  const escolaNome = await getEscolaNome(profile.escolaId ?? null);
+
   return (
-    <AppShell profile={profile} usaModuloFinanceiro={usaModuloFinanceiro}>
+    <AppShell
+      profile={profile}
+      usaModuloFinanceiro={usaModuloFinanceiro}
+      escolaNome={escolaNome}
+    >
       {assinatura.emAviso ? (
         <AvisoAssinatura
           diasDeAtraso={assinatura.diasDeAtraso}

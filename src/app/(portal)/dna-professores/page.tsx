@@ -43,7 +43,7 @@ export default async function DnaProfessoresPage({
     <div>
       <PageHeader
         title="DNA do Professor"
-        description="Acompanhe a pontuação dos professores nos 13 pilares do padrão DK."
+        description="Acompanhe a pontuação dos professores nos 13 pilares do padrão pedagógico."
       />
 
       <section className="mt-6 rounded-lg border border-border bg-white p-4 shadow-sm">

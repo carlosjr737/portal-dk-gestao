@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="FINANCEIRO-DK-${year}-${String(mon).padStart(2, "0")}.xlsx"`,
+      "Content-Disposition": `attachment; filename="FINANCEIRO-${year}-${String(mon).padStart(2, "0")}.xlsx"`,
       "Cache-Control": "no-store",
     },
   });

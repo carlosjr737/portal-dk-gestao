@@ -76,7 +76,7 @@ export default async function TeacherDnaDetailPage({
           <div className="min-w-0 flex-1">
             <PageHeader
               title={teacherName}
-              description="Detalhe da pontuação do professor nos 13 pilares do padrão DK."
+              description="Detalhe da pontuação do professor nos 13 pilares do padrão pedagógico."
             />
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-2 md:min-w-[360px]">

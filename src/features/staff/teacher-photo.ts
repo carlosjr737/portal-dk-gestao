@@ -30,7 +30,7 @@ export function getTeacherInitials(name: string) {
     .filter(Boolean);
 
   if (parts.length === 0) {
-    return "DK";
+    return "?";
   }
 
   return parts

@@ -16,7 +16,7 @@ export default async function MetricasEscolaPage() {
     <div>
       <PageHeader
         title="Métricas da escola"
-        description="Visão geral de matrículas, ocupação e receita de todo o DK Studio."
+        description="Visão geral de matrículas, ocupação e receita da escola."
       />
       <div className="mt-6">
         <SchoolMetricsView metrics={metrics} />
