@@ -6,6 +6,8 @@ export type UserProfile = {
   email: string | null;
   role: UserRole;
   active: boolean;
+  /** Escola (tenant) a que o usuário pertence. Fonte da verdade do multi-escola. */
+  escolaId: string | null;
 };
 
 export const roleLabels: Record<UserRole, string> = {

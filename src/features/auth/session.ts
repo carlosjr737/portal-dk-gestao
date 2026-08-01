@@ -13,6 +13,7 @@ type ProfileRow = {
   email: string | null;
   role: string | null;
   active: boolean | null;
+  escola_id: string | null;
 };
 
 export async function getAuthenticatedUser() {
@@ -33,7 +34,7 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, active")
+    .select("id, name, email, role, active, escola_id")
     .eq("id", userId)
     .maybeSingle();
 
@@ -59,5 +60,20 @@ function normalizeProfile(profile: ProfileRow): UserProfile | null {
     email: profile.email,
     role: profile.role,
     active: profile.active === true,
+    escolaId: profile.escola_id,
   };
+}
+
+/**
+ * Escola (tenant) do usuário logado. Toda query/insert de dados de domínio
+ * deve ser escopada por este id — é o equivalente, no código, ao
+ * `current_escola()` que as policies de RLS usam no banco.
+ *
+ * Retorna null se não houver sessão ou se o perfil ainda não tiver escola.
+ */
+export async function getCurrentEscolaId(): Promise<string | null> {
+  const user = await getAuthenticatedUser();
+  if (!user) return null;
+  const profile = await getProfileByUserId(user.id);
+  return profile?.escolaId ?? null;
 }
