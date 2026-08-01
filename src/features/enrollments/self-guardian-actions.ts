@@ -18,7 +18,7 @@ const RELACAO_PROPRIO_ALUNO = "Próprio aluno";
  * Aluno maior de idade que paga a própria mensalidade.
  *
  * Em vez de deixar a matrícula sem responsável financeiro — o que quebraria
- * contrato, cobrança e a sincronização com o Conta Azul, todos ancorados no
+ * contrato e cobrança recorrente, ambos ancorados no
  * responsável —, criamos um `guardian` com os dados do próprio aluno e o
  * vinculamos como responsável financeiro. O contrato então sai naturalmente
  * no nome dele.

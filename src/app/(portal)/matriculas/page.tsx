@@ -37,8 +37,7 @@ export default async function MatriculasPage({
     ]);
   const canGenerateReceivable = profile?.active && profile.role === "admin";
   // Colunas visíveis variam por escola: quem não optou pelo módulo de
-  // pagamento não vê "Cobrança", e quem não conectou o Conta Azul não vê as
-  // colunas dele. Escola que só quer a gestão fica com a tela limpa.
+  // pagamento não vê a coluna "Cobrança" — fica com a tela limpa.
   const colunas = 9 + (usaPagamentos ? 1 : 0);
 
 
@@ -264,7 +263,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       { data: classes, error: classesError },
       { data: guardians, error: guardiansError },
       { data: teachers, error: teachersError },
-      { data: financialRecords, error: financialRecordsError },
       { data: guardianContractItems, error: guardianContractItemsError },
       { data: guardianContracts, error: guardianContractsError },
     ] = await Promise.all([
@@ -282,13 +280,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         .select("id, full_name, artistic_name")
         .eq("role", "professor"),
       supabase
-        .from("enrollment_financial_records")
-        .select(
-          "id, enrollment_id, status, provider_protocol_id, provider_receivable_id, provider_contract_id, amount, due_date, error_message, created_at",
-        )
-        .eq("provider", "conta_azul")
-        .order("created_at", { ascending: false }),
-      supabase
         .from("guardian_financial_contract_items")
         .select("id, enrollment_id, guardian_contract_id"),
       supabase
@@ -302,7 +293,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       classesError ??
       guardiansError ??
       teachersError ??
-      financialRecordsError ??
       guardianContractItemsError ??
       guardianContractsError;
 
@@ -348,10 +338,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
         { id: guardian.id as string, full_name: guardian.full_name as string },
       ]),
     );
-    const financialRecordsByEnrollmentId = new Map<
-      string,
-      EnrollmentListRow["externalFinancialRecord"]
-    >();
     const guardianContractItemsByEnrollmentId = new Map<
       string,
       {
@@ -364,29 +350,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       Omit<NonNullable<EnrollmentListRow["guardianFinancialContract"]>, "item_id">
     >();
 
-    for (const record of financialRecords ?? []) {
-      const enrollmentId = record.enrollment_id as string;
-
-      if (!financialRecordsByEnrollmentId.has(enrollmentId)) {
-        financialRecordsByEnrollmentId.set(enrollmentId, {
-          status: record.status as string,
-          provider_protocol_id:
-            (record.provider_protocol_id as string | null) ?? null,
-          provider_receivable_id:
-            (record.provider_receivable_id as string | null) ?? null,
-          provider_contract_id:
-            (record.provider_contract_id as string | null) ?? null,
-          amount:
-            typeof record.amount === "number"
-              ? record.amount
-              : record.amount
-                ? Number(record.amount)
-                : null,
-          due_date: (record.due_date as string | null) ?? null,
-          error_message: (record.error_message as string | null) ?? null,
-        });
-      }
-    }
 
     for (const contract of guardianContracts ?? []) {
       const contractId = contract.id as string | null;
@@ -472,8 +435,6 @@ async function getEnrollments(): Promise<EnrollmentListRow[]> {
       class: classesById.get(enrollment.class_id as string) ?? null,
       financialGuardian:
         guardiansById.get(enrollment.financial_guardian_id as string) ?? null,
-      externalFinancialRecord:
-        financialRecordsByEnrollmentId.get(enrollment.id as string) ?? null,
       guardianFinancialContract:
         contract && contractItem
           ? {

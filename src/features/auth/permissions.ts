@@ -40,7 +40,6 @@ export const navigationItems = [
   { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
   { href: "/financeiro/entradas-saidas", label: "Entradas & Saídas" },
-  { href: "/financeiro/configuracoes", label: "Configurações financeiras" },
   { href: "/configuracoes", label: "Configurações" },
   { href: "/configuracoes/escola", label: "Minha escola" },
   { href: "/configuracoes/usuarios", label: "Usuários" },

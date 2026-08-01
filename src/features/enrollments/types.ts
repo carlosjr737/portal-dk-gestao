@@ -62,15 +62,6 @@ export type EnrollmentListRow = {
     id: string;
     full_name: string;
   } | null;
-  externalFinancialRecord: {
-    status: string;
-    provider_protocol_id: string | null;
-    provider_receivable_id: string | null;
-    provider_contract_id: string | null;
-    amount: number | null;
-    due_date: string | null;
-    error_message: string | null;
-  } | null;
   guardianFinancialContract: {
     id: string;
     item_id: string | null;

@@ -89,7 +89,9 @@ async function getDefaultDueDay() {
   const { data, error } = await supabase
     .from("finance_provider_settings")
     .select("default_due_day")
-    .eq("provider", "conta_azul")
+    // Regra da escola (vencimento dia 5), não de provedor de pagamento.
+    // A linha ficou com provider='conta_azul' por herança; o filtro saiu.
+    .limit(1)
     .maybeSingle();
 
   if (error) {

@@ -24,12 +24,6 @@ export default function FinanceiroPage() {
             Inadimplência
           </Link>
           <Link
-            href="/financeiro/vinculos-conta-azul"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
-          >
-            Vínculos Conta Azul
-          </Link>
-          <Link
             href="/financeiro/growth-churn"
             className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-muted"
           >

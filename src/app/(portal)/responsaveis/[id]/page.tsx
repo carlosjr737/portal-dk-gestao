@@ -6,8 +6,6 @@ import {
   getProfileByUserId,
 } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { ensureContaAzulGuardianLinkAction } from "@/features/finance/conta-azul/guardian-link-actions";
-import { ContaAzulGuardianLinkForm } from "@/features/finance/conta-azul/guardian-link-form";
 import {
   linkGuardianToStudent,
 } from "@/features/guardians/actions";
@@ -46,11 +44,6 @@ export default async function ResponsavelDetalhePage({
   }
 
   const linkAction = linkGuardianToStudent.bind(null, guardian.id);
-  const contaAzulLinkAction = ensureContaAzulGuardianLinkAction.bind(
-    null,
-    guardian.id,
-  );
-  const canManageContaAzulLink = profile?.active && profile.role === "admin";
 
   return (
     <div>
@@ -89,42 +82,6 @@ export default async function ResponsavelDetalhePage({
         </p>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Conta Azul
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Vínculo financeiro do responsável com cliente/pessoa no Conta Azul.
-            </p>
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  ID Conta Azul
-                </span>
-                <span className="mt-1 block font-medium text-foreground">
-                  {formatText(guardian.conta_azul_person_id)}
-                </span>
-              </div>
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Última sincronização
-                </span>
-                <span className="mt-1 block font-medium text-foreground">
-                  {formatDateTime(guardian.conta_azul_last_sync_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-          {canManageContaAzulLink ? (
-            <ContaAzulGuardianLinkForm
-              action={contaAzulLinkAction}
-              hasContaAzulLink={Boolean(guardian.conta_azul_person_id)}
-            />
-          ) : null}
-        </div>
-      </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_420px]">
         <div className="rounded-md border border-border bg-white">
@@ -205,7 +162,7 @@ async function getGuardian(id: string): Promise<Guardian | null> {
     const { data, error } = await supabase
       .from("guardians")
       .select(
-        "id, full_name, document, phone, email, address, notes, conta_azul_person_id, conta_azul_last_sync_at, created_at, updated_at",
+        "id, full_name, document, phone, email, address, notes, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();

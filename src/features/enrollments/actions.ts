@@ -11,7 +11,7 @@ import {
 } from "@/features/enrollments/schemas";
 import {
   cancelEnrollmentGuardianFinancialContractItem,
-} from "@/features/finance/guardian-contracts/contracts";
+} from "@/features/finance/guardian-contracts/contract-items";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
 export type EnrollmentActionState = {
