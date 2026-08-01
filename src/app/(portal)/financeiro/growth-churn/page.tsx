@@ -159,7 +159,7 @@ export default async function GrowthChurnPage({
           }))}
         />
         <div className="flex items-end gap-2 lg:col-span-6">
-          <Button type="submit">Filtrar</Button>
+          <Button variant="outline" type="submit">Filtrar</Button>
           <Link
             href="/financeiro/growth-churn"
             className={buttonVariants({ variant: "outline" })}

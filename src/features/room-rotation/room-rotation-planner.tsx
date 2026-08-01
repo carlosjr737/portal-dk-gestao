@@ -382,7 +382,7 @@ export function RoomRotationPlanner({
 
           </Field>
           <div className="flex items-end gap-2 xl:col-span-2">
-            <Button type="submit">Filtrar</Button>
+            <Button variant="outline" type="submit">Filtrar</Button>
             <a
               href="/rodizio-salas"
               className={buttonVariants({ variant: "outline" })}

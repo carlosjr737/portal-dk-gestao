@@ -25,12 +25,18 @@ export const buttonVariants = cva(
       variant: {
         /** Ação principal da tela. Uma por tela, idealmente. */
         default: "bg-primary text-primary-foreground hover:opacity-90",
-        /** Ação destrutiva. Vermelho próprio, distinto do carmim da marca. */
+        /** Ação destrutiva. Reservada a perigo — nunca a comando. */
         destructive:
           "bg-destructive text-destructive-foreground hover:opacity-90",
-        /** Ação secundária: Voltar, Cancelar, Filtrar, Exportar. */
+        /**
+         * Ação secundária: Voltar, Cancelar, Filtrar, Exportar, Limpar.
+         *
+         * Usa `border-input` e não `border-border`: este botão vive ao lado de
+         * campos, e com a borda decorativa ele ficava visivelmente mais claro
+         * que o campo vizinho na mesma linha.
+         */
         outline:
-          "border border-border bg-transparent text-foreground hover:bg-muted",
+          "border border-input bg-transparent text-foreground hover:bg-muted",
         /** Ênfase intermediária, em escuro (usado em Imprimir). */
         secondary: "bg-foreground text-white hover:opacity-90",
         /** Sem moldura, para ação terciária dentro de listas e cartões. */

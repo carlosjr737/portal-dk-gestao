@@ -130,7 +130,7 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
         </Field>
 
         <div className="flex items-end gap-2">
-          <Button type="submit">Filtrar</Button>
+          <Button variant="outline" type="submit">Filtrar</Button>
           <Link
             href="/chamada"
             className={buttonVariants({ variant: "outline" })}

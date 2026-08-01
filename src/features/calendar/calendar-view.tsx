@@ -279,7 +279,7 @@ export function CalendarView({
                 <option value="no">Afeta aulas: não</option>
               </Select>
             </label>
-            <Button
+            <Button variant="outline"
               type="submit"
             >
               Filtrar

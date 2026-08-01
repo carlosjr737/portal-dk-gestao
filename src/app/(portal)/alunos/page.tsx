@@ -86,7 +86,7 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
         </label>
 
         <div className="flex items-end gap-2">
-          <Button variant="secondary" type="submit">
+          <Button variant="outline" type="submit">
             Filtrar
           </Button>
           <Link

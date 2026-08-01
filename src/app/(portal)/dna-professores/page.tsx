@@ -109,7 +109,7 @@ export default async function DnaProfessoresPage({
 
           </Field>
           <div className="flex items-end gap-2">
-            <Button type="submit">Filtrar</Button>
+            <Button variant="outline" type="submit">Filtrar</Button>
             <Link
               href="/dna-professores"
               className={buttonVariants({ variant: "outline" })}

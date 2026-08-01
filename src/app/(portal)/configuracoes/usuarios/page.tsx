@@ -123,8 +123,7 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
         </label>
 
         <div className="flex items-end gap-2 md:col-span-4">
-          <Button
-            variant="secondary"
+          <Button variant="outline"
             className="font-semibold"
             type="submit"
           >

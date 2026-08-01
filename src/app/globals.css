@@ -3,41 +3,58 @@
 @tailwind utilities;
 
 :root {
-  /* Paleta original do portal — os valores não mudaram. */
   --background: 0 0% 99%;
   --foreground: 222 47% 11%;
   --border: 214 32% 91%;
   --muted: 210 40% 96%;
   --muted-foreground: 215 16% 47%;
-  --primary: 346 77% 49%;
-  --primary-foreground: 0 0% 100%;
 
   /*
-   * Complemento para os componentes de UI. Tudo aqui foi extraído do que as
-   * telas já usavam à mão — cartão branco, borda cinza, foco na cor da marca.
-   * Nada de cor nova, só nome para o que já existia espalhado.
+   * Cobalto #5B5CE2 — a cor da marca, conforme a direção de identidade.
+   *
+   * Era o carmim #DD1D4A herdado do DK. Duas razões para sair, e a segunda
+   * importa mais que a primeira:
+   *
+   * 1. A direção define um produto INDEPENDENTE do DK, e o carmim é a
+   *    assinatura visual do DK.
+   * 2. Enquanto ele existia, o sistema tinha duas famílias de vermelho
+   *    fazendo trabalhos opostos: comando (Salvar) e perigo (Excluir). A
+   *    regra é que cobalto identifica a marca e vermelho identifica
+   *    problema — uma nunca substitui a outra.
+   *
+   * Branco sobre cobalto dá 5,15:1 (o carmim dava 4,83:1), então o botão
+   * primário também ficou mais legível.
    */
+  --primary: 240 70% 62%;
+  --primary-foreground: 0 0% 100%;
+
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222 47% 11%;
   --accent: 210 40% 96%;
   --accent-foreground: 222 47% 11%;
-  --input: 214 32% 91%;
-  --ring: 346 77% 49%;
+
+  /*
+   * Contorno de CONTROLE — separado de --border de propósito.
+   *
+   * Os dois eram o mesmo valor (#E1E7EF), que contra o card branco dá
+   * 1,24:1. Para divisor está ótimo: é decorativo e não tem requisito. Para
+   * o contorno de um campo de formulário, a WCAG 1.4.11 exige 3:1 — e este
+   * produto é quase todo digitação, então na prática os campos não tinham
+   * limite visível, só uma sugestão de limite.
+   *
+   * #8794AA dá 3,07:1. O botão `outline` também passou a usar este token:
+   * senão ele ficaria mais claro que o campo ao lado dele na mesma linha.
+   */
+  --input: 218 17% 60%;
+
+  --ring: 240 70% 62%;
   --radius: 0.375rem;
 
   /*
-   * Vermelho de ação destrutiva.
-   *
-   * ATENÇÃO, esta é a única cor que MUDOU. As telas usavam `bg-rose-600`
-   * (#e11d48) em "Excluir", e a cor da marca é #dd1d4a — a mesma cor, para
-   * qualquer olho. "Salvar" e "Excluir" ficavam idênticos, lado a lado, e a
-   * única diferença era ler o rótulo.
-   *
-   * Este vermelho é mais fechado e menos rosa, então destoa do carmim da
-   * marca em vez de imitá-lo. Se preferir voltar, é só devolver
-   * `347 77% 50%` aqui — nenhum componente tem a cor escrita dentro.
+   * Vermelho de ação destrutiva. Fica reservado para perigo — nunca para
+   * comando, que agora é o cobalto.
    */
   --destructive: 0 72% 42%;
   --destructive-foreground: 0 0% 100%;
