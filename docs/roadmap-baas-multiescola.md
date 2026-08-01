@@ -51,8 +51,8 @@
 | 1.1 | Tabela `school` + seed DK Studio + `escola_id` nullable + backfill | ✅ 33 tabelas, 0 nulos |
 | 1.2 | Contexto de tenant: `current_escola()` no banco + `escolaId` na sessão | ✅ |
 | 1.3 | RLS por escola em todas as tabelas (`multitenant_04_rls.sql`) | ⏳ pronto p/ rodar |
-| 1.4 | Converter os arquivos que usam admin client como contorno → cliente RLS | ⏳ |
-| 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ⏳ |
+| 1.4 | Converter os arquivos que usam admin client como contorno → cliente RLS | ✅ 207 → 33 queries |
+| 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ⏳ 33 queries restantes |
 | 1.6 | `NOT NULL` + remover o fallback DK do default | ⏳ |
 | 1.7 | CRUD de escolas (cadastro/edição) | ⏳ |
 | 1.8 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
@@ -68,6 +68,23 @@ Além disso, as policies existentes eram quase todas `using (true)` — qualquer
 **Decisão:** corrigir a RLS e reduzir o admin client ao uso legítimo (API do Pina autenticada por Firebase, provisionamento, `session.ts`, token store do Conta Azul), em vez de espalhar `.eq("escola_id")` por 207 pontos — que deixaria o isolamento dependendo de ninguém esquecer o filtro.
 
 **Princípio das policies:** preservar o comportamento *dentro* da escola e adicionar só a fronteira de tenant. `SELECT` = escola inteira (qualquer papel); `WRITE` = admin/equipe da escola.
+
+### Onde o admin client permanece (33 queries — piso legítimo)
+
+| Local | Por quê |
+|---|---|
+| `api/pina/*` (13) | Autenticado por Firebase; não existe sessão Supabase |
+| `token-store` Conta Azul (6) | Refresh de OAuth pode rodar fora de sessão |
+| `pina/provision`, `auth`, `access-actions` (5) | Provisionamento de contas |
+| `users/actions` (4) | `auth.admin.createUser/updateUserById` exigem service_role |
+| `staff/actions` (4) | Criação de bucket de storage exige service_role |
+| `session.ts` (1) | Resolve a própria sessão — ovo e galinha |
+
+⚠️ **Estes ignoram a RLS.** Na etapa 1.5 cada um precisa filtrar `escola_id` explicitamente (a API do Pina já filtra por espetáculo, mas o espetáculo precisa ser validado contra a escola do professor).
+
+### Achado de performance (2026-07-31)
+
+Os logs acusaram **429 `over_request_rate_limit`** do Supabase Auth. Causa: cada componente de servidor chamava `auth.getUser()`, que faz uma chamada de rede à API de autenticação — uma página só disparava várias. Resolvido com `cache()` do React em `getAuthenticatedUser` e `getProfileByUserId`: uma chamada por request, independentemente de quantos componentes peçam. Isso seria um gargalo sério com várias escolas e usuários simultâneos.
 
 > **Ordem importa:** 1.1 é aditiva (nullable, sem RLS) e não quebra o single-school. `NOT NULL` e RLS (1.4) só entram **depois** de 1.3, senão o sistema quebra em produção.
 
