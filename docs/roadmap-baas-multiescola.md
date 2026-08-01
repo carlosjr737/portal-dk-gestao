@@ -48,12 +48,26 @@
 
 | Etapa | Entrega | Status |
 |---|---|---|
-| 1.1 | Tabela `school` + seed DK Studio + `escola_id` nullable + backfill (`scripts/multitenant_01_school.sql`) | ⏳ pronto p/ rodar |
-| 1.2 | Contexto de tenant na sessão (`profiles.escola_id` → `current_escola()`) | ⏳ |
-| 1.3 | Código lendo/escrevendo `escola_id` em queries e inserts | ⏳ |
-| 1.4 | `NOT NULL` + RLS por escola (isolamento entre tenants) | ⏳ |
-| 1.5 | CRUD de escolas (cadastro/edição) | ⏳ |
-| 1.6 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
+| 1.1 | Tabela `school` + seed DK Studio + `escola_id` nullable + backfill | ✅ 33 tabelas, 0 nulos |
+| 1.2 | Contexto de tenant: `current_escola()` no banco + `escolaId` na sessão | ✅ |
+| 1.3 | RLS por escola em todas as tabelas (`multitenant_04_rls.sql`) | ⏳ pronto p/ rodar |
+| 1.4 | Converter os arquivos que usam admin client como contorno → cliente RLS | ⏳ |
+| 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ⏳ |
+| 1.6 | `NOT NULL` + remover o fallback DK do default | ⏳ |
+| 1.7 | CRUD de escolas (cadastro/edição) | ⏳ |
+| 1.8 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
+
+### Diagnóstico do isolamento (2026-07-31)
+
+**207 das 362 queries (57%) usam o admin client, que ignora RLS.** Ajustar policies sozinho não protegeria o multi-escola. Causa raiz: **12 tabelas tinham RLS ligada e ZERO policy** — negavam tudo ao cliente normal, forçando o código a usar `service_role`:
+
+`guardian_financial_contracts` (+items/versions) · `calendar_events` · `google_calendar_connections` · `growth_churn_events` · `enrollment_financial_records` · `class_teacher_rate` · `finance_provider_settings` · `dre_entries` · `churn_reasons` · `school`
+
+Além disso, as policies existentes eram quase todas `using (true)` — qualquer autenticado via tudo.
+
+**Decisão:** corrigir a RLS e reduzir o admin client ao uso legítimo (API do Pina autenticada por Firebase, provisionamento, `session.ts`, token store do Conta Azul), em vez de espalhar `.eq("escola_id")` por 207 pontos — que deixaria o isolamento dependendo de ninguém esquecer o filtro.
+
+**Princípio das policies:** preservar o comportamento *dentro* da escola e adicionar só a fronteira de tenant. `SELECT` = escola inteira (qualquer papel); `WRITE` = admin/equipe da escola.
 
 > **Ordem importa:** 1.1 é aditiva (nullable, sem RLS) e não quebra o single-school. `NOT NULL` e RLS (1.4) só entram **depois** de 1.3, senão o sistema quebra em produção.
 
