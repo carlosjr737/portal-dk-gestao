@@ -39,9 +39,14 @@ export function FaturaBotao({ contratoId }: { contratoId: string }) {
   }
 
   if (!fatura.ok) {
+    // "Nada em aberto" não é erro: é tudo pago. Só falha de verdade fica
+    // em vermelho, para o vermelho continuar significando alguma coisa.
+    const tudoPago = fatura.message?.includes("Nenhuma cobrança em aberto");
     return (
       <div className="text-xs">
-        <p className="text-rose-600">{fatura.message}</p>
+        <p className={tudoPago ? "text-muted-foreground" : "text-rose-600"}>
+          {tudoPago ? "Tudo pago — nada a enviar." : fatura.message}
+        </p>
         <button
           type="button"
           onClick={() => setFatura(null)}
