@@ -21,7 +21,7 @@
 |---|---|---|
 | 0.1 | Protótipo da tela de subconta com selo Asaas (evidência Q06) | ✅ feito (`/configuracoes/baas-preview`) |
 | 0.2 | Criar subconta real no sandbox e capturar print | ✅ subconta `78c9177b-…` criada (wallet `72b51abf-…`) |
-| 0.3 | Preencher e enviar o Checklist BaaS (Google Forms do Asaas) | ⏳ |
+| 0.3 | Preencher e enviar o Checklist BaaS (Google Forms do Asaas) | ✅ enviado |
 | 0.4 | Análise do Asaas (~3 dias úteis) + eventuais ajustes | ⏳ |
 | 0.5 | Assinatura do contrato de BaaS | ⏳ |
 | 0.6 | Questionário de Segurança da Informação | ⏳ |
@@ -42,12 +42,20 @@
 
 **Objetivo:** transformar o portal single-school em multi-escola. **Maior bloco de esforço do projeto** e pré-requisito de tudo que vem depois.
 
-- 1.1 Tabela `school` (razão social, CNPJ, endereço, contatos, status KYC, `asaas_account_id`, `asaas_wallet_id`).
-- 1.2 Propagar `escola_id` por todo o schema (alunos, turmas, matrículas, staff, financeiro, espetáculos, personagens…).
-- 1.3 RLS por escola — isolamento total entre tenants.
-- 1.4 Resolver a escola do usuário na sessão (contexto de tenant).
-- 1.5 Backfill: DK Studio vira a primeira `school`; dados atuais recebem seu `escola_id`.
-- 1.6 Tirar o hardcode do CONTRATADO no contrato do aluno (constante `DK` em `contracts/contract-view.tsx`) → passa a vir da escola.
+**Estratégia:** `escola_id` **denormalizado** em toda tabela de domínio (não só nas raízes). Policies de RLS que sobem cadeia de joins são lentas e frágeis; com a coluna local a policy vira `escola_id = current_escola()`.
+
+**Escopo real do schema (levantado em 2026-07-31):** 50 tabelas, sendo 13 backups `bkp_*` → **32 tabelas recebem `escola_id`**, `espetaculo` já tinha, `users` é legada/vazia e as 3 join tables de coreografia herdam pela `coreografia`.
+
+| Etapa | Entrega | Status |
+|---|---|---|
+| 1.1 | Tabela `school` + seed DK Studio + `escola_id` nullable + backfill (`scripts/multitenant_01_school.sql`) | ⏳ pronto p/ rodar |
+| 1.2 | Contexto de tenant na sessão (`profiles.escola_id` → `current_escola()`) | ⏳ |
+| 1.3 | Código lendo/escrevendo `escola_id` em queries e inserts | ⏳ |
+| 1.4 | `NOT NULL` + RLS por escola (isolamento entre tenants) | ⏳ |
+| 1.5 | CRUD de escolas (cadastro/edição) | ⏳ |
+| 1.6 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
+
+> **Ordem importa:** 1.1 é aditiva (nullable, sem RLS) e não quebra o single-school. `NOT NULL` e RLS (1.4) só entram **depois** de 1.3, senão o sistema quebra em produção.
 
 > **Não depende do Asaas.** Pode rodar 100% em paralelo à Fase 0.
 
