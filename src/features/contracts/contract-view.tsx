@@ -43,6 +43,10 @@ export function ContractView({
   const nomeEscola =
     contract.escola?.nome?.toUpperCase() ?? "A ESCOLA";
   const cidade = contract.escola?.cidade?.toUpperCase() ?? "";
+  // Foro: "Cidade/UF" do cadastro da escola.
+  const comarca =
+    [contract.escola?.cidade, contract.escola?.uf].filter(Boolean).join("/") ||
+    "____________";
   const dataExtenso = `${cidade ? `${cidade}, ` : ""}${String(emitidoEm.dia).padStart(2, "0")} de ${MESES[emitidoEm.mes - 1]} de ${emitidoEm.ano}.`;
 
   return (
@@ -209,7 +213,7 @@ export function ContractView({
 
       <Clause title="Cláusula Décima Terceira – Do Foro Judicial">
         <p>
-          As partes elegem o foro da comarca de Belo Horizonte/MG para dirimir
+          As partes elegem o foro da comarca de {comarca} para dirimir
           quaisquer dúvidas ou litígios decorrentes do presente contrato.
         </p>
       </Clause>

@@ -36,6 +36,8 @@ export type ContractEscola = {
   enderecoComercial: string | null;
   /** Usada no fecho do contrato ("CIDADE, 01 de agosto de 2026."). */
   cidade: string | null;
+  /** Compõe o foro ("comarca de Cidade/UF"). */
+  uf: string | null;
 };
 
 export type StudentContract = {
@@ -174,6 +176,7 @@ export async function getStudentContract(
           cnpj: (escolaRow.cnpj as string | null) ?? null,
           enderecoComercial: montarEndereco(escolaRow),
           cidade: (escolaRow.cidade as string | null) ?? null,
+          uf: (escolaRow.uf as string | null) ?? null,
         }
       : null;
 
