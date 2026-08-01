@@ -96,6 +96,14 @@ export type ClienteAsaasInput = {
   addressNumber?: string;
   province?: string;
   externalReference?: string;
+  /**
+   * Desliga as notificações do provedor para este cliente.
+   *
+   * Cada e-mail/SMS enviado por ele é cobrado (~R$ 0,50). Quando a escola
+   * entrega a cobrança por conta própria (link/WhatsApp), pagar por isso é
+   * desperdício — e o padrão do provedor é vir LIGADO.
+   */
+  notificationDisabled?: boolean;
 };
 
 export type ClienteAsaasResult =
@@ -211,6 +219,68 @@ export async function registrarWebhookSubconta(
   const data = await res.json().catch(() => null);
   if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
   return { ok: true, id: data.id as string };
+}
+
+/**
+ * Cobrança em aberto de uma assinatura, com o que é preciso para entregar ao
+ * pagador: o link da fatura e, no caso do Pix, o copia-e-cola.
+ *
+ * Existe porque a escola entrega a cobrança por conta própria — as
+ * notificações do provedor são cobradas por envio.
+ */
+export type CobrancaEmAberto = {
+  id: string;
+  status: string;
+  value: number;
+  dueDate: string;
+  billingType: string;
+  /** Página onde o responsável paga (Pix, boleto ou cartão). */
+  invoiceUrl: string | null;
+  /** Boleto em PDF, quando a forma permite. */
+  bankSlipUrl: string | null;
+};
+
+export type CobrancasResult =
+  | { ok: true; cobrancas: CobrancaEmAberto[] }
+  | { ok: false; error: string };
+
+export async function listarCobrancasAssinatura(
+  subscriptionId: string,
+  subcontaApiKey: string,
+): Promise<CobrancasResult> {
+  const res = await fetch(
+    `${ASAAS_API_BASE}/subscriptions/${subscriptionId}/payments`,
+    { headers: { access_token: subcontaApiKey } },
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+
+  const lista = (data?.data ?? []) as Array<Record<string, unknown>>;
+  return {
+    ok: true,
+    cobrancas: lista.map((p) => ({
+      id: p.id as string,
+      status: (p.status as string) ?? "",
+      value: Number(p.value ?? 0),
+      dueDate: (p.dueDate as string) ?? "",
+      billingType: (p.billingType as string) ?? "",
+      invoiceUrl: (p.invoiceUrl as string | null) ?? null,
+      bankSlipUrl: (p.bankSlipUrl as string | null) ?? null,
+    })),
+  };
+}
+
+/** Pix copia-e-cola de uma cobrança, para quem prefere pagar sem abrir página. */
+export async function obterPixCopiaECola(
+  paymentId: string,
+  subcontaApiKey: string,
+): Promise<string | null> {
+  const res = await fetch(`${ASAAS_API_BASE}/payments/${paymentId}/pixQrCode`, {
+    headers: { access_token: subcontaApiKey },
+  });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return (data?.payload as string | undefined) ?? null;
 }
 
 // ---------------------------------------------------------------------------

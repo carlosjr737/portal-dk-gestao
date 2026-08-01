@@ -124,6 +124,9 @@ export async function criarCobrancaAluno(
       email: (guardian.email as string | null) ?? undefined,
       mobilePhone: soDigitos(guardian.phone) || undefined,
       externalReference: guardian.id as string,
+      // A escola entrega a cobrança (link/WhatsApp). Deixar o provedor
+      // notificar custaria ~R$ 0,50 por envio, e o padrão dele é vir LIGADO.
+      notificationDisabled: true,
     },
     apiKey,
   );

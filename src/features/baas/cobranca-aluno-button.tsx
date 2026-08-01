@@ -5,6 +5,7 @@ import {
   criarCobrancaAluno,
   type CobrancaAlunoState,
 } from "@/features/baas/cobranca-aluno-actions";
+import { FaturaBotao } from "@/features/baas/fatura-modal";
 
 const initial: CobrancaAlunoState = {};
 
@@ -33,6 +34,7 @@ export function CobrancaAlunoButton({
       cancelada: { texto: "Cancelada", classe: "bg-muted text-muted-foreground" },
     };
     const r = rotulo[statusCobranca ?? "pendente"] ?? rotulo.pendente;
+    const emAberto = statusCobranca !== "cancelada";
     return (
       <div>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.classe}`}>
@@ -42,6 +44,11 @@ export function CobrancaAlunoButton({
           <p className="mt-1 text-xs text-muted-foreground">
             vence {proximoVencimento.split("-").reverse().join("/")}
           </p>
+        ) : null}
+        {emAberto ? (
+          <div className="mt-1">
+            <FaturaBotao contratoId={contratoId} />
+          </div>
         ) : null}
       </div>
     );
