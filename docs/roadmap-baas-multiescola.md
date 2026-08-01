@@ -116,7 +116,33 @@ Os logs acusaram **429 `over_request_rate_limit`** do Supabase Auth. Causa: cada
 
 ---
 
-## Fase 3 — Cobrança recorrente (Fluxo 1: escola → alunos)
+## Fase 3 — Entrada da escola + assinatura da plataforma (Fluxo 2)
+
+> **Correção de ordem (2026-08-01).** Este bloco estava numerado como Fase 5, depois
+> da cobrança dos alunos. Está errado: a assinatura é o que **libera o sistema** para
+> a escola, e a subconta (Fase 2) é passo **opcional e posterior** — só existe se a
+> escola quiser cobrar os alunos por aqui. A hierarquia real do negócio é:
+>
+> ```
+> 1. escola cria conta no sistema
+> 2. escola paga ASSINATURA à plataforma      <- libera o uso
+> 3. escola usa a gestão (turmas, alunos, chamada…)
+> 4. SE quiser cobrar aluno pelo sistema -> cria subconta   (Fase 2)
+> 5. cobrança do aluno com split                            (Fase 4)
+> ```
+
+**Objetivo:** a escola é cliente do SaaS e paga assinatura fixa — cobrada na conta
+da **própria plataforma**, nunca na subconta da escola e nunca misturada ao split.
+
+- 3.1 Papel de **dono da plataforma** (enxerga todas as escolas; hoje não existe).
+- 3.2 Cadastro/entrada de uma escola nova no sistema.
+- 3.3 Planos e assinatura por escola (valor, periodicidade).
+- 3.4 Cobrança recorrente da assinatura na conta da plataforma.
+- 3.5 Suspensão/reativação de acesso por inadimplência da escola.
+
+---
+
+## Fase 4 — Cobrança recorrente (Fluxo 1: escola → alunos)
 
 **Objetivo:** mensalidade cai **direto na subconta da escola**, com a taxa da plataforma retida no split.
 
@@ -137,16 +163,6 @@ Os logs acusaram **429 `over_request_rate_limit`** do Supabase Auth. Causa: cada
 
 ---
 
-## Fase 5 — Billing da plataforma (Fluxo 2: DK → escola)
-
-**Objetivo:** a escola é cliente do SaaS e paga assinatura fixa — **separado do split**, nunca misturado.
-
-- 5.1 Planos/assinatura por escola.
-- 5.2 Cobrança na conta da própria DK (não na subconta da escola).
-- 5.3 Suspensão/reativação por inadimplência da escola.
-
----
-
 ## Fase 6 — Conformidade contínua e desligamento do Conta Azul
 
 - 6.1 **Selo Asaas** em toda tela que movimente/exiba valores (mapear todas) — trocar o placeholder pela URL oficial do CDN.
@@ -161,20 +177,30 @@ Os logs acusaram **429 `over_request_rate_limit`** do Supabase Auth. Causa: cada
 
 ```
 Fase 0 (regulatório) ──────────────┐
-                                   ├──> Fase 2 ──> Fase 3 ──> Fase 4 ──> Fase 5
-Fase 1 (multi-tenant) ─────────────┘
-                                        Fase 6 corre em paralelo a partir da Fase 2
+                                   ├──> Fase 3 (assinatura) ──> Fase 4 ──> Fase 5
+Fase 1 (multi-tenant) ─────────────┘        │
+                                            └──> Fase 2 (subconta) é OPCIONAL
+                                                 e só necessária para a Fase 4
 ```
 
 - Fases 0 e 1 são **paralelas e independentes**.
-- Fase 2 exige **as duas** concluídas.
+- **Fase 3 é o caminho principal**: sem assinatura, a escola não usa o sistema.
+- **Fase 2 (subconta) é um ramo opcional** — só a escola que quiser cobrar os
+  alunos por aqui precisa dela. Foi construída antes por engano de ordenação,
+  mas está pronta e não atrapalha.
 - Fase 6 acompanha tudo a partir da Fase 2.
+
+## Ambiente de testes — limites conhecidos
+
+A conta de desenvolvimento permite testar **sem depender da aprovação do BaaS**:
+até ~10 subcontas e volume limitado (na ordem de R$ 2.000). Suficiente para
+validar assinatura, subconta, cobrança e split ponta a ponta.
 
 ## Riscos
 
 | Risco | Mitigação |
 |---|---|
-| Asaas pedir ajuste no modelo na análise | Não construir Fase 2+ antes da aprovação; Fase 1 é agnóstica ao provedor |
+| Asaas pedir ajuste no modelo na análise | Fase 1 é agnóstica ao provedor. A conta de desenvolvimento permite validar tudo antes da aprovação (ver limites acima) |
 | Pix Automático sem suporte em todo banco | Fallback boleto/Pix-cobrança é obrigatório (3.4) |
 | Tributação da taxa de split mal enquadrada | Validação contábil na 0.7, **antes** de assinar |
 | Redação errada da cobrança (parecer tarifa bancária) | 6.3 — revisar copy de contrato e telas |
