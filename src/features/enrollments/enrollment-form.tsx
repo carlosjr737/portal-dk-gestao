@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { EnrollmentActionState } from "@/features/enrollments/actions";
+import { tornarAlunoProprioResponsavel } from "@/features/enrollments/self-guardian-actions";
 import { enrollmentStatusOptions } from "@/features/enrollments/schemas";
 import type {
   EnrollmentClassOption,
@@ -51,6 +58,8 @@ export function EnrollmentForm({
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedFinancialGuardianId, setSelectedFinancialGuardianId] =
     useState("");
+  const [selfGuardianPending, startSelfGuardian] = useTransition();
+  const [selfGuardianMsg, setSelfGuardianMsg] = useState("");
 
   const selectedStudent = students.find(
     (student) => student.id === selectedStudentId,
@@ -70,6 +79,26 @@ export function EnrollmentForm({
   useEffect(() => {
     setSelectedFinancialGuardianId(financialGuardianLink?.guardian_id ?? "");
   }, [financialGuardianLink?.guardian_id, selectedStudentId]);
+
+  function handleAlunoProprioResponsavel() {
+    if (!selectedStudentId) return;
+    setSelfGuardianMsg("");
+    startSelfGuardian(async () => {
+      const r = await tornarAlunoProprioResponsavel(selectedStudentId);
+      if (!r.ok) {
+        setSelfGuardianMsg(r.message);
+        return;
+      }
+      setSelectedFinancialGuardianId(r.guardianId);
+      setSelfGuardianMsg(
+        r.criado
+          ? `${r.nome} agora é o responsável financeiro da própria matrícula.`
+          : `${r.nome} já era o próprio responsável financeiro.`,
+      );
+      // recarrega os vínculos vindos do servidor pra o select listar o novo
+      router.refresh();
+    });
+  }
 
   // Busca automática enquanto digita — sem precisar clicar em "Buscar".
   // O debounce evita uma ida ao servidor a cada tecla.
@@ -321,6 +350,26 @@ export function EnrollmentForm({
               <span className="mt-1 block text-xs text-red-600">
                 {state.errors.financial_guardian_id[0]}
               </span>
+            ) : null}
+            {/* Aluno maior de idade que paga a própria mensalidade. */}
+            {selectedStudentId && !financialGuardianLink ? (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  disabled={selfGuardianPending}
+                  onClick={handleAlunoProprioResponsavel}
+                  className="text-xs font-medium text-primary underline underline-offset-2 disabled:opacity-60"
+                >
+                  {selfGuardianPending
+                    ? "Vinculando…"
+                    : "O próprio aluno é o responsável financeiro (maior de idade)"}
+                </button>
+                {selfGuardianMsg ? (
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {selfGuardianMsg}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
           </label>
           <Field

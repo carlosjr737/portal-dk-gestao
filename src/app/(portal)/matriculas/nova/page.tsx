@@ -152,8 +152,11 @@ async function getStudentResults(
       .limit(12);
 
     if (search) {
+      // As aspas são obrigatórias: sem elas, um nome com espaço
+      // ("DENER CLINSMAN") quebra o parser do filtro e não retorna nada.
+      const termo = `"%${normalizedSearch}%"`;
       query = query.or(
-        `full_name.ilike.%${normalizedSearch}%,phone.ilike.%${normalizedSearch}%,email.ilike.%${normalizedSearch}%`,
+        `full_name.ilike.${termo},phone.ilike.${termo},email.ilike.${termo}`,
       );
     } else if (selectedStudentId) {
       query = query.eq("id", selectedStudentId);
