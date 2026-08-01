@@ -23,6 +23,7 @@ const opcional = z
 const schoolSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome da escola."),
   razao_social: opcional,
+  representante_legal: opcional,
   cnpj: opcional,
   email: opcional,
   telefone: opcional,
@@ -38,6 +39,7 @@ const schoolSchema = z.object({
 const CAMPOS = [
   "nome",
   "razao_social",
+  "representante_legal",
   "cnpj",
   "email",
   "telefone",

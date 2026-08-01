@@ -16,13 +16,8 @@ function dateBR(iso: string | null) {
   return iso.split("-").reverse().join("/");
 }
 
-// Dados fixos do CONTRATADO (do modelo enviado).
-const DK = {
-  representanteLegal: "CARLOS ANTONIO DE SOUZA JUNIOR",
-  cnpj: "43330929000191",
-  enderecoComercial:
-    "Av Prof Cristovam do Santos, 43A. Belvedere. Belo Horizonte. MG. CEP: 30320510.",
-};
+/** Placeholder quando o dado ainda não foi preenchido em "Minha escola". */
+const VAZIO = "________________________________";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -44,7 +39,11 @@ export function ContractView({
     );
   }
 
-  const dataExtenso = `BELO HORIZONTE, ${String(emitidoEm.dia).padStart(2, "0")} de ${MESES[emitidoEm.mes - 1]} de ${emitidoEm.ano}.`;
+  // Nome usado ao longo das cláusulas — vem da escola cadastrada.
+  const nomeEscola =
+    contract.escola?.nome?.toUpperCase() ?? "A ESCOLA";
+  const cidade = contract.escola?.cidade?.toUpperCase() ?? "";
+  const dataExtenso = `${cidade ? `${cidade}, ` : ""}${String(emitidoEm.dia).padStart(2, "0")} de ${MESES[emitidoEm.mes - 1]} de ${emitidoEm.ano}.`;
 
   return (
     <section className="contract-sheet mx-auto max-w-3xl bg-white p-8 text-[12px] leading-relaxed text-black">
@@ -61,7 +60,7 @@ export function ContractView({
         Para efeitos deste instrumento contratual, doravante serão considerados:
       </p>
       <p>
-        <strong>Contratado:</strong> DK Studio
+        <strong>Contratado:</strong> {contract.escola?.razaoSocial ?? contract.escola?.nome ?? VAZIO}
       </p>
 
       <Clause title="Cláusula Primeira – Das Partes">
@@ -77,13 +76,15 @@ export function ContractView({
           {contract.guardian?.address ?? "________________________________"}
         </p>
         <p>
-          <strong>Endereço Comercial:</strong> {DK.enderecoComercial}
+          <strong>Endereço Comercial:</strong>{" "}
+          {contract.escola?.enderecoComercial ?? VAZIO}
         </p>
         <p>
-          <strong>REPRESENTANTE LEGAL:</strong> {DK.representanteLegal}
+          <strong>REPRESENTANTE LEGAL:</strong>{" "}
+          {contract.escola?.representanteLegal ?? VAZIO}
         </p>
         <p>
-          <strong>CNPJ:</strong> {DK.cnpj}
+          <strong>CNPJ:</strong> {contract.escola?.cnpj ?? VAZIO}
         </p>
       </Clause>
 
@@ -153,7 +154,7 @@ export function ContractView({
 
       <Clause title="Cláusula Sétima – Da Pandemia">
         <p>
-          O DK STUDIO cumpre os protocolos de saúde vigentes; o regular
+          O {nomeEscola} cumpre os protocolos de saúde vigentes; o regular
           funcionamento está vinculado às normas dos órgãos competentes, não
           podendo ser responsabilizado por interrupções em razão de agravamento
           pandêmico. As cláusulas serão cumpridas na íntegra.
@@ -162,7 +163,7 @@ export function ContractView({
 
       <Clause title="Cláusula Oitava - Da Guarda de Objetos">
         <p>
-          O DK STUDIO não se responsabiliza por perda, dano, furto ou roubo de
+          O {nomeEscola} não se responsabiliza por perda, dano, furto ou roubo de
           valores ou bens de alunos ou acompanhantes em suas dependências.
         </p>
       </Clause>
@@ -171,14 +172,14 @@ export function ContractView({
         <p>
           O CONTRATANTE autoriza, sem ônus, o uso da imagem do ALUNO para fins
           de identificação, registro de atividades, acervo, uso institucional,
-          cultural e social, incluindo redes sociais e eventos do DK STUDIO, com
+          cultural e social, incluindo redes sociais e eventos do {nomeEscola}, com
           alcance global e prazo indeterminado.
         </p>
       </Clause>
 
       <Clause title="Cláusula Décima – Do Festival Anual">
         <p>
-          Ao final de cada ano o DK STUDIO realiza o FESTIVAL ANUAL. Seus custos
+          Ao final de cada ano o {nomeEscola} realiza o FESTIVAL ANUAL. Seus custos
           não estão inclusos na matrícula e mensalidades. A participação não é
           obrigatória; o valor pago para custeio não é reembolsável.
         </p>
@@ -214,7 +215,15 @@ export function ContractView({
 
       <div className="mt-10 grid grid-cols-2 gap-8 text-center text-[11px]">
         <Signature line={contract.guardian?.fullName ?? "CONTRATANTE"} role="CONTRATANTE" />
-        <Signature line={`${DK.representanteLegal} — DK Studio`} role="CONTRATADO" />
+        <Signature
+          line={[
+            contract.escola?.representanteLegal,
+            contract.escola?.razaoSocial ?? contract.escola?.nome,
+          ]
+            .filter(Boolean)
+            .join(" — ")}
+          role="CONTRATADO"
+        />
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-8 text-[11px]">

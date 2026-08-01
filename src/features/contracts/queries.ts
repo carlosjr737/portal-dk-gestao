@@ -27,8 +27,20 @@ export type ContractParcela = {
   valorPagar: number;
 };
 
+/** Dados do CONTRATADO — vêm da escola cadastrada, não mais fixos no código. */
+export type ContractEscola = {
+  nome: string;
+  razaoSocial: string | null;
+  representanteLegal: string | null;
+  cnpj: string | null;
+  enderecoComercial: string | null;
+  /** Usada no fecho do contrato ("CIDADE, 01 de agosto de 2026."). */
+  cidade: string | null;
+};
+
 export type StudentContract = {
   available: boolean;
+  escola: ContractEscola | null;
   student: { fullName: string; document: string | null };
   guardian: {
     fullName: string;
@@ -46,6 +58,7 @@ export type StudentContract = {
 
 const emptyContract: StudentContract = {
   available: false,
+  escola: null,
   student: { fullName: "", document: null },
   guardian: null,
   turmas: [],
@@ -107,6 +120,19 @@ function monthlyDueDates(firstDue: string | null, count: number): string[] {
   return dates;
 }
 
+/** Monta o endereço comercial numa linha, pulando o que não estiver preenchido. */
+function montarEndereco(row: Record<string, unknown>): string | null {
+  const rua = [row.logradouro, row.numero].filter(Boolean).join(", ");
+  const partes = [
+    rua || null,
+    (row.complemento as string | null) || null,
+    (row.bairro as string | null) || null,
+    [row.cidade, row.uf].filter(Boolean).join(". ") || null,
+    row.cep ? `CEP: ${row.cep}` : null,
+  ].filter(Boolean);
+  return partes.length > 0 ? `${partes.join(". ")}.` : null;
+}
+
 export async function getStudentContract(
   studentId: string,
 ): Promise<StudentContract> {
@@ -116,6 +142,7 @@ export async function getStudentContract(
     const [
       { data: student, error: studentError },
       { data: enrollments, error: enrollmentsError },
+      { data: escolaRow },
     ] = await Promise.all([
       supabase
         .from("students")
@@ -129,7 +156,26 @@ export async function getStudentContract(
         )
         .eq("student_id", studentId)
         .eq("status", "active"),
+      // A RLS já devolve só a escola do usuário logado.
+      supabase
+        .from("school")
+        .select(
+          "nome, razao_social, representante_legal, cnpj, cep, logradouro, numero, complemento, bairro, cidade, uf",
+        )
+        .maybeSingle(),
     ]);
+
+    const escola: ContractEscola | null = escolaRow
+      ? {
+          nome: escolaRow.nome as string,
+          razaoSocial: (escolaRow.razao_social as string | null) ?? null,
+          representanteLegal:
+            (escolaRow.representante_legal as string | null) ?? null,
+          cnpj: (escolaRow.cnpj as string | null) ?? null,
+          enderecoComercial: montarEndereco(escolaRow),
+          cidade: (escolaRow.cidade as string | null) ?? null,
+        }
+      : null;
 
     if (studentError || !student) {
       if (studentError) console.error("Contract student error:", studentError);
@@ -289,6 +335,7 @@ export async function getStudentContract(
 
     return {
       available: true,
+      escola,
       student: {
         fullName: student.full_name as string,
         document: (student.document as string | null) ?? null,

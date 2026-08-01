@@ -23,7 +23,7 @@ export default async function EscolaPage() {
     ? await supabase
         .from("school")
         .select(
-          "nome, razao_social, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, kyc_status, asaas_account_id",
+          "nome, razao_social, representante_legal, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, kyc_status, asaas_account_id",
         )
         .eq("id", escolaId)
         .maybeSingle()

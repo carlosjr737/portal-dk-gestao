@@ -6,6 +6,7 @@ import { updateSchool, type SchoolActionState } from "@/features/school/actions"
 export type SchoolData = {
   nome: string;
   razao_social: string | null;
+  representante_legal: string | null;
   cnpj: string | null;
   email: string | null;
   telefone: string | null;
@@ -52,6 +53,12 @@ export function SchoolForm({ school }: { school: SchoolData }) {
             name="razao_social"
             defaultValue={school.razao_social}
             hint="Usada no contrato do aluno"
+          />
+          <Field
+            label="Representante legal"
+            name="representante_legal"
+            defaultValue={school.representante_legal}
+            hint="Quem assina o contrato como CONTRATADO"
           />
           <Field label="CNPJ" name="cnpj" defaultValue={school.cnpj} />
           <Field label="Telefone" name="telefone" defaultValue={school.telefone} />
