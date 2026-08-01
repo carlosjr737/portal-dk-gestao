@@ -12,6 +12,7 @@ import type { TeacherOption } from "@/features/staff/types";
 import { formatDate } from "@/features/students/formatters";
 import { CobrancaAlunoButton } from "@/features/baas/cobranca-aluno-button";
 import { buttonVariants } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -53,15 +54,15 @@ export default async function MatriculasPage({
       />
 
       {params?.created === "without-financial-guardian" ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-4">
           Matrícula criada sem responsável financeiro.
-        </div>
+        </Alert>
       ) : null}
 
       {params?.created === "1" ? (
-        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <Alert tone="success" className="mt-4">
           Matrícula criada com sucesso.
-        </div>
+        </Alert>
       ) : null}
 
       <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">

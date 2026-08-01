@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
       {editingUser ? <EditUserForm user={editingUser} /> : null}
       {resetUser ? <ResetPasswordForm user={resetUser} /> : null}
 
-      <form className="grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-4">
+      <form className="grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-4">
         <label className="block md:col-span-2">
           <span className="text-sm font-medium text-foreground">Buscar</span>
           <Input
@@ -219,7 +220,7 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
 
 function CreateUserForm() {
   return (
-    <section className="rounded-md border border-border bg-white p-4">
+    <Card className="p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Novo usuário</h2>
@@ -249,13 +250,13 @@ function CreateUserForm() {
         <ActiveField defaultChecked />
         <FormActions submitLabel="Salvar usuário" />
       </form>
-    </section>
+    </Card>
   );
 }
 
 function EditUserForm({ user }: { user: PortalUser }) {
   return (
-    <section className="rounded-md border border-border bg-white p-4">
+    <Card className="p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Editar usuário</h2>
@@ -286,13 +287,13 @@ function EditUserForm({ user }: { user: PortalUser }) {
         <ActiveField defaultChecked={user.active} />
         <FormActions submitLabel="Salvar alterações" />
       </form>
-    </section>
+    </Card>
   );
 }
 
 function ResetPasswordForm({ user }: { user: PortalUser }) {
   return (
-    <section className="rounded-md border border-border bg-white p-4">
+    <Card className="p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Redefinir senha</h2>
@@ -319,7 +320,7 @@ function ResetPasswordForm({ user }: { user: PortalUser }) {
         />
         <FormActions submitLabel="Redefinir senha" />
       </form>
-    </section>
+    </Card>
   );
 }
 
@@ -408,10 +409,10 @@ function FormActions({ submitLabel }: { submitLabel: string }) {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <article className="rounded-md border border-border bg-white p-4">
+    <Card className="p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
-    </article>
+    </Card>
   );
 }
 

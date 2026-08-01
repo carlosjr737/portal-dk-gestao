@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
 
 const slotHeight = 34;
 const minBlockHeight = 28;
@@ -488,9 +489,9 @@ export function RoomRotationPlanner({
       </div>
 
       {!currentPlan ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
+        <Alert tone="warning" className="py-5">
           Crie um novo rodízio para começar a montar as salas.
-        </div>
+        </Alert>
       ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[270px_minmax(0,1fr)]">

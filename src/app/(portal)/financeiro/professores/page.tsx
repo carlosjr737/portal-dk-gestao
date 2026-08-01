@@ -29,7 +29,7 @@ export default async function FinanceiroProfessoresPage({
         description="Pagamento por professor (hora-aula × aulas + variável × alunos), com base no rate card e nas matrículas ativas."
       />
 
-      <form className="mt-6 flex flex-wrap items-end gap-3 rounded-md border border-border bg-white p-4">
+      <form className="mt-6 flex flex-wrap items-end gap-3 rounded-md border border-border bg-card p-4">
         <label className="block">
           <span className="text-sm font-medium text-foreground">Mês</span>
           <Input

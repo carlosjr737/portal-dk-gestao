@@ -12,6 +12,8 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Field as FormField } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 type StudentFormProps = {
   action: (
@@ -167,7 +169,7 @@ export function StudentForm({
       </label>
 
       {shouldShowGuardianFlow ? (
-        <section className="rounded-md border border-border bg-white p-5">
+        <Card className="p-5">
           <h2 className="text-base font-semibold text-foreground">
             Responsável financeiro
           </h2>
@@ -197,10 +199,10 @@ export function StudentForm({
           </div>
 
           {guardianMode === "none" ? (
-            <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <Alert tone="warning" className="mt-4 px-3 py-2">
               Aluno criado sem responsável financeiro. Você poderá vincular
               depois.
-            </p>
+            </Alert>
           ) : null}
 
           {guardianMode === "existing" ? (
@@ -257,9 +259,9 @@ export function StudentForm({
                 )}
               </div>
               {selectedGuardian ? (
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <Alert tone="success" className="px-3 py-2">
                   Responsável selecionado: {selectedGuardian.full_name}
-                </div>
+                </Alert>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-3">
                 <CheckboxField
@@ -340,15 +342,15 @@ export function StudentForm({
                 />
               </div>
               {duplicateGuardian ? (
-                <div className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <Alert tone="warning" className="sm:col-span-2 px-3 py-2">
                   Já existe um responsável com esses dados. Deseja vincular este
                   responsável? Use a aba buscar existente e selecione{" "}
                   {duplicateGuardian.full_name}.
-                </div>
+                </Alert>
               ) : null}
             </div>
           ) : null}
-        </section>
+        </Card>
       ) : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">

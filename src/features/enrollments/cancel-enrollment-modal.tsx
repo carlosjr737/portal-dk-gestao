@@ -5,6 +5,7 @@ import { enrollmentCancellationReasons } from "@/features/enrollments/schemas";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert } from "@/components/ui/alert";
 
 type CancelEnrollmentModalProps = {
   open: boolean;
@@ -156,9 +157,9 @@ export function CancelEnrollmentModal({
           </label>
 
           {errorMessage ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <Alert tone="danger" className="px-3 py-2">
               {errorMessage}
-            </div>
+            </Alert>
           ) : null}
         </div>
 

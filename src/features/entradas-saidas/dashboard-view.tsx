@@ -1,4 +1,5 @@
 import { ES_DATA, type EsPoint } from "@/features/entradas-saidas/data";
+import { Card } from "@/components/ui/card";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const pf = new Intl.NumberFormat("pt-BR", {
@@ -329,7 +330,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
@@ -352,7 +353,7 @@ function ChartCard({
         ) : null}
       </div>
       {children}
-    </section>
+    </Card>
   );
 }
 

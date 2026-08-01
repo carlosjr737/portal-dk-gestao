@@ -16,6 +16,8 @@ import {
 import { StatusBadge } from "@/features/students/status-badge";
 import type { Student } from "@/features/students/types";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 type AlunoDetalhePageProps = {
   params: Promise<{
@@ -90,15 +92,15 @@ export default async function AlunoDetalhePage({
         <InfoCard label="E-mail">{formatText(student.email)}</InfoCard>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">Observações</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(student.notes)}
         </p>
-      </section>
+      </Card>
 
       <section className="mt-6 space-y-6">
-        <div className="rounded-md border border-border bg-white">
+        <Card>
           <div className="border-b border-border p-5">
             <h2 className="text-base font-semibold text-foreground">
               Responsáveis vinculados
@@ -119,9 +121,9 @@ export default async function AlunoDetalhePage({
                     {link.guardian.phone ? ` · ${link.guardian.phone}` : ""}
                   </p>
                   {link.isFinancialGuardian ? (
-                    <span className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    <Badge tone="success" className="mt-2">
                       Responsável financeiro
-                    </span>
+                    </Badge>
                   ) : null}
                 </div>
               ))
@@ -131,7 +133,7 @@ export default async function AlunoDetalhePage({
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
         <StudentEnrollmentsSection
           enrollments={enrollments.items}
@@ -396,11 +398,11 @@ type InfoCardProps = {
 
 function InfoCard({ label, children }: InfoCardProps) {
   return (
-    <div className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
       <div className="mt-2 text-sm font-medium text-foreground">{children}</div>
-    </div>
+    </Card>
   );
 }

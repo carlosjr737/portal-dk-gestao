@@ -13,6 +13,7 @@ import { StaffMemberForm } from "@/features/staff/staff-member-form";
 import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import type { StaffMember } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function ProfessoresPage() {
         description="Cadastro de professores e equipe interna do DK Studio."
       />
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">
           Novo professor/equipe
         </h2>
@@ -37,7 +38,7 @@ export default async function ProfessoresPage() {
           action={createStaffMember}
           submitLabel="Cadastrar professor/equipe"
         />
-      </section>
+      </Card>
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">

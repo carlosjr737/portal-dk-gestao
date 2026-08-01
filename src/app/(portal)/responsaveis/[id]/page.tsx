@@ -18,6 +18,8 @@ import {
 } from "@/features/students/formatters";
 import { StatusBadge } from "@/features/students/status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 type ResponsavelDetalhePageProps = {
   params: Promise<{
@@ -71,16 +73,16 @@ export default async function ResponsavelDetalhePage({
         <InfoCard label="Endereço">{formatText(guardian.address)}</InfoCard>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">Observações</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(guardian.notes)}
         </p>
-      </section>
+      </Card>
 
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_420px]">
-        <div className="rounded-md border border-border bg-white">
+        <Card>
           <div className="border-b border-border p-5">
             <h2 className="text-base font-semibold text-foreground">
               Alunos vinculados
@@ -106,9 +108,9 @@ export default async function ResponsavelDetalhePage({
                       ) : null}
                       <RelationshipBadge relationship={link.relationship_type} />
                       {link.is_primary ? (
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
+                        <Badge tone="info">
                           Principal
-                        </span>
+                        </Badge>
                       ) : null}
                     </div>
                   </div>
@@ -120,16 +122,16 @@ export default async function ResponsavelDetalhePage({
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-md border border-border bg-white p-5">
+        <Card className="p-5">
           <h2 className="text-base font-semibold text-foreground">
             Vincular a aluno
           </h2>
           <div className="mt-4">
             <LinkStudentForm action={linkAction} students={students} />
           </div>
-        </div>
+        </Card>
       </section>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -224,11 +226,11 @@ type InfoCardProps = {
 
 function InfoCard({ label, children }: InfoCardProps) {
   return (
-    <div className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
       <div className="mt-2 text-sm font-medium text-foreground">{children}</div>
-    </div>
+    </Card>
   );
 }

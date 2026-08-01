@@ -24,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field as FormField } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 type EnrollmentFormProps = {
   action: (
@@ -165,7 +167,7 @@ export function EnrollmentForm({
       <input type="hidden" name="student_id" value={selectedStudentId} />
       <input type="hidden" name="class_id" value={selectedClassId} />
 
-      <section className="rounded-md border border-border bg-white p-5">
+      <Card className="p-5">
         <StepTitle number="1" title="Aluno" />
         <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
           <label className="block">
@@ -232,13 +234,13 @@ export function EnrollmentForm({
         ) : null}
 
         {selectedStudent && !financialGuardianLink ? (
-          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <Alert tone="warning" className="mt-3 px-3 py-2">
             Aluno sem responsável financeiro vinculado.
-          </div>
+          </Alert>
         ) : null}
-      </section>
+      </Card>
 
-      <section className="rounded-md border border-border bg-white p-5">
+      <Card className="p-5">
         <StepTitle number="2" title="Turma" />
         <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
           <label className="block">
@@ -298,9 +300,9 @@ export function EnrollmentForm({
             ]}
           />
         ) : null}
-      </section>
+      </Card>
 
-      <section className="rounded-md border border-border bg-white p-5">
+      <Card className="p-5">
         <StepTitle number="3" title="Dados da matrícula" />
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Field
@@ -418,7 +420,7 @@ export function EnrollmentForm({
             </span>
           ) : null}
         </label>
-      </section>
+      </Card>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
         <Link
@@ -523,10 +525,10 @@ type SelectedCardProps = {
 
 function SelectedCard({ title, details }: SelectedCardProps) {
   return (
-    <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+    <Alert tone="success" className="mt-4">
       <p className="font-medium">{title}</p>
       <p className="mt-1">{details.filter(Boolean).join(" · ")}</p>
-    </div>
+    </Alert>
   );
 }
 

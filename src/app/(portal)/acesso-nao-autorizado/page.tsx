@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getHomeForRole, roleLabels } from "@/features/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 /**
  * Tela de acesso negado.
@@ -27,7 +28,7 @@ export default async function AcessoNaoAutorizadoPage() {
         description="Esta tela não faz parte do seu perfil de acesso."
       />
 
-      <section className="mt-6 max-w-2xl rounded-md border border-border bg-white p-6">
+      <Card className="mt-6 max-w-2xl p-6">
         <p className="text-sm leading-6 text-foreground">
           Você está autenticado
           {profile?.email ? (
@@ -65,7 +66,7 @@ export default async function AcessoNaoAutorizadoPage() {
             Entrar com outra conta
           </Link>
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

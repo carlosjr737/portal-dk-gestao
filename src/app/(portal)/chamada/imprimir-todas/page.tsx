@@ -9,6 +9,7 @@ import {
   weekdayOptions,
 } from "@/features/attendance/data";
 import { PrintButton } from "@/features/print/print-button";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +52,11 @@ export default async function ImprimirTodasPage({
             </div>
           ))
         ) : (
-          <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
+          <Card className="px-4 py-10 text-center text-sm text-muted-foreground">
             {filters.teacherId
               ? "Este professor não possui turmas cadastradas."
               : "Nenhuma turma ativa encontrada para impressão."}
-          </div>
+          </Card>
         )}
       </div>
     </div>

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 
 type CalendarViewProps = {
   events: CalendarEvent[];
@@ -122,7 +123,7 @@ export function CalendarView({
           label="Aulas suspensas"
           value={String(stats.suspendedClasses)}
         />
-        <div className="rounded-md border border-border bg-white p-4">
+        <Card className="p-4">
           <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
@@ -196,10 +197,10 @@ export function CalendarView({
               </Link>
             )}
           </div>
-        </div>
+        </Card>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-4">
+      <Card className="mt-6 p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -300,7 +301,7 @@ export function CalendarView({
             href={buildHref({ month, view: "list", eventType, affectsClasses })}
           />
         </div>
-      </section>
+      </Card>
 
       <section className={cn("mt-6", view === "list" ? "hidden" : "block")}>
         <div className="hidden overflow-hidden rounded-md border border-border bg-white md:block">
@@ -434,9 +435,9 @@ function EventList({
 }) {
   if (groupedEvents.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-white px-5 py-10 text-center text-sm text-muted-foreground">
+      <Card className="px-5 py-10 text-center text-sm text-muted-foreground">
         Nenhum evento cadastrado para os filtros selecionados.
-      </div>
+      </Card>
     );
   }
 
@@ -605,12 +606,12 @@ function ViewLink({
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-white p-4">
+    <Card className="p-4">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 truncate text-2xl font-semibold text-foreground">
         {value}
       </p>
-    </div>
+    </Card>
   );
 }
 

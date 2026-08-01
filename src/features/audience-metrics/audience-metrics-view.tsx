@@ -3,6 +3,7 @@ import type {
   AudienceMetrics,
   AudienceSlice,
 } from "@/features/audience-metrics/queries";
+import { Alert } from "@/components/ui/alert";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -113,13 +114,13 @@ export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
       </section>
 
       {metrics.ageInvalidCount > 0 ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+        <Alert tone="warning" className="text-xs">
           ⚠️ {metrics.ageInvalidCount}{" "}
           {metrics.ageInvalidCount === 1 ? "aluno tem" : "alunos têm"} data de
           nascimento provavelmente incorreta (idade fora de 0–80 anos) e{" "}
           {metrics.ageInvalidCount === 1 ? "foi excluído" : "foram excluídos"} da
           análise de idade. Vale conferir o cadastro.
-        </p>
+        </Alert>
       ) : null}
     </div>
   );

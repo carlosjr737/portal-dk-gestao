@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Alert } from "@/components/ui/alert";
 
 /**
  * Ao concluir a matrícula (página do aluno com ?created=1), tenta abrir o
@@ -22,7 +23,7 @@ export function ContractLauncher({ href }: { href: string }) {
   }, [href]);
 
   return (
-    <div className="no-print mt-4 flex flex-col gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <Alert tone="success" className="no-print mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm font-medium text-emerald-800">
         ✅ Matrícula criada — contrato pronto.
         {blocked
@@ -36,6 +37,6 @@ export function ContractLauncher({ href }: { href: string }) {
       >
         Abrir contrato
       </Link>
-    </div>
+    </Alert>
   );
 }

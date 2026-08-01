@@ -16,6 +16,7 @@ import {
   formatDateTime,
   formatText,
 } from "@/features/students/formatters";
+import { Alert } from "@/components/ui/alert";
 
 export type StudentEnrollmentItem = {
   id: string;
@@ -76,9 +77,9 @@ export function StudentEnrollmentsSection({
         </h2>
       </div>
       {loadError ? (
-        <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="border-b px-5">
           Não foi possível carregar as matrículas do aluno.
-        </div>
+        </Alert>
       ) : null}
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse text-left text-sm">
@@ -107,7 +108,7 @@ export function StudentEnrollmentsSection({
                       {enrollment.class.name}
                     </Link>
                     {enrollment.status === "cancelled" ? (
-                      <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                      <Alert tone="danger" className="mt-2 px-3 py-2 text-xs">
                         <p>Motivo: {formatText(enrollment.cancellation_reason)}</p>
                         {enrollment.cancellation_notes ? (
                           <p className="mt-1">
@@ -118,7 +119,7 @@ export function StudentEnrollmentsSection({
                         <p className="mt-1">
                           Cancelada em: {formatDateTime(enrollment.cancelled_at)}
                         </p>
-                      </div>
+                      </Alert>
                     ) : null}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">

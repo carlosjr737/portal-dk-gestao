@@ -1,4 +1,5 @@
 import type { GuardianRelationship } from "@/features/guardians/schemas";
+import { Badge } from "@/components/ui/badge";
 
 const relationshipLabels: Record<GuardianRelationship, string> = {
   financial: "Financeiro",
@@ -20,8 +21,8 @@ export function RelationshipBadge({ relationship }: RelationshipBadgeProps) {
   }
 
   return (
-    <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+    <Badge tone="danger">
       {relationshipLabels[relationship]}
-    </span>
+    </Badge>
   );
 }

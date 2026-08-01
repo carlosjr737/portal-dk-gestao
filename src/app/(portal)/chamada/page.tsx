@@ -11,6 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
         }
       />
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-3 xl:grid-cols-7">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-3 xl:grid-cols-7">
         <Field label="Professor">
           <Select name="teacherId" defaultValue={filters.teacherId}>
             <option value="">Todos</option>
@@ -177,10 +178,8 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
       <section className="mt-6 grid gap-4">
         {classes.length > 0 ? (
           classes.map((danceClass) => (
-            <article
-              key={danceClass.id}
-              className="rounded-md border border-border bg-white p-5"
-            >
+            <Card key={danceClass.id}
+              className="p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">
@@ -212,14 +211,14 @@ export default async function ChamadaPage({ searchParams }: ChamadaPageProps) {
                   </Link>
                 </div>
               </div>
-            </article>
+            </Card>
           ))
         ) : (
-          <div className="rounded-md border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground">
+          <Card className="px-4 py-10 text-center text-sm text-muted-foreground">
             {filters.teacherId
               ? "Este professor não possui turmas cadastradas."
               : "Nenhuma turma encontrada para os filtros selecionados."}
-          </div>
+          </Card>
         )}
       </section>
     </div>

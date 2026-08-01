@@ -8,6 +8,8 @@ import {
 import { RoomForm } from "@/features/rooms/room-form";
 import type { RoomRecord } from "@/features/rooms/types";
 import { createClient } from "@/lib/supabase/server";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +24,17 @@ export default async function SalasPage() {
       />
 
       {errorMessage ? (
-        <section className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-6 p-5">
           <p className="font-semibold">Tabela de salas não encontrada.</p>
           <p className="mt-1">{errorMessage}</p>
           <p className="mt-2">
             Rode a migration `028_ensure_room_rotation_default_rooms.sql` ou o
             SQL informado no relatório final.
           </p>
-        </section>
+        </Alert>
       ) : null}
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-foreground">
@@ -44,7 +46,7 @@ export default async function SalasPage() {
           </div>
         </div>
         <RoomForm action={createRoom} submitLabel="Cadastrar sala" />
-      </section>
+      </Card>
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">

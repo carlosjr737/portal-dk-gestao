@@ -11,6 +11,7 @@ import {
 } from "@/features/enrollments/formatters";
 import type { EnrollmentStatus } from "@/features/enrollments/schemas";
 import { formatDate } from "@/features/students/formatters";
+import { Card } from "@/components/ui/card";
 
 export type ClassEnrollmentItem = {
   id: string;
@@ -67,7 +68,7 @@ export function ClassEnrollmentsSection({
   }
 
   return (
-    <section className="mt-6 rounded-md border border-border bg-white">
+    <Card className="mt-6">
       <div className="border-b border-border p-5">
         <h2 className="text-base font-semibold text-foreground">
           Alunos matriculados
@@ -146,7 +147,7 @@ export function ClassEnrollmentsSection({
         onClose={() => setSelectedEnrollmentId(null)}
         onConfirm={handleConfirm}
       />
-    </section>
+    </Card>
   );
 }
 

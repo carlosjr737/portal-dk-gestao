@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +87,7 @@ export default async function GrowthChurnPage({
         }
       />
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 lg:grid-cols-6">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 lg:grid-cols-6">
         <div className="flex flex-wrap gap-2 lg:col-span-6">
           <QuickFilterLink
             label="Este mês"
@@ -163,9 +165,9 @@ export default async function GrowthChurnPage({
       </form>
 
       {data.errorMessage ? (
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-6">
           {data.errorMessage}
-        </div>
+        </Alert>
       ) : null}
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -758,10 +760,10 @@ function FilterSelect({
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-    </div>
+    </Card>
   );
 }
 

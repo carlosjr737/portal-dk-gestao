@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Field as FormField } from "@/components/ui/field";
+import { Card } from "@/components/ui/card";
 
 type ClassFormProps = {
   action: (
@@ -225,7 +226,7 @@ export function ClassForm({
         />
       </div>
 
-      <section className="rounded-md border border-border bg-white p-4">
+      <Card className="p-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">
             Dias e horários das aulas
@@ -373,7 +374,7 @@ export function ClassForm({
             </table>
           </div>
         </div>
-      </section>
+      </Card>
 
       <label className="block">
         <span className="text-sm font-medium text-foreground">Observações</span>

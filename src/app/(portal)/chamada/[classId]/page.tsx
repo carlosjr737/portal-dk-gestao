@@ -11,6 +11,7 @@ import type { CatalogOption } from "@/features/class-catalog/types";
 import type { TeacherOption } from "@/features/staff/types";
 import { PrintButton } from "@/features/print/print-button";
 import { createClient } from "@/lib/supabase/server";
+import { Alert } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -62,11 +63,11 @@ export default async function ChamadaTurmaPage({
 
   if (!sheet) {
     return (
-      <div className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+      <Alert tone="warning" className="p-5">
         {schedulesError
           ? "Erro ao carregar horários da turma."
           : "Não foi possível encontrar uma turma ativa para gerar a lista de chamada."}
-      </div>
+      </Alert>
     );
   }
 

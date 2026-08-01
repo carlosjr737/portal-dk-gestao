@@ -8,6 +8,7 @@ import { formatCatalogStatus } from "@/features/class-catalog/formatters";
 import type { CatalogItem } from "@/features/class-catalog/types";
 import { formatText } from "@/features/students/formatters";
 import { createClient } from "@/lib/supabase/server";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function ModalidadesPage() {
         description="Cadastro das modalidades artísticas usadas nas turmas."
       />
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">
           Nova modalidade
         </h2>
@@ -29,7 +30,7 @@ export default async function ModalidadesPage() {
           action={createModality}
           submitLabel="Cadastrar modalidade"
         />
-      </section>
+      </Card>
 
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-white">
         <div className="border-b border-border px-5 py-4">

@@ -1,4 +1,5 @@
 import { DIAS_DE_CARENCIA } from "@/features/plataforma/assinatura-guard";
+import { Alert } from "@/components/ui/alert";
 
 /**
  * Aviso exibido enquanto a assinatura está vencida mas ainda dentro da
@@ -14,7 +15,7 @@ export function AvisoAssinatura({
   const restantes = Math.max(0, DIAS_DE_CARENCIA - diasDeAtraso + 1);
 
   return (
-    <div className="mb-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <Alert tone="warning" className="mb-5">
       <p className="font-medium">
         Assinatura vencida
         {vencimento ? ` em ${vencimento.split("-").reverse().join("/")}` : ""}.
@@ -24,6 +25,6 @@ export function AvisoAssinatura({
         {restantes === 1 ? "1 dia" : `${restantes} dias`} caso o pagamento não
         seja confirmado. Se já pagou, aguarde a confirmação.
       </p>
-    </div>
+    </Alert>
   );
 }

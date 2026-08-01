@@ -3,6 +3,7 @@ import type {
   ContractTurma,
   StudentContract,
 } from "@/features/contracts/queries";
+import { Alert } from "@/components/ui/alert";
 
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -33,9 +34,9 @@ export function ContractView({
 }) {
   if (!contract.available) {
     return (
-      <div className="rounded-md border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+      <Alert tone="warning" className="p-6">
         Não foi possível montar o contrato: aluno sem matrícula ativa.
-      </div>
+      </Alert>
     );
   }
 

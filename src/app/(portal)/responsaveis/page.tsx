@@ -36,7 +36,7 @@ export default async function ResponsaveisPage({
         }
       />
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_auto]">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[1fr_auto]">
         <label className="block">
           <span className="text-sm font-medium text-foreground">
             Buscar por nome, telefone ou e-mail

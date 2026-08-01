@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Field as FormField } from "@/components/ui/field";
+import { Card } from "@/components/ui/card";
 
 const initialState: StudentImportState = {
   status: "ready",
@@ -40,7 +41,7 @@ export function StudentImportForm() {
 
   return (
     <div className="mt-6 space-y-6">
-      <form action={formAction} className="rounded-md border border-border bg-white p-5">
+      <form action={formAction} className="rounded-md border border-border bg-card p-5">
         <div className="grid gap-4 lg:grid-cols-4">
           <label className="block lg:col-span-2">
             <span className="text-sm font-medium text-foreground">
@@ -170,7 +171,7 @@ function Field({
 
 function Summary({ summary }: { summary: StudentImportSummary }) {
   return (
-    <section className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <h2 className="text-base font-semibold text-foreground">
         Resumo do processamento
       </h2>
@@ -184,7 +185,7 @@ function Summary({ summary }: { summary: StudentImportSummary }) {
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 

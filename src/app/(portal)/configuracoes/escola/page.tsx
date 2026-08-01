@@ -9,6 +9,8 @@ import {
 import { SchoolForm, type SchoolData } from "@/features/school/school-form";
 import { ContaPagamentosCard } from "@/features/baas/conta-pagamentos-card";
 import { ASAAS_ENV } from "@/features/baas/config";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -39,23 +41,23 @@ export default async function EscolaPage() {
       />
 
       {!school ? (
-        <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-6">
           Seu usuário não está vinculado a uma escola. Procure o suporte.
-        </p>
+        </Alert>
       ) : (
         <>
-          <section className="mt-6 rounded-md border border-border bg-white p-5">
+          <Card className="mt-6 p-5">
             <SchoolForm school={school as unknown as SchoolData} />
-          </section>
+          </Card>
 
-          <section className="mt-6 rounded-md border border-border bg-white p-5">
+          <Card className="mt-6 p-5">
             <ContaPagamentosCard
               kycStatus={(school.kyc_status as string | null) ?? null}
               accountId={(school.asaas_account_id as string | null) ?? null}
               walletId={(school.asaas_wallet_id as string | null) ?? null}
               ambiente={ASAAS_ENV}
             />
-          </section>
+          </Card>
         </>
       )}
     </div>

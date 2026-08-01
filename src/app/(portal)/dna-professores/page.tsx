@@ -17,6 +17,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -122,10 +123,10 @@ export default async function DnaProfessoresPage({
       </section>
 
       {!data.assessmentsTableAvailable ? (
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-6">
           A tabela de avaliações do DNA ainda não está disponível no Supabase
           remoto. Rode o SQL da migration para liberar o dashboard.
-        </div>
+        </Alert>
       ) : null}
 
       {!hasAssessments ? (

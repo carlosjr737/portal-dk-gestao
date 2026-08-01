@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/features/auth/login-form";
 import { getAuthenticatedUser } from "@/features/auth/session";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <section className="w-full max-w-md rounded-md border border-border bg-white p-6 shadow-sm">
+      <Card className="w-full max-w-md p-6 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-primary">
           DK Studio
         </p>
@@ -37,7 +38,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </p>
 
         <LoginForm message={message} />
-      </section>
+      </Card>
     </main>
   );
 }

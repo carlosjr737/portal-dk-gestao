@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 type StudentTestRow = {
   id: string;
@@ -132,7 +134,7 @@ export default function TesteSupabasePage() {
           um aluno de teste.
         </p>
 
-        <section className="mt-6 rounded-md border border-border bg-white p-5">
+        <Card className="mt-6 p-5">
           <Button
             className="mb-4"
             type="button"
@@ -143,9 +145,9 @@ export default function TesteSupabasePage() {
           </Button>
 
           {state.message ? (
-            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <Alert tone="success" className="mb-4">
               {state.message}
-            </div>
+            </Alert>
           ) : null}
 
           {state.isLoading ? (
@@ -153,9 +155,9 @@ export default function TesteSupabasePage() {
           ) : null}
 
           {state.error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <Alert tone="danger">
               {state.error}
-            </div>
+            </Alert>
           ) : null}
 
           {!state.isLoading && !state.error ? (
@@ -163,7 +165,7 @@ export default function TesteSupabasePage() {
               {JSON.stringify(state.data, null, 2)}
             </pre>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

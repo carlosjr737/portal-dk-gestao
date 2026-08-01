@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getClassPerformanceStatus } from "@/lib/class-performance";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +33,10 @@ export default async function DashboardPage() {
       />
 
       {data.loadError ? (
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-6">
           Não foi possível carregar alguns dados do dashboard. Os indicadores
           foram exibidos zerados para manter a página disponível.
-        </div>
+        </Alert>
       ) : null}
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
@@ -213,10 +215,10 @@ type MetricCardProps = {
 
 function MetricCard({ label, value }: MetricCardProps) {
   return (
-    <div className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="mt-3 text-3xl font-semibold text-foreground">{value}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -227,10 +229,10 @@ type PanelProps = {
 
 function Panel({ title, children }: PanelProps) {
   return (
-    <section className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <h2 className="text-base font-semibold text-foreground">{title}</h2>
       <div className="mt-4">{children}</div>
-    </section>
+    </Card>
   );
 }
 

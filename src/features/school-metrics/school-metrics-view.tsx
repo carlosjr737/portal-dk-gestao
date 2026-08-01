@@ -13,6 +13,7 @@ import type {
   SchoolTeacherMetric,
 } from "@/features/school-metrics/queries";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -46,10 +47,10 @@ const statusLabels = new Map([
 export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
   if (!metrics.available) {
     return (
-      <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <Alert tone="warning" className="p-4">
         Não foi possível carregar as métricas da escola agora. Tente novamente em
         instantes.
-      </section>
+      </Alert>
     );
   }
 
@@ -215,17 +216,17 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
       </div>
 
       {showRevenueDifferenceAlert ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+        <Alert tone="warning" className="p-4 font-medium">
           Atenção: há diferença entre a receita geral e a soma por turma.
           Verifique matrículas sem turma, duplicadas ou valores inconsistentes.
-        </div>
+        </Alert>
       ) : null}
 
       {enrollmentsWithoutAmount > 0 ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+        <Alert tone="warning" className="p-4 font-medium">
           Existem {enrollmentsWithoutAmount} matrículas ativas sem valor mensal
           cadastrado. Isso pode distorcer o faturamento por turma.
-        </div>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -341,10 +342,10 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
           Nenhuma turma com matrícula ativa encontrada.
         </div>
       ) : !hasRevenue && hasActiveEnrollments ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+        <Alert tone="warning" className="p-4 font-medium">
           As turmas existem, mas não há valores mensais cadastrados nas
           matrículas.
-        </div>
+        </Alert>
       ) : null}
 
       {topClasses.length > 0 ? (

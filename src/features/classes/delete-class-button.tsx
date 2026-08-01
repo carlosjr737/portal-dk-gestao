@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteOrArchiveClass } from "@/features/classes/actions";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 type DeleteClassButtonProps = {
   classId: string;
@@ -78,9 +79,9 @@ export function DeleteClassButton({
             </p>
 
             {errorMessage ? (
-              <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <Alert tone="danger" className="mt-4 px-3 py-2">
                 {errorMessage}
-              </div>
+              </Alert>
             ) : null}
 
             <div className="mt-6 flex justify-end gap-3">

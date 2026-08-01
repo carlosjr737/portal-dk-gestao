@@ -14,6 +14,7 @@ import type { ClassSchedule } from "@/features/classes/types";
 import type { CatalogOption } from "@/features/class-catalog/types";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
+import { Alert } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,10 @@ export default async function NovaMatriculaPage({
       />
 
       {params?.studentCreated ? (
-        <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <Alert tone="success" className="mt-6">
           Aluno criado com sucesso. Continue para matricular agora ou volte para
           a lista de alunos quando quiser.
-        </div>
+        </Alert>
       ) : null}
 
       <EnrollmentForm

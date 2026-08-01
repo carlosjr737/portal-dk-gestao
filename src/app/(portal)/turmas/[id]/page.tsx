@@ -26,6 +26,7 @@ import {
   formatText,
 } from "@/features/students/formatters";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type TurmaDetalhePageProps = {
   params: Promise<{
@@ -108,12 +109,12 @@ export default async function TurmaDetalhePage({
         </InfoCard>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">Observações</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
           {formatText(danceClass.notes)}
         </p>
-      </section>
+      </Card>
 
       <ClassEnrollmentsSection enrollments={enrollments} />
 
@@ -317,11 +318,11 @@ type InfoCardProps = {
 
 function InfoCard({ label, children }: InfoCardProps) {
   return (
-    <div className="rounded-md border border-border bg-white p-5">
+    <Card className="p-5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
       <div className="mt-2 text-sm font-medium text-foreground">{children}</div>
-    </div>
+    </Card>
   );
 }

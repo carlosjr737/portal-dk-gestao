@@ -18,6 +18,7 @@ import type { TeacherOption } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
 
 type TurmasPageProps = {
   searchParams?: Promise<{
@@ -49,13 +50,13 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
         }
       />
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_auto]">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[1fr_auto]">
         {classAction ? (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 md:col-span-2">
+          <Alert tone="success" className="md:col-span-2">
             {classAction === "deleted"
               ? "Turma excluída definitivamente."
               : "Turma arquivada e removida da listagem principal."}
-          </div>
+          </Alert>
         ) : null}
         <label className="block">
           <span className="text-sm font-medium text-foreground">

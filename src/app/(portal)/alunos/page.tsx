@@ -8,6 +8,7 @@ import type { Student } from "@/features/students/types";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
 
 type StudentListRow = Student & {
   financialGuardian: {
@@ -48,7 +49,7 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
         }
       />
 
-      <form className="mt-6 grid gap-3 rounded-md border border-border bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+      <form className="mt-6 grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[1fr_220px_auto]">
         <label className="block">
           <span className="text-sm font-medium text-foreground">Buscar por nome</span>
           <Input
@@ -92,9 +93,9 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
       </form>
 
       {created === "without-financial-guardian" ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Alert tone="warning" className="mt-4">
           Aluno criado sem responsável financeiro. Você poderá vincular depois.
-        </div>
+        </Alert>
       ) : null}
 
       <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">

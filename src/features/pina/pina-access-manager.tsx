@@ -8,6 +8,7 @@ import {
   type ProvisionOneState,
 } from "@/features/pina/access-actions";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 
 type Professor = { id: string; nome: string; email: string | null };
 
@@ -59,7 +60,7 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
       </div>
 
       {backfill ? (
-        <div className="rounded-md border border-border bg-white p-4 text-sm">
+        <Card className="p-4 text-sm">
           <p className="mb-2 font-medium">Backfill:</p>
           <ul className="space-y-1">
             {backfill.map((r, i) => (
@@ -68,7 +69,7 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       ) : null}
 
       <div className="overflow-hidden rounded-md border border-border bg-white">

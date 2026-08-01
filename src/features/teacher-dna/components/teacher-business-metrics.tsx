@@ -6,6 +6,7 @@ import type {
   TeacherBusinessMetrics as TeacherBusinessMetricsData,
   TeacherGroupMetric,
 } from "@/features/teacher-dna/teacher-metrics";
+import { Alert } from "@/components/ui/alert";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -43,10 +44,10 @@ export function TeacherBusinessMetrics({
 }) {
   if (!metrics.available) {
     return (
-      <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <Alert tone="warning" className="p-4">
         Não foi possível carregar as métricas de matrículas e receita deste
         professor agora.
-      </section>
+      </Alert>
     );
   }
 

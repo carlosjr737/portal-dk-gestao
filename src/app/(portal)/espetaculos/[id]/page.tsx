@@ -15,6 +15,7 @@ import {
   type PersonagemItem,
 } from "@/features/personagem/personagem-ui";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -190,7 +191,7 @@ export default async function EspetaculoDetalhePage({
         </ul>
       </section>
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">Nova coreografia</h2>
         <div className="mt-3">
           <CoreografiaForm
@@ -200,9 +201,9 @@ export default async function EspetaculoDetalhePage({
             alunos={alunoOptions}
           />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-6 rounded-md border border-border bg-white">
+      <Card className="mt-6">
         <div className="border-b border-border px-5 py-3">
           <h2 className="text-base font-semibold text-foreground">
             Personagens
@@ -235,7 +236,7 @@ export default async function EspetaculoDetalhePage({
         <div className="border-t border-border p-5">
           <PersonagemCreate espetaculoId={id} alunos={alunoOptions} />
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

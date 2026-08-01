@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default function FinanceiroPage() {
   return (
@@ -10,7 +11,7 @@ export default function FinanceiroPage() {
         description="Área reservada para evoluções financeiras."
       />
 
-      <section className="mt-6 rounded-md border border-border bg-white p-5">
+      <Card className="mt-6 p-5">
         <h2 className="text-base font-semibold text-foreground">
           Operações financeiras
         </h2>
@@ -37,7 +38,7 @@ export default function FinanceiroPage() {
             Configurações financeiras
           </Link>
         </div>
-      </section>
+      </Card>
     </div>
   );
 }
