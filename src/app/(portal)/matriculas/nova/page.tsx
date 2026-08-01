@@ -138,10 +138,6 @@ async function getStudentResults(
   search: string,
   selectedStudentId: string,
 ): Promise<EnrollmentStudentOption[]> {
-  if (!search && !selectedStudentId) {
-    return [];
-  }
-
   try {
     const supabase = await createClient();
     const studentIdsFromGuardians = search
@@ -159,9 +155,11 @@ async function getStudentResults(
       query = query.or(
         `full_name.ilike.%${normalizedSearch}%,phone.ilike.%${normalizedSearch}%,email.ilike.%${normalizedSearch}%`,
       );
-    } else {
+    } else if (selectedStudentId) {
       query = query.eq("id", selectedStudentId);
     }
+    // sem busca e sem seleção -> mostra os primeiros alunos, pra já ter
+    // uma lista clicável em vez de um campo vazio.
 
     const { data, error } = await query;
 

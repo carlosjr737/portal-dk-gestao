@@ -71,6 +71,26 @@ export function EnrollmentForm({
     setSelectedFinancialGuardianId(financialGuardianLink?.guardian_id ?? "");
   }, [financialGuardianLink?.guardian_id, selectedStudentId]);
 
+  // Busca automática enquanto digita — sem precisar clicar em "Buscar".
+  // O debounce evita uma ida ao servidor a cada tecla.
+  useEffect(() => {
+    if (studentSearch.trim() === initialStudentSearch.trim()) return;
+    const timer = setTimeout(() => {
+      updateSearchParams({ studentSearch });
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentSearch]);
+
+  useEffect(() => {
+    if (classSearch.trim() === initialClassSearch.trim()) return;
+    const timer = setTimeout(() => {
+      updateSearchParams({ classSearch });
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classSearch]);
+
   function updateSearchParams(next: {
     studentSearch?: string;
     classSearch?: string;
