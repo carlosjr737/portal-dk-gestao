@@ -123,6 +123,10 @@ export async function criarAssinaturaEscola(
     return { ok: false, message: `Não foi possível criar a assinatura: ${assinatura.error}` };
   }
 
+  // ATENÇÃO: o `nextDueDate` que o provedor devolve já é o do PRÓXIMO ciclo —
+  // ele gera a primeira cobrança na data enviada e avança o ponteiro. Guardar
+  // o retorno faria a tela prometer um mês a mais do que a escola tem para
+  // pagar. O que interessa aqui é o vencimento da cobrança em aberto.
   const { error } = await admin.from("plataforma_assinatura").insert({
     escola_id: escolaId,
     plano_id: planoId,
@@ -130,7 +134,7 @@ export async function criarAssinaturaEscola(
     asaas_subscription_id: assinatura.id,
     status: "pendente",
     valor: Number(plano.valor),
-    proximo_vencimento: assinatura.nextDueDate,
+    proximo_vencimento: proximoVencimento,
   });
 
   if (error) {
@@ -148,6 +152,6 @@ export async function criarAssinaturaEscola(
   revalidatePath("/plataforma");
   return {
     ok: true,
-    message: `Assinatura ${plano.nome} criada. Primeiro vencimento em ${assinatura.nextDueDate.split("-").reverse().join("/")}.`,
+    message: `Assinatura ${plano.nome} criada. Primeiro vencimento em ${proximoVencimento.split("-").reverse().join("/")}.`,
   };
 }
