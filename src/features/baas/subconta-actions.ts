@@ -8,8 +8,11 @@ import {
   getCurrentEscolaId,
   getProfileByUserId,
 } from "@/features/auth/session";
-import { criarSubcontaAsaas } from "@/features/baas/asaas-client";
-import { ASAAS_ENV } from "@/features/baas/config";
+import {
+  criarSubcontaAsaas,
+  registrarWebhookSubconta,
+} from "@/features/baas/asaas-client";
+import { ASAAS_ENV, getAsaasWebhookToken } from "@/features/baas/config";
 
 export type CriarSubcontaEscolaState = {
   ok?: boolean;
@@ -140,6 +143,28 @@ export async function criarSubcontaEscola(
       ok: false,
       message: `Conta criada no provedor (${result.id}), mas falhou ao registrar aqui. Procure o suporte.`,
     };
+  }
+
+  // Webhook DENTRO da subconta: sem ele, pagamento de aluno não nos avisa.
+  // Falha aqui não desfaz a subconta — dá para registrar depois.
+  if (result.apiKey) {
+    const token = getAsaasWebhookToken();
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal-dk-gestao.vercel.app";
+    if (token) {
+      const wh = await registrarWebhookSubconta(
+        result.apiKey,
+        `${base}/api/webhooks/asaas`,
+        token,
+      );
+      if (!wh.ok) {
+        console.error("BaaS: falha ao registrar webhook da subconta", {
+          escolaId,
+          erro: wh.error,
+        });
+      }
+    } else {
+      console.warn("BaaS: ASAAS_WEBHOOK_TOKEN ausente — subconta sem webhook");
+    }
   }
 
   // …e a credencial na tabela sem policy (só o backend lê).

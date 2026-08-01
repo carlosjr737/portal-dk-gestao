@@ -67,15 +67,29 @@ export async function processarEventoPagamento(
   }
 
   if (!evento.subscriptionId) {
-    // Cobrança avulsa ou do Fluxo 1 (aluno) — ainda não tratada aqui.
     return { aplicado: false, detalhe: "evento sem assinatura vinculada" };
   }
 
-  const { data: assinatura } = await admin
+  // O mesmo evento pode ser de dois fluxos distintos:
+  //   plataforma_assinatura -> a plataforma cobrando a escola
+  //   aluno_assinatura      -> a escola cobrando o aluno (na subconta dela)
+  // O id da assinatura diz qual é. A lógica de status é a mesma nos dois.
+  let tabela = "plataforma_assinatura";
+  let { data: assinatura } = await admin
     .from("plataforma_assinatura")
     .select("id, escola_id, status")
     .eq("asaas_subscription_id", evento.subscriptionId)
     .maybeSingle();
+
+  if (!assinatura) {
+    tabela = "aluno_assinatura";
+    const r = await admin
+      .from("aluno_assinatura")
+      .select("id, escola_id, status")
+      .eq("asaas_subscription_id", evento.subscriptionId)
+      .maybeSingle();
+    assinatura = r.data;
+  }
 
   if (!assinatura) {
     return {
@@ -88,19 +102,16 @@ export async function processarEventoPagamento(
   if (novoStatus) patch.status = novoStatus;
   if (moveVencimento && evento.dueDate) patch.proximo_vencimento = evento.dueDate;
 
-  const { error } = await admin
-    .from("plataforma_assinatura")
-    .update(patch)
-    .eq("id", assinatura.id);
+  const { error } = await admin.from(tabela).update(patch).eq("id", assinatura.id);
 
   if (error) {
-    throw new Error(`falha ao atualizar assinatura: ${error.message}`);
+    throw new Error(`falha ao atualizar ${tabela}: ${error.message}`);
   }
 
   return {
     aplicado: true,
     detalhe: novoStatus
-      ? `assinatura ${assinatura.id}: ${assinatura.status} -> ${novoStatus}`
-      : `assinatura ${assinatura.id}: próximo vencimento -> ${evento.dueDate}`,
+      ? `${tabela} ${assinatura.id}: ${assinatura.status} -> ${novoStatus}`
+      : `${tabela} ${assinatura.id}: próximo vencimento -> ${evento.dueDate}`,
   };
 }

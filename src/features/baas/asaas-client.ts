@@ -92,10 +92,17 @@ export type ClienteAsaasResult =
   | { ok: true; id: string }
   | { ok: false; error: string };
 
+/**
+ * @param chave  Chave a usar. Omitida = a da PLATAFORMA (Fluxo 2, assinatura
+ *               da escola). Informada = a da SUBCONTA da escola (Fluxo 1,
+ *               mensalidade do aluno) — é o que faz o dinheiro cair direto
+ *               na conta dela, sem passar pela plataforma.
+ */
 export async function criarClienteAsaas(
   input: ClienteAsaasInput,
+  chave?: string,
 ): Promise<ClienteAsaasResult> {
-  const apiKey = getAsaasApiKey();
+  const apiKey = chave ?? getAsaasApiKey();
   if (!apiKey) return { ok: false, error: "asaas_not_configured" };
 
   const res = await fetch(`${ASAAS_API_BASE}/customers`, {
@@ -117,16 +124,24 @@ export type AssinaturaAsaasInput = {
   billingType: "PIX" | "BOLETO" | "CREDIT_CARD";
   description?: string;
   externalReference?: string;
+  /**
+   * Split da taxa da plataforma. Hoje sempre ausente: a plataforma não retém
+   * nada da mensalidade do aluno (decisão de negócio em aberto). O campo
+   * existe para ligar isso sem refazer o fluxo.
+   */
+  split?: Array<{ walletId: string; percentualValue?: number; fixedValue?: number }>;
 };
 
 export type AssinaturaAsaasResult =
   | { ok: true; id: string; status: string; nextDueDate: string }
   | { ok: false; error: string };
 
+/** @param chave  Ver `criarClienteAsaas`: omitida = plataforma; informada = subconta. */
 export async function criarAssinaturaAsaas(
   input: AssinaturaAsaasInput,
+  chave?: string,
 ): Promise<AssinaturaAsaasResult> {
-  const apiKey = getAsaasApiKey();
+  const apiKey = chave ?? getAsaasApiKey();
   if (!apiKey) return { ok: false, error: "asaas_not_configured" };
 
   const res = await fetch(`${ASAAS_API_BASE}/subscriptions`, {
@@ -143,6 +158,44 @@ export async function criarAssinaturaAsaas(
     status: (data.status as string) ?? "ACTIVE",
     nextDueDate: (data.nextDueDate as string) ?? input.nextDueDate,
   };
+}
+
+/**
+ * Registra o webhook DENTRO da subconta da escola.
+ *
+ * Sem isso, os pagamentos dos alunos não nos avisariam de nada: o webhook da
+ * conta da plataforma só recebe eventos dela própria. Cada subconta precisa
+ * do seu, apontando para o mesmo endpoint — o handler distingue os fluxos
+ * pelo id da assinatura.
+ */
+export async function registrarWebhookSubconta(
+  subcontaApiKey: string,
+  url: string,
+  authToken: string,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const res = await fetch(`${ASAAS_API_BASE}/webhooks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", access_token: subcontaApiKey },
+    body: JSON.stringify({
+      name: "Portal — cobranças",
+      url,
+      email: "contato@dkonline.app",
+      enabled: true,
+      interrupted: false,
+      authToken,
+      sendType: "NON_SEQUENTIALLY",
+      events: [
+        "PAYMENT_CREATED",
+        "PAYMENT_CONFIRMED",
+        "PAYMENT_RECEIVED",
+        "PAYMENT_OVERDUE",
+        "PAYMENT_REFUNDED",
+      ],
+    }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true, id: data.id as string };
 }
 
 // ---------------------------------------------------------------------------
