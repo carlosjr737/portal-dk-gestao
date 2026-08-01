@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { ContaAzulClient } from "@/features/finance/conta-azul/client";
 import type {
   ContaAzulEndpointDiagnostic,
@@ -193,7 +193,7 @@ export async function saveFinanceProviderSettingsAction(
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("finance_provider_settings").upsert(
     {
       provider: CONTA_AZUL_PROVIDER,
@@ -230,7 +230,7 @@ export async function saveFinanceProviderSettingsAction(
 }
 
 async function getFinanceProviderSettings(): Promise<FinanceProviderSettings | null> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("finance_provider_settings")
     .select(

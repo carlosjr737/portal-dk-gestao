@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export type MonthlyBasePoint = {
   month: string; // "YYYY-MM"
@@ -33,7 +33,7 @@ function isoDate(year: number, monthIndex: number, day: number) {
  */
 export async function getMonthlyActiveBase(): Promise<MonthlyBasePoint[]> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("enrollments")
       .select("student_id, start_date, cancelled_at");

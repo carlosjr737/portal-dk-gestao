@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { PinaAccessManager } from "@/features/pina/pina-access-manager";
@@ -14,8 +14,8 @@ export default async function PinaAcessosPage() {
     notFound();
   }
 
-  const admin = createAdminClient();
-  const { data: staff } = await admin
+  const supabase = await createClient();
+  const { data: staff } = await supabase
     .from("staff_members")
     .select("id, full_name, artistic_name, email")
     .eq("role", "professor")

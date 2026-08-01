@@ -10,7 +10,7 @@ import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { CatalogOption } from "@/features/class-catalog/types";
 import type { TeacherOption } from "@/features/staff/types";
 import { PrintButton } from "@/features/print/print-button";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -128,7 +128,7 @@ async function getChamadaSheet(
   classId: string,
   month: string,
 ): Promise<ChamadaSheetResult> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const [
     { data: danceClass, error: classError },
@@ -251,7 +251,7 @@ async function getChamadaSheet(
 }
 
 async function getActiveStudents(classId: string): Promise<AttendanceStudent[]> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data: enrollments, error: enrollmentsError } = await supabase
     .from("enrollments")
     .select("id, student_id")

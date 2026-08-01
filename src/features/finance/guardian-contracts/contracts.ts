@@ -6,7 +6,7 @@ import {
   getContaAzulResponseDiagnostics,
 } from "@/features/finance/conta-azul/client";
 import { ensureContaAzulCustomerForGuardian } from "@/features/finance/conta-azul/guardian-links";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 const CONTA_AZUL_PROVIDER = "conta_azul";
 
@@ -156,7 +156,7 @@ class GuardianContractSyncError extends Error {
 export async function getOrCreateGuardianFinancialContractDraft(
   input: GuardianFinancialContractDraftInput,
 ) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const provider = input.provider ?? CONTA_AZUL_PROVIDER;
 
   const { data: existingContract, error: existingError } = await supabase
@@ -219,10 +219,10 @@ export async function addEnrollmentToGuardianFinancialContract(
   console.info("[GUARDIAN CONTRACT] enrollmentId", enrollmentId);
 
   let guardianContractId: string | null = null;
-  let supabase: ReturnType<typeof createAdminClient> | null = null;
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
 
   try {
-    supabase = createAdminClient();
+    supabase = await createClient();
     const enrollment = await getEnrollmentSnapshot(supabase, enrollmentId);
 
     if (!enrollment) {
@@ -429,7 +429,7 @@ export async function createContaAzulContractFromGuardianContract(
 export async function syncGuardianFinancialContractToContaAzul(
   guardianContractId: string,
 ) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   let failurePersisted = false;
   console.info("[GUARDIAN CONTRACT SYNC] start");
   console.info("[GUARDIAN CONTRACT SYNC] guardianContractId", guardianContractId);
@@ -623,7 +623,7 @@ export async function syncGuardianFinancialContractToContaAzul(
 export async function autoSyncGuardianFinancialContractAfterEnrollment(
   enrollmentId: string,
 ): Promise<AutoSyncGuardianContractResult> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] start");
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] enrollmentId", enrollmentId);
 
@@ -736,7 +736,7 @@ export async function autoSyncGuardianFinancialContractAfterEnrollment(
 }
 
 export async function backfillMissingGuardianContractItems() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data: enrollments, error: enrollmentsError } = await supabase
     .from("enrollments")
     .select(
@@ -827,7 +827,7 @@ export async function cancelEnrollmentGuardianFinancialContractItem(input: {
   enrollmentId: string;
   cancelledAt: string;
 }): Promise<CancelEnrollmentGuardianContractItemResult> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   console.info("[GUARDIAN CONTRACT] enrollment cancelled", {
     enrollmentId: input.enrollmentId,
   });
@@ -911,7 +911,7 @@ export async function cancelEnrollmentGuardianFinancialContractItem(input: {
 export async function recalculateGuardianFinancialContractTotal(
   guardianContractId: string,
 ) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const contract = await getGuardianContract(supabase, guardianContractId);
 
   if (!contract) {
@@ -961,7 +961,7 @@ export async function recalculateGuardianFinancialContractTotal(
 }
 
 export async function backfillCancelledGuardianContractItems() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data: items, error } = await supabase
     .from("guardian_financial_contract_items")
     .select(
@@ -1026,7 +1026,7 @@ export async function replaceGuardianContractOnContaAzul(
   guardianContractId: string,
   reason: string,
 ) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   console.info("[GUARDIAN CONTRACT REPLACE] start");
   console.info("[GUARDIAN CONTRACT REPLACE] guardianContractId", guardianContractId);
 
@@ -1124,7 +1124,7 @@ export async function replaceGuardianContractOnContaAzul(
 }
 
 async function createProviderContractForCurrentItems(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   contract: GuardianFinancialContract,
 ) {
   const syncData = await prepareContaAzulContractSync(supabase, contract);
@@ -1146,7 +1146,7 @@ async function createProviderContractForCurrentItems(
 }
 
 async function prepareContaAzulContractSync(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   contract: GuardianFinancialContract,
 ) {
   console.info("[ENROLLMENT CONTRACT AUTO SYNC] stage", "load_finance_settings");
@@ -1353,7 +1353,7 @@ async function createContaAzulContractForSync(
 }
 
 async function updateGuardianContractAfterCreate(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   input: {
     guardianContractId: string;
     providerCustomerId: string;
@@ -1389,7 +1389,7 @@ async function updateGuardianContractAfterCreate(
 }
 
 async function updateGuardianContractAfterReplacement(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   input: {
     guardianContractId: string;
     providerCustomerId: string;
@@ -1429,7 +1429,7 @@ async function updateGuardianContractAfterReplacement(
 }
 
 async function getEnrollmentSnapshot(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ) {
   const { data, error } = await supabase
@@ -1448,7 +1448,7 @@ async function getEnrollmentSnapshot(
 }
 
 async function getGuardianContract(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianContractId: string,
 ) {
   const { data, error } = await supabase
@@ -1469,7 +1469,7 @@ async function getGuardianContract(
 }
 
 async function getGuardianContractByEnrollmentId(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ) {
   const { data: item, error } = await supabase
@@ -1496,7 +1496,7 @@ async function getGuardianContractByEnrollmentId(
 }
 
 async function getExistingContractItem(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ) {
   const { data, error } = await supabase
@@ -1513,7 +1513,7 @@ async function getExistingContractItem(
 }
 
 async function getActiveContractItems(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianContractId: string,
 ) {
   const { data, error } = await supabase
@@ -1537,14 +1537,14 @@ async function getActiveContractItems(
 }
 
 async function recalculateContractTotal(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianContractId: string,
 ) {
   return sumItemAmounts(await getActiveContractItems(supabase, guardianContractId));
 }
 
 async function getStudent(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   studentId: string | null,
 ) {
   if (!studentId) {
@@ -1565,7 +1565,7 @@ async function getStudent(
 }
 
 async function getClass(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   classId: string | null,
 ) {
   if (!classId) {
@@ -1590,7 +1590,7 @@ async function getClass(
 }
 
 async function getGuardian(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianId: string,
 ) {
   const { data, error } = await supabase
@@ -1607,7 +1607,7 @@ async function getGuardian(
 }
 
 async function getContaAzulSettings(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
 ) {
   const { data, error } = await supabase
     .from("finance_provider_settings")
@@ -1625,7 +1625,7 @@ async function getContaAzulSettings(
 }
 
 async function saveCurrentVersion(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   contract: GuardianFinancialContract,
   reason: string,
   options: {
@@ -1656,7 +1656,7 @@ async function saveCurrentVersion(
 }
 
 async function saveSyncFailure(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianContractId: string,
   error: unknown,
 ) {
@@ -1680,7 +1680,7 @@ async function saveSyncFailure(
 }
 
 async function syncContractCustomerAndTotal(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianContractId: string,
   providerCustomerId: string,
   totalAmount: number,

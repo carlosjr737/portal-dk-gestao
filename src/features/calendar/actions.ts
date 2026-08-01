@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   getAuthenticatedUser,
   getProfileByUserId,
@@ -107,7 +107,7 @@ export async function listCalendarEvents(filters: CalendarFilters) {
     return [];
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { startDate, endDate } = getMonthRange(filters.month);
   let query = supabase
     .from("calendar_events")
@@ -148,7 +148,7 @@ export async function getCalendarFormOptions(): Promise<CalendarEventFormOptions
     return { classes: [], teachers: [], modalities: [], levels: [] };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const [
     { data: classes, error: classesError },
     { data: teachers, error: teachersError },
@@ -278,7 +278,7 @@ export async function createCalendarEvent(
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendar_events")
     .insert({
@@ -313,7 +313,7 @@ async function syncCreatedEventToGoogle(event: CalendarEvent, userId: string | n
     }
 
     const googleEventId = await createGoogleCalendarEvent(event, connection);
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { error } = await supabase
       .from("calendar_events")
       .update({
@@ -369,7 +369,7 @@ async function syncDeletedEventToGoogle(
 }
 
 async function selectCalendarEvent(eventId: string) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendar_events")
     .select(
@@ -452,7 +452,7 @@ export async function updateCalendarEvent(
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendar_events")
     .update(parsed.data)
@@ -495,7 +495,7 @@ export async function deleteCalendarEvent(formData: FormData) {
     await syncDeletedEventToGoogle(event, connection);
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("calendar_events")
     .delete()

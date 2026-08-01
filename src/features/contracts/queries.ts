@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { formatClassSchedules } from "@/features/classes/formatters";
 import type { ClassSchedule } from "@/features/classes/types";
 
@@ -111,7 +111,7 @@ export async function getStudentContract(
   studentId: string,
 ): Promise<StudentContract> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     const [
       { data: student, error: studentError },

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { roomFormSchema } from "@/features/rooms/schemas";
 
 export type RoomActionState = {
@@ -36,7 +36,7 @@ export async function createRoom(
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("rooms").insert(parsed.data);
 
   if (error) {
@@ -72,7 +72,7 @@ export async function updateRoom(
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("rooms")
     .update(parsed.data)
@@ -101,7 +101,7 @@ export async function toggleRoomActive(formData: FormData) {
     return;
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("rooms")
     .update({ active })
@@ -122,7 +122,7 @@ export async function deleteRoom(formData: FormData) {
     return;
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("rooms").delete().eq("id", id.data);
 
   if (error) {

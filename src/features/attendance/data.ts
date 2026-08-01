@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   classScheduleWeekdayOptions,
   type ClassScheduleWeekday,
@@ -58,7 +58,7 @@ export type AttendanceClassSheet = AttendanceClassSummary & {
 };
 
 export async function getAttendanceFilterOptions(): Promise<AttendanceFilterOptions> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const [
     { data: teachers, error: teachersError },
     { data: modalities, error: modalitiesError },
@@ -121,7 +121,7 @@ export async function getAttendanceClasses(
   filters: AttendanceFilters,
 ): Promise<AttendanceClassSummary[]> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     let classesQuery = supabase
       .from("classes")
       .select(
@@ -252,7 +252,7 @@ export async function getAttendanceClassSheet(
   month = getCurrentMonthValue(),
 ): Promise<AttendanceClassSheet | null> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     console.log("[attendance-sheet] classId recebido:", classId);
 
     const [
@@ -391,7 +391,7 @@ async function getAttendanceStudents(
   className?: string,
 ): Promise<AttendanceStudent[]> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { data: enrollments, error: enrollmentsError } = await supabase
       .from("enrollments")
       .select("id, student_id")

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -332,7 +332,7 @@ async function getGrowthChurnData(filters: {
   levelId: string;
   classId: string;
 }) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const appliedFilters = {
     from: filters.from,
     to: filters.to,

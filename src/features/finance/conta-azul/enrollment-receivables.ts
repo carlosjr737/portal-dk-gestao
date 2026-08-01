@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   ContaAzulApiError,
   ContaAzulClient,
@@ -96,7 +96,7 @@ type RecordPayload = {
 export async function createContaAzulContractForEnrollment(
   enrollmentId: string,
 ): Promise<EnrollmentReceivableResult> {
-  let supabase: ReturnType<typeof createAdminClient>;
+  let supabase: Awaited<ReturnType<typeof createClient>>;
   let failureStudentId: string | null = null;
   let failureGuardianId: string | null = null;
   let failureCustomerId: string | null = null;
@@ -105,7 +105,7 @@ export async function createContaAzulContractForEnrollment(
   let failureContractPayload: unknown = null;
 
   try {
-    supabase = createAdminClient();
+    supabase = await createClient();
   } catch (error) {
     return {
       status: "failed",
@@ -364,7 +364,7 @@ export async function createContaAzulContractForEnrollment(
 }
 
 export async function ensureContaAzulServiceItem(price = 0) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const settings = await getContaAzulSettings(supabase);
 
   if (settings?.conta_azul_service_item_id) {
@@ -422,7 +422,7 @@ export async function createContaAzulReceivableForEnrollment(
   options: CreateContaAzulReceivableOptions = {},
 ): Promise<EnrollmentReceivableResult> {
   const mode = options.mode ?? "automatic";
-  let supabase: ReturnType<typeof createAdminClient>;
+  let supabase: Awaited<ReturnType<typeof createClient>>;
   let failureStudentId: string | null = null;
   let failureGuardianId: string | null = null;
   let failureCustomerId: string | null = null;
@@ -431,7 +431,7 @@ export async function createContaAzulReceivableForEnrollment(
   let failurePayload: unknown = null;
 
   try {
-    supabase = createAdminClient();
+    supabase = await createClient();
   } catch (error) {
     return {
       status: "failed",
@@ -733,7 +733,7 @@ export async function createContaAzulReceivableForEnrollment(
 }
 
 async function getExistingReceivableOrProcessing(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ) {
   const { data, error } = await supabase
@@ -755,7 +755,7 @@ async function getExistingReceivableOrProcessing(
 }
 
 async function getExistingContract(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ) {
   const { data, error } = await supabase
@@ -777,7 +777,7 @@ async function getExistingContract(
 }
 
 async function getContaAzulSettings(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
 ): Promise<FinanceProviderSettings | null> {
   const { data, error } = await supabase
     .from("finance_provider_settings")
@@ -795,7 +795,7 @@ async function getContaAzulSettings(
 }
 
 async function saveContaAzulServiceItem(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   serviceId: string,
   serviceName: string,
 ) {
@@ -840,7 +840,7 @@ function getSkippedSettingsMessage(
 }
 
 async function getEnrollmentSnapshot(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
 ): Promise<EnrollmentSnapshot | null> {
   const { data, error } = await supabase
@@ -859,7 +859,7 @@ async function getEnrollmentSnapshot(
 }
 
 async function getStudent(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   studentId: string | null,
 ): Promise<NamedRecord | null> {
   if (!studentId) {
@@ -880,7 +880,7 @@ async function getStudent(
 }
 
 async function getClass(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   classId: string | null,
 ): Promise<NamedRecord | null> {
   if (!classId) {
@@ -936,7 +936,7 @@ async function getClass(
 }
 
 async function getGuardianDebug(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   guardianId: string,
 ): Promise<GuardianDebugRecord | null> {
   const { data, error } = await supabase
@@ -1203,7 +1203,7 @@ function buildPreValidationPayload(reason: string) {
 }
 
 async function saveFailure(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollmentId: string,
   studentId: string | null,
   guardianId: string | null,
@@ -1235,7 +1235,7 @@ async function saveFailure(
 }
 
 async function saveContractFailure(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   enrollment: EnrollmentSnapshot,
   message: string,
   amount: number | null = null,
@@ -1258,7 +1258,7 @@ async function saveContractFailure(
 }
 
 async function saveFinancialRecord(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   payload: RecordPayload,
 ) {
   const { data: existing, error: existingError } = await supabase

@@ -7,7 +7,7 @@ import {
 } from "@/features/rooms/actions";
 import { RoomForm } from "@/features/rooms/room-form";
 import type { RoomRecord } from "@/features/rooms/types";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +132,7 @@ async function getRooms(): Promise<{
   errorMessage?: string;
 }> {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("rooms")
       .select("id, name, slug, capacity, color, sort_order, active, created_at, updated_at")

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 type GrowthChurnEventType = "entrada" | "saida";
 
@@ -41,7 +41,7 @@ export async function ensureGrowthChurnEvent({
   reasonNotes,
   source,
 }: EnsureGrowthChurnEventParams) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data: existingEvent, error: existingError } = await supabase
     .from("growth_churn_events")
     .select("id")
@@ -111,7 +111,7 @@ export async function ensureGrowthChurnEvent({
 }
 
 async function getChurnReasonId(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   reasonName: string | null | undefined,
 ) {
   const preferredName = mapCancellationReasonToChurnReason(reasonName);

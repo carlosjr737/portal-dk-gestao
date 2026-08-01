@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { buildRoomRotationQuery } from "@/features/room-rotation/data";
 import { formatRotationMonth } from "@/features/room-rotation/constants";
 
@@ -47,7 +47,7 @@ function parseFilters(formData: FormData) {
 
 export async function createRoomRotationPlan(formData: FormData) {
   const filters = parseFilters(formData);
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const name = `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`;
   console.log("[ROOM ROTATION PLAN] create start", {
     year: filters.year,
@@ -112,7 +112,7 @@ export async function ensureRoomRotationPlanForDrop(input: {
       rotationLabel: rotationLabelSchema,
     })
     .parse(input);
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const name = `RODIZIO DE SALA ${parsed.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(parsed.year, parsed.month).toUpperCase()}`;
 
   console.log("[ROOM ROTATION PLAN] create start", {
@@ -178,7 +178,7 @@ export async function saveRoomRotationAssignment(formData: FormData) {
     startTime: formData.get("startTime"),
     endTime: String(formData.get("endTime") ?? ""),
   });
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("room_rotation_assignments").upsert(
     {
       rotation_plan_id: parsed.rotationPlanId,
@@ -243,7 +243,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
     };
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const startMinutes = timeToMinutes(parsed.startTime);
   const endMinutes = parsed.endTime ? timeToMinutes(parsed.endTime) : null;
 
@@ -345,7 +345,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
 export async function deleteRoomRotationAssignment(formData: FormData) {
   const filters = parseFilters(formData);
   const assignmentId = String(formData.get("assignmentId") ?? "");
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   if (assignmentId) {
     const { error } = await supabase
@@ -363,7 +363,7 @@ export async function deleteRoomRotationAssignment(formData: FormData) {
 }
 
 export async function deleteRoomRotationAssignmentDrop(assignmentId: string) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("room_rotation_assignments")
     .delete()
@@ -392,7 +392,7 @@ function timeToMinutes(time: string) {
 export async function publishRoomRotationPlan(formData: FormData) {
   const filters = parseFilters(formData);
   const rotationPlanId = String(formData.get("rotationPlanId") ?? "");
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   if (rotationPlanId) {
     const { error } = await supabase
@@ -415,7 +415,7 @@ export async function copyPreviousRoomRotationPlan(formData: FormData) {
   const filters = parseFilters(formData);
   const sourcePlanId = String(formData.get("sourcePlanId") ?? "");
   const targetPlanId = String(formData.get("rotationPlanId") ?? "");
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   if (!sourcePlanId || !targetPlanId || sourcePlanId === targetPlanId) {
     redirect(`/rodizio-salas?${buildRoomRotationQuery(filters)}`);

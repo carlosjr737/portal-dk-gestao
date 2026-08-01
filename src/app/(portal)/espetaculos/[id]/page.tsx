@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { CoreografiaForm } from "@/features/espetaculo/coreografia-form";
@@ -38,8 +38,8 @@ export default async function EspetaculoDetalhePage({
     notFound();
   }
 
-  const admin = createAdminClient();
-  const { data: espetaculo } = await admin
+  const supabase = await createClient();
+  const { data: espetaculo } = await supabase
     .from("espetaculo")
     .select("id, nome, temporada, data_evento")
     .eq("id", id)
@@ -55,15 +55,15 @@ export default async function EspetaculoDetalhePage({
     { data: students },
     { data: personagens },
   ] = await Promise.all([
-    admin
+    supabase
       .from("coreografia")
       .select("id, nome, tipo, musica_texto, audio_url, ordem, duracao_segundos")
       .eq("espetaculo_id", id)
       .order("ordem", { ascending: true }),
-    admin.from("classes").select("id, name").eq("status", "active").order("name"),
-    admin.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor").order("full_name"),
-    admin.from("students").select("id, full_name").eq("status", "active").order("full_name"),
-    admin
+    supabase.from("classes").select("id, name").eq("status", "active").order("name"),
+    supabase.from("staff_members").select("id, full_name, artistic_name").eq("role", "professor").order("full_name"),
+    supabase.from("students").select("id, full_name").eq("status", "active").order("full_name"),
+    supabase
       .from("personagem")
       .select("id, nome, cor, aluno_id")
       .eq("espetaculo_id", id)
@@ -73,13 +73,13 @@ export default async function EspetaculoDetalhePage({
   const coreoIds = (coreografias ?? []).map((c) => c.id as string);
   const [{ data: ctRows }, { data: cpRows }, { data: caRows }] = await Promise.all([
     coreoIds.length
-      ? admin.from("coreografia_turma").select("coreografia_id, turma_id").in("coreografia_id", coreoIds)
+      ? supabase.from("coreografia_turma").select("coreografia_id, turma_id").in("coreografia_id", coreoIds)
       : Promise.resolve({ data: [] as { coreografia_id: string; turma_id: string }[] }),
     coreoIds.length
-      ? admin.from("coreografia_professor").select("coreografia_id, professor_id").in("coreografia_id", coreoIds)
+      ? supabase.from("coreografia_professor").select("coreografia_id, professor_id").in("coreografia_id", coreoIds)
       : Promise.resolve({ data: [] as { coreografia_id: string; professor_id: string }[] }),
     coreoIds.length
-      ? admin.from("coreografia_aluno").select("coreografia_id, aluno_id").in("coreografia_id", coreoIds)
+      ? supabase.from("coreografia_aluno").select("coreografia_id, aluno_id").in("coreografia_id", coreoIds)
       : Promise.resolve({ data: [] as { coreografia_id: string; aluno_id: string }[] }),
   ]);
 

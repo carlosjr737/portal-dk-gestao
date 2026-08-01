@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { CalendarEvent, CalendarEventType } from "@/features/calendar/types";
 
 const googleAuthorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -81,7 +81,7 @@ export async function exchangeGoogleAuthorizationCode(code: string, userId: stri
   });
   const googleEmail = await getGoogleUserEmail(tokenResponse.access_token);
   const expiresAt = getExpiresAt(tokenResponse.expires_in);
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data: existingConnection } = await supabase
     .from("google_calendar_connections")
     .select("id, refresh_token, calendar_id")
@@ -117,7 +117,7 @@ export async function exchangeGoogleAuthorizationCode(code: string, userId: stri
 }
 
 export async function getActiveGoogleCalendarConnection(userId?: string | null) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   let query = supabase
     .from("google_calendar_connections")
     .select(
@@ -142,7 +142,7 @@ export async function getActiveGoogleCalendarConnection(userId?: string | null) 
 }
 
 export async function disconnectGoogleCalendar(connectionId: string) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("google_calendar_connections")
     .update({
@@ -166,7 +166,7 @@ export async function updateGoogleCalendarSelection(
     return;
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("google_calendar_connections")
     .update({ calendar_id: calendarId || "primary" })
@@ -293,7 +293,7 @@ export async function importGoogleCalendarEvents({
     return 0;
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   for (const event of events) {
     const { data: existingEvent, error: existingError } = await supabase
@@ -345,7 +345,7 @@ async function getValidAccessToken(connection: GoogleCalendarConnection) {
     grant_type: "refresh_token",
   });
   const accessToken = tokenResponse.access_token;
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("google_calendar_connections")
     .update({
@@ -403,7 +403,7 @@ async function googleFetch(
 }
 
 async function markConnectionSynced(connectionId: string) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("google_calendar_connections")
     .update({ last_synced_at: new Date().toISOString() })

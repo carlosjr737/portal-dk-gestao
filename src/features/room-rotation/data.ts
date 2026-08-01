@@ -6,7 +6,7 @@ import {
 } from "@/features/classes/schemas";
 import { formatScheduleTime } from "@/features/classes/formatters";
 import type { CatalogOption } from "@/features/class-catalog/types";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import {
@@ -112,7 +112,7 @@ export function normalizeRoomRotationFilters(params?: {
 export async function getRoomRotationPageData(
   filters: RoomRotationFilters,
 ): Promise<RoomRotationPageData> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const [
     { data: rooms, error: roomsError },
     { data: plans, error: plansError },
@@ -259,7 +259,7 @@ function isUuid(value: string | undefined) {
 }
 
 async function ensureDefaultRooms() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("rooms")
     .upsert(
@@ -303,7 +303,7 @@ export function buildRoomRotationQuery(filters: RoomRotationFilters) {
 }
 
 async function getAssignments(rotationPlanId: string) {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("room_rotation_assignments")
     .select("id, rotation_plan_id, class_id, room_id, start_time, end_time, day_group, sort_order, notes")
