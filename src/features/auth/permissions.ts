@@ -68,25 +68,21 @@ const roleRoutePrefixes: Record<UserRole, string[]> = {
   professor: ["/dashboard", "/chamada", "/calendario", "/turmas"],
 };
 
-const roleNavigationPrefixes: Record<UserRole, string[]> = {
-  admin: ["/"],
-  equipe: [
-    "/dashboard",
-    "/metricas-escola",
-    "/metricas-publico",
-    "/alunos",
-    "/responsaveis",
-    "/turmas",
-    "/salas",
-    "/rodizio-salas",
-    "/matriculas",
-    "/chamada",
-    "/calendario",
-    "/dna-professores",
-    "/espetaculos",
-    "/importar-alunos",
-  ],
-  professor: ["/chamada", "/calendario", "/turmas", "/rodizio-salas"],
+/**
+ * Itens que o papel NÃO vê no menu, mesmo tendo permissão de rota.
+ *
+ * Existe para esconder tela que a pessoa pode abrir mas não é o caminho dela
+ * (o professor acessa /dashboard, mas o dia dele começa na chamada).
+ *
+ * O que o menu mostra é sempre um SUBCONJUNTO do que a rota permite — a
+ * navegação deriva das permissões, nunca é uma segunda lista. Antes eram duas
+ * listas paralelas, e elas divergiram: o professor via "Rodízio de Salas" e
+ * levava "acesso negado" ao clicar.
+ */
+const ocultosNoMenu: Record<UserRole, string[]> = {
+  admin: [],
+  equipe: [],
+  professor: ["/dashboard"],
 };
 
 export function isUserRole(value: string | null | undefined): value is UserRole {
@@ -102,11 +98,21 @@ export function canAccessPath(role: UserRole, pathname: string) {
 }
 
 export function getNavigationForRole(role: UserRole) {
-  return navigationItems.filter((item) =>
-    roleNavigationPrefixes[role].some((prefix) =>
-      matchesPrefix(item.href, prefix),
-    ),
+  return navigationItems.filter(
+    (item) =>
+      canAccessPath(role, item.href) &&
+      !ocultosNoMenu[role].some((prefix) => matchesPrefix(item.href, prefix)),
   );
+}
+
+/**
+ * Para onde cada papel vai ao entrar.
+ *
+ * O professor caía em /dashboard — indicadores da escola inteira, e sem o
+ * item no menu para voltar. O dia dele começa na chamada.
+ */
+export function getHomeForRole(role: UserRole): string {
+  return role === "professor" ? "/chamada" : "/dashboard";
 }
 
 function matchesPrefix(pathname: string, prefix: string) {

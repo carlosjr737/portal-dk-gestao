@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/features/auth/session";
+import { getHomeForRole } from "@/features/auth/permissions";
 
 export type LoginActionState = {
   message?: string;
@@ -43,7 +44,8 @@ export async function login(
     };
   }
 
-  redirect("/dashboard");
+  // Cada papel entra onde o dia dele começa.
+  redirect(getHomeForRole(profile.role));
 }
 
 export async function logout() {
