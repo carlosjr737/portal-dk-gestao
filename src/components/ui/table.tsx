@@ -52,6 +52,9 @@ export function TableHeader({
     <thead
       className={cn(
         "bg-muted text-xs uppercase tracking-wide text-muted-foreground",
+        // A linha do cabeçalho usa o mesmo <TableRow> das linhas de dados,
+        // mas não deve acender ao passar o mouse: não há o que clicar nela.
+        "[&_tr:hover]:bg-transparent",
         className,
       )}
       {...props}

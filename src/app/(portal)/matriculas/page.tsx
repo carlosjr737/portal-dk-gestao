@@ -13,6 +13,15 @@ import { formatDate } from "@/features/students/formatters";
 import { CobrancaAlunoButton } from "@/features/baas/cobranca-aluno-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableRow,
+  TableHead,
+  TableHeader,
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -65,143 +74,135 @@ export default async function MatriculasPage({
         </Alert>
       ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1240px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Aluno</th>
-                <th className="px-4 py-3 font-semibold">Turma</th>
-                <th className="px-4 py-3 font-semibold">Professor</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Início</th>
-                <th className="px-4 py-3 font-semibold">Data final</th>
-                <th className="px-4 py-3 font-semibold">1º vencimento</th>
-                <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
-                <th className="px-4 py-3 font-semibold">Valor mensal</th>
+      <Table
+        containerClassName="mt-6"
+        minWidth="1240px"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Aluno</TableHead>
+            <TableHead>Turma</TableHead>
+            <TableHead>Professor</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Início</TableHead>
+            <TableHead>Data final</TableHead>
+            <TableHead>1º vencimento</TableHead>
+            <TableHead>Resp. financeiro</TableHead>
+            <TableHead>Valor mensal</TableHead>
+            {usaPagamentos ? (
+              <TableHead>Cobrança</TableHead>
+            ) : null}
+
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {enrollments.length > 0 ? (
+            enrollments.map((enrollment) => (
+              <TableRow key={enrollment.id}>
+                <TableCell>
+                  {enrollment.student ? (
+                    <Link
+                      href={`/alunos/${enrollment.student.id}`}
+                      className="font-medium text-foreground hover:underline"
+                    >
+                      {enrollment.student.full_name}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Aluno não encontrado
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {enrollment.class ? (
+                    <Link
+                      href={`/turmas/${enrollment.class.id}`}
+                      className="font-medium text-foreground hover:underline"
+                    >
+                      {enrollment.class.name}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Turma não encontrada
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {enrollment.class?.teacherName ?? "Não informado"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatEnrollmentStatus(enrollment.status)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.start_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.end_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.first_due_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatFinancialGuardianName(
+                    enrollment.financialGuardian?.full_name,
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatMoney(enrollment.monthly_amount)}
+                </TableCell>
                 {usaPagamentos ? (
-                  <th className="px-4 py-3 font-semibold">Cobrança</th>
+                <TableCell>
+                  {(() => {
+                    const c = enrollment.guardianContractId
+                      ? cobrancas.get(enrollment.guardianContractId)
+                      : undefined;
+
+                    // Cobrança já existente aparece mesmo em matrícula
+                    // cancelada — o histórico importa.
+                    if (c && enrollment.guardianContractId) {
+                      return (
+                        <CobrancaAlunoButton
+                          contratoId={enrollment.guardianContractId}
+                          valor={enrollment.guardianContractTotalAmount ?? null}
+                          jaTemCobranca
+                          statusCobranca={c.status}
+                          proximoVencimento={c.proximo_vencimento}
+                        />
+                      );
+                    }
+
+                    // Não oferece cobrar quem não está estudando.
+                    if (enrollment.status !== "active") {
+                      return (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      );
+                    }
+
+                    if (!enrollment.guardianContractId) {
+                      return (
+                        <span className="text-xs text-muted-foreground">
+                          Sem contrato
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <CobrancaAlunoButton
+                        contratoId={enrollment.guardianContractId}
+                        valor={enrollment.guardianContractTotalAmount ?? null}
+                        jaTemCobranca={false}
+                      />
+                    );
+                  })()}
+                </TableCell>
                 ) : null}
-
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {enrollments.length > 0 ? (
-                enrollments.map((enrollment) => (
-                  <tr key={enrollment.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      {enrollment.student ? (
-                        <Link
-                          href={`/alunos/${enrollment.student.id}`}
-                          className="font-medium text-foreground hover:underline"
-                        >
-                          {enrollment.student.full_name}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Aluno não encontrado
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {enrollment.class ? (
-                        <Link
-                          href={`/turmas/${enrollment.class.id}`}
-                          className="font-medium text-foreground hover:underline"
-                        >
-                          {enrollment.class.name}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Turma não encontrada
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {enrollment.class?.teacherName ?? "Não informado"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatEnrollmentStatus(enrollment.status)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(enrollment.start_date)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(enrollment.end_date)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(enrollment.first_due_date)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatFinancialGuardianName(
-                        enrollment.financialGuardian?.full_name,
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatMoney(enrollment.monthly_amount)}
-                    </td>
-                    {usaPagamentos ? (
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const c = enrollment.guardianContractId
-                          ? cobrancas.get(enrollment.guardianContractId)
-                          : undefined;
-
-                        // Cobrança já existente aparece mesmo em matrícula
-                        // cancelada — o histórico importa.
-                        if (c && enrollment.guardianContractId) {
-                          return (
-                            <CobrancaAlunoButton
-                              contratoId={enrollment.guardianContractId}
-                              valor={enrollment.guardianContractTotalAmount ?? null}
-                              jaTemCobranca
-                              statusCobranca={c.status}
-                              proximoVencimento={c.proximo_vencimento}
-                            />
-                          );
-                        }
-
-                        // Não oferece cobrar quem não está estudando.
-                        if (enrollment.status !== "active") {
-                          return (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          );
-                        }
-
-                        if (!enrollment.guardianContractId) {
-                          return (
-                            <span className="text-xs text-muted-foreground">
-                              Sem contrato
-                            </span>
-                          );
-                        }
-
-                        return (
-                          <CobrancaAlunoButton
-                            contratoId={enrollment.guardianContractId}
-                            valor={enrollment.guardianContractTotalAmount ?? null}
-                            jaTemCobranca={false}
-                          />
-                        );
-                      })()}
-                    </td>
-                    ) : null}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={colunas}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhuma matrícula encontrada.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={colunas}>Nenhuma matrícula encontrada.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

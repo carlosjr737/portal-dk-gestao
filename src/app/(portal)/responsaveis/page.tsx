@@ -5,6 +5,15 @@ import { formatDateTime, formatText } from "@/features/students/formatters";
 import type { Guardian } from "@/features/guardians/types";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableRow,
+  TableHead,
+  TableHeader,
+} from "@/components/ui/table";
 
 type ResponsaveisPageProps = {
   searchParams?: Promise<{
@@ -65,71 +74,63 @@ export default async function ResponsaveisPage({
         </div>
       </form>
 
-      <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Nome</th>
-                <th className="px-4 py-3 font-semibold">Telefone</th>
-                <th className="px-4 py-3 font-semibold">E-mail</th>
-                <th className="px-4 py-3 font-semibold">Atualizado em</th>
-                <th className="px-4 py-3 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {guardians.length > 0 ? (
-                guardians.map((guardian) => (
-                  <tr key={guardian.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">
-                        {guardian.full_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatText(guardian.document)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatText(guardian.phone)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatText(guardian.email)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDateTime(guardian.updated_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/responsaveis/${guardian.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
-                        >
-                          Ver
-                        </Link>
-                        <Link
-                          href={`/responsaveis/${guardian.id}/editar`}
-                          className="text-sm font-medium text-foreground hover:underline"
-                        >
-                          Editar
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum responsável encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table
+        containerClassName="mt-6"
+        minWidth="720px"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>E-mail</TableHead>
+            <TableHead>Atualizado em</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {guardians.length > 0 ? (
+            guardians.map((guardian) => (
+              <TableRow key={guardian.id}>
+                <TableCell>
+                  <div className="font-medium text-foreground">
+                    {guardian.full_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatText(guardian.document)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(guardian.phone)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(guardian.email)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDateTime(guardian.updated_at)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/responsaveis/${guardian.id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Ver
+                    </Link>
+                    <Link
+                      href={`/responsaveis/${guardian.id}/editar`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      Editar
+                    </Link>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={5}>Nenhum responsável encontrado.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

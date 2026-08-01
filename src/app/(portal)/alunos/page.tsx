@@ -9,6 +9,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableRow,
+  TableHead,
+  TableHeader,
+} from "@/components/ui/table";
 
 type StudentListRow = Student & {
   financialGuardian: {
@@ -98,83 +107,75 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
         </Alert>
       ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Nome</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
-                <th className="px-4 py-3 font-semibold">Telefone resp.</th>
-                <th className="px-4 py-3 font-semibold">Telefone</th>
-                <th className="px-4 py-3 font-semibold">E-mail</th>
-                <th className="px-4 py-3 font-semibold">Nascimento</th>
-                <th className="px-4 py-3 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {students.length > 0 ? (
-                students.map((student) => (
-                  <tr key={student.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">
-                        {student.full_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatText(student.display_name)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={student.status} />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {student.financialGuardian?.full_name ?? "Não informado"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {student.financialGuardian?.phone ?? "Não informado"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatText(student.phone)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatText(student.email)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(student.birth_date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/alunos/${student.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
-                        >
-                          Ver
-                        </Link>
-                        <Link
-                          href={`/alunos/${student.id}/editar`}
-                          className="text-sm font-medium text-foreground hover:underline"
-                        >
-                          Editar
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum aluno encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table
+        containerClassName="mt-6"
+        minWidth="760px"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Resp. financeiro</TableHead>
+            <TableHead>Telefone resp.</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>E-mail</TableHead>
+            <TableHead>Nascimento</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {students.length > 0 ? (
+            students.map((student) => (
+              <TableRow key={student.id}>
+                <TableCell>
+                  <div className="font-medium text-foreground">
+                    {student.full_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatText(student.display_name)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={student.status} />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {student.financialGuardian?.full_name ?? "Não informado"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {student.financialGuardian?.phone ?? "Não informado"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(student.phone)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(student.email)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(student.birth_date)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/alunos/${student.id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Ver
+                    </Link>
+                    <Link
+                      href={`/alunos/${student.id}/editar`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      Editar
+                    </Link>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={8}>Nenhum aluno encontrado.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -19,6 +19,15 @@ import { formatText } from "@/features/students/formatters";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableRow,
+  TableHead,
+  TableHeader,
+} from "@/components/ui/table";
 
 type TurmasPageProps = {
   searchParams?: Promise<{
@@ -85,93 +94,85 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
         </div>
       </form>
 
-      <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Turma</th>
-                <th className="px-4 py-3 font-semibold">Professor</th>
-                <th className="px-4 py-3 font-semibold">Horários</th>
-                <th className="px-4 py-3 font-semibold">Ocupação</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {classes.length > 0 ? (
-                classes.map((danceClass) => (
-                  <tr key={danceClass.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">
-                        {danceClass.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatText(
-                          danceClass.modality?.name ?? danceClass.category,
-                        )}
-                        {" · "}
-                        {formatText(danceClass.levelOption?.name ?? null)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {danceClass.teacher
-                        ? getStaffDisplayName(danceClass.teacher)
-                        : formatText(danceClass.instructor_name)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatClassSchedules(danceClass.schedules)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {danceClass.active_enrollments_count} /{" "}
-                      {formatCapacity(danceClass.capacity)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <ClassStatusBadge
-                        status={danceClass.status}
-                        capacity={danceClass.capacity}
-                        activeEnrollmentsCount={
-                          danceClass.active_enrollments_count
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/turmas/${danceClass.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
-                        >
-                          Ver
-                        </Link>
-                        <Link
-                          href={`/turmas/${danceClass.id}/editar`}
-                          className="text-sm font-medium text-foreground hover:underline"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteClassButton
-                          classId={danceClass.id}
-                          className={danceClass.name}
-                          enrollmentsCount={danceClass.total_enrollments_count}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhuma turma encontrada.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table
+        containerClassName="mt-6"
+        minWidth="820px"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Turma</TableHead>
+            <TableHead>Professor</TableHead>
+            <TableHead>Horários</TableHead>
+            <TableHead>Ocupação</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {classes.length > 0 ? (
+            classes.map((danceClass) => (
+              <TableRow key={danceClass.id}>
+                <TableCell>
+                  <div className="font-medium text-foreground">
+                    {danceClass.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatText(
+                      danceClass.modality?.name ?? danceClass.category,
+                    )}
+                    {" · "}
+                    {formatText(danceClass.levelOption?.name ?? null)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {danceClass.teacher
+                    ? getStaffDisplayName(danceClass.teacher)
+                    : formatText(danceClass.instructor_name)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatClassSchedules(danceClass.schedules)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {danceClass.active_enrollments_count} /{" "}
+                  {formatCapacity(danceClass.capacity)}
+                </TableCell>
+                <TableCell>
+                  <ClassStatusBadge
+                    status={danceClass.status}
+                    capacity={danceClass.capacity}
+                    activeEnrollmentsCount={
+                      danceClass.active_enrollments_count
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/turmas/${danceClass.id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Ver
+                    </Link>
+                    <Link
+                      href={`/turmas/${danceClass.id}/editar`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      Editar
+                    </Link>
+                    <DeleteClassButton
+                      classId={danceClass.id}
+                      className={danceClass.name}
+                      enrollmentsCount={danceClass.total_enrollments_count}
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>Nenhuma turma encontrada.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
