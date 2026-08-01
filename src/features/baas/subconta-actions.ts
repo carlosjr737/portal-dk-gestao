@@ -150,6 +150,9 @@ export async function criarSubcontaEscola(
   if (result.apiKey) {
     const token = getAsaasWebhookToken();
     const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal-dk-gestao.vercel.app";
+    // Sem token, o webhook seria registrado sem autenticação e TODA entrega
+    // levaria 401 do nosso endpoint — silenciosamente, com o webhook
+    // aparentando estar saudável. Melhor não registrar e gritar no log.
     if (token) {
       const wh = await registrarWebhookSubconta(
         result.apiKey,

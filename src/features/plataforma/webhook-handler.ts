@@ -12,9 +12,15 @@ function statusPorEvento(event: string): string | null {
   switch (event) {
     // Pago. CONFIRMED = pagamento efetuado (saldo ainda não liberado);
     // RECEIVED = valor já disponível. Para liberar acesso, confirmado basta.
+    // A baixa manual (receiveInCash) também dispara PAYMENT_RECEIVED —
+    // confirmado no sandbox. Não existe evento PAYMENT_RECEIVED_IN_CASH.
     case "PAYMENT_CONFIRMED":
     case "PAYMENT_RECEIVED":
       return "ativa";
+
+    // Baixa manual desfeita: volta a dever.
+    case "PAYMENT_RECEIVED_IN_CASH_UNDONE":
+      return "pendente";
 
     // Nova cobrança do ciclo seguinte: ainda não venceu, então continua ativa.
     // Serve para mover o próximo vencimento (ver abaixo).

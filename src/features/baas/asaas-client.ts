@@ -184,12 +184,17 @@ export async function registrarWebhookSubconta(
       interrupted: false,
       authToken,
       sendType: "NON_SEQUENTIALLY",
+      // Não existe PAYMENT_RECEIVED_IN_CASH: a baixa manual dispara
+      // PAYMENT_RECEIVED. Só o desfazimento tem evento próprio, e ele importa
+      // — sem ele, uma baixa revertida deixaria a cobrança marcada como paga.
       events: [
         "PAYMENT_CREATED",
         "PAYMENT_CONFIRMED",
         "PAYMENT_RECEIVED",
+        "PAYMENT_RECEIVED_IN_CASH_UNDONE",
         "PAYMENT_OVERDUE",
         "PAYMENT_REFUNDED",
+        "PAYMENT_DELETED",
       ],
     }),
   });
