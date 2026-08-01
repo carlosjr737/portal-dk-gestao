@@ -85,6 +85,23 @@ const ocultosNoMenu: Record<UserRole, string[]> = {
   professor: ["/dashboard"],
 };
 
+/**
+ * Telas que só existem para escola com o módulo de pagamento ativo.
+ *
+ * Inadimplência só faz sentido para quem cobra PELO sistema: sem isso, o
+ * sistema não tem como saber quem pagou. Escola que usa só a gestão não deve
+ * nem ver a tela — melhor não oferecer do que oferecer vazia.
+ *
+ * As demais telas do Financeiro continuam valendo para todas: faturamento por
+ * turma, pagamento de professores, Growth & Churn e entradas/saídas se apoiam
+ * em matrícula e lançamento manual, não em cobrança.
+ */
+const exigemModuloFinanceiro = ["/financeiro/inadimplencia"];
+
+export function exigeModuloFinanceiro(pathname: string): boolean {
+  return exigemModuloFinanceiro.some((prefix) => matchesPrefix(pathname, prefix));
+}
+
 export function isUserRole(value: string | null | undefined): value is UserRole {
   return value === "admin" || value === "equipe" || value === "professor";
 }
@@ -97,11 +114,15 @@ export function canAccessPath(role: UserRole, pathname: string) {
   return roleRoutePrefixes[role].some((prefix) => matchesPrefix(pathname, prefix));
 }
 
-export function getNavigationForRole(role: UserRole) {
+export function getNavigationForRole(
+  role: UserRole,
+  usaModuloFinanceiro = true,
+) {
   return navigationItems.filter(
     (item) =>
       canAccessPath(role, item.href) &&
-      !ocultosNoMenu[role].some((prefix) => matchesPrefix(item.href, prefix)),
+      !ocultosNoMenu[role].some((prefix) => matchesPrefix(item.href, prefix)) &&
+      (usaModuloFinanceiro || !exigeModuloFinanceiro(item.href)),
   );
 }
 

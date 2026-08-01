@@ -1,7 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { canAccessPath } from "@/features/auth/permissions";
+import {
+  canAccessPath,
+  exigeModuloFinanceiro,
+} from "@/features/auth/permissions";
+import { escolaUsaModuloFinanceiro } from "@/features/school/modulo-financeiro";
 import {
   getAuthenticatedUser,
   getCurrentEscolaId,
@@ -34,6 +38,15 @@ export default async function PortalLayout({
     redirect("/acesso-nao-autorizado");
   }
 
+  // Escola que não cobra pelo sistema não tem como saber quem está devendo.
+  // Esconder do menu não basta: a URL continuaria acessível.
+  const usaModuloFinanceiro = await escolaUsaModuloFinanceiro(
+    profile.escolaId ?? null,
+  );
+  if (!usaModuloFinanceiro && exigeModuloFinanceiro(pathname)) {
+    redirect("/financeiro");
+  }
+
   // Assinatura vencida além da carência suspende o acesso ao sistema.
   const assinatura = await getSituacaoAssinatura(profile.escolaId ?? (await getCurrentEscolaId()));
   if (assinatura.bloqueada) {
@@ -41,7 +54,7 @@ export default async function PortalLayout({
   }
 
   return (
-    <AppShell profile={profile}>
+    <AppShell profile={profile} usaModuloFinanceiro={usaModuloFinanceiro}>
       {assinatura.emAviso ? (
         <AvisoAssinatura
           diasDeAtraso={assinatura.diasDeAtraso}

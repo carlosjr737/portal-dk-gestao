@@ -8,9 +8,15 @@ import { roleLabels, type UserProfile } from "@/features/auth/permissions";
 type AppShellProps = {
   children: React.ReactNode;
   profile: UserProfile;
+  /** Escola cobra pelo sistema? Esconde as telas que dependem disso. */
+  usaModuloFinanceiro?: boolean;
 };
 
-export function AppShell({ children, profile }: AppShellProps) {
+export function AppShell({
+  children,
+  profile,
+  usaModuloFinanceiro = true,
+}: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -19,6 +25,7 @@ export function AppShell({ children, profile }: AppShellProps) {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         role={profile.role}
+        usaModuloFinanceiro={usaModuloFinanceiro}
       />
 
       {isSidebarOpen ? (

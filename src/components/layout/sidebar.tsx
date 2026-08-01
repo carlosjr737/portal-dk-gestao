@@ -13,6 +13,7 @@ type SidebarProps = {
   isOpen: boolean;
   onClose: () => void;
   role: UserRole;
+  usaModuloFinanceiro?: boolean;
 };
 
 const navigationGroups = [
@@ -69,9 +70,14 @@ const navigationGroups = [
   },
 ] as const;
 
-export function Sidebar({ isOpen, onClose, role }: SidebarProps) {
+export function Sidebar({
+  isOpen,
+  onClose,
+  role,
+  usaModuloFinanceiro = true,
+}: SidebarProps) {
   const pathname = usePathname();
-  const navigation = getNavigationForRole(role);
+  const navigation = getNavigationForRole(role, usaModuloFinanceiro);
   const navigationByHref = useMemo(
     () => new Map(navigation.map((item) => [item.href, item])),
     [navigation],
