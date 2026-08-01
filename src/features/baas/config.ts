@@ -15,3 +15,13 @@ export function getAsaasApiKey(): string | null {
   const key = process.env.ASAAS_API_KEY;
   return key && key.trim().length > 0 ? key.trim() : null;
 }
+
+/**
+ * Token que o Asaas envia no header `asaas-access-token` a cada webhook.
+ * É o que prova que a chamada veio mesmo dele — sem isso, qualquer um
+ * poderia forjar "pagamento recebido" e liberar acesso de graça.
+ */
+export function getAsaasWebhookToken(): string | null {
+  const t = process.env.ASAAS_WEBHOOK_TOKEN;
+  return t && t.trim().length > 0 ? t.trim() : null;
+}
