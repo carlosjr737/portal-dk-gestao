@@ -7,6 +7,8 @@ import {
   getProfileByUserId,
 } from "@/features/auth/session";
 import { SchoolForm, type SchoolData } from "@/features/school/school-form";
+import { ContaPagamentosCard } from "@/features/baas/conta-pagamentos-card";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ export default async function EscolaPage() {
     ? await supabase
         .from("school")
         .select(
-          "nome, razao_social, representante_legal, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, kyc_status, asaas_account_id",
+          "nome, razao_social, representante_legal, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, kyc_status, asaas_account_id, asaas_wallet_id",
         )
         .eq("id", escolaId)
         .maybeSingle()
@@ -47,27 +49,12 @@ export default async function EscolaPage() {
           </section>
 
           <section className="mt-6 rounded-md border border-border bg-white p-5">
-            <h2 className="text-base font-semibold text-foreground">
-              Conta de pagamentos
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sub-conta usada para receber as mensalidades. É criada na etapa de
-              integração com o provedor — ainda não disponível.
-            </p>
-            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-xs text-muted-foreground">Status do cadastro</dt>
-                <dd className="font-medium text-foreground">
-                  {(school.kyc_status as string | null) ?? "pendente"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Identificador da conta</dt>
-                <dd className="font-medium text-foreground">
-                  {(school.asaas_account_id as string | null) ?? "—"}
-                </dd>
-              </div>
-            </dl>
+            <ContaPagamentosCard
+              kycStatus={(school.kyc_status as string | null) ?? null}
+              accountId={(school.asaas_account_id as string | null) ?? null}
+              walletId={(school.asaas_wallet_id as string | null) ?? null}
+              ambiente={ASAAS_ENV}
+            />
           </section>
         </>
       )}
