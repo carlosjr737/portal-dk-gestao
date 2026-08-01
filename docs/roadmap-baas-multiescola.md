@@ -52,7 +52,7 @@
 | 1.2 | Contexto de tenant: `current_escola()` no banco + `escolaId` na sessão | ✅ |
 | 1.3 | RLS por escola em todas as tabelas (`multitenant_04_rls.sql`) | ⏳ pronto p/ rodar |
 | 1.4 | Converter os arquivos que usam admin client como contorno → cliente RLS | ✅ 207 → 33 queries |
-| 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ⏳ 33 queries restantes |
+| 1.5 | `escola_id` explícito no uso legítimo de admin (API do Pina, provisionamento) | ✅ |
 | 1.6 | `NOT NULL` + remover o fallback DK do default | ⏳ |
 | 1.7 | CRUD de escolas (cadastro/edição) | ⏳ |
 | 1.8 | Tirar o hardcode do CONTRATADO no contrato (constante `DK` em `contracts/contract-view.tsx`) → vem da escola | ⏳ |
@@ -80,7 +80,18 @@ Além disso, as policies existentes eram quase todas `using (true)` — qualquer
 | `staff/actions` (4) | Criação de bucket de storage exige service_role |
 | `session.ts` (1) | Resolve a própria sessão — ovo e galinha |
 
-⚠️ **Estes ignoram a RLS.** Na etapa 1.5 cada um precisa filtrar `escola_id` explicitamente (a API do Pina já filtra por espetáculo, mas o espetáculo precisa ser validado contra a escola do professor).
+⚠️ **Estes ignoram a RLS** — o isolamento é explícito no código (feito na 1.5).
+
+**Vazamentos que a 1.5 fechou:**
+- `GET /api/pina/espetaculo/:id` servia qualquer espetáculo a quem soubesse o id, inclusive de outra escola (elenco completo). Agora valida contra a escola do token e responde 404.
+- `GET /api/pina/meus-espetaculos`, ramo `master`, devolvia espetáculos de **todas** as escolas.
+- `escolaId` nas claims do Firebase era `null` fixo — agora é assinado no SSO e no provisionamento. Sem escola na claim, a API **falha fechado**.
+- `listUsers` listava perfis de todas as escolas; `updateUserProfile` e `toggleUserActive` alteravam por id sem checar escola.
+- Criação de usuário gravava `escola_id` pelo fallback DK, não pela escola de quem cria.
+- `resolvePinaViewer` casava professor por e-mail sem escopo de escola.
+- `provisionAllPinaAction` provisionaria professores de todas as escolas.
+
+**Premissa registrada:** o `token-store` do Conta Azul segue sem filtro de escola de propósito — é exclusivo do DK Studio (ADR 0001). Se uma segunda escola conectar o Conta Azul, aquelas queries precisam de `escola_id` antes (usam `maybeSingle()` e quebrariam).
 
 ### Achado de performance (2026-07-31)
 
