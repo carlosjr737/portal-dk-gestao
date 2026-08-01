@@ -160,31 +160,32 @@ export function CalendarView({
                         </option>
                       ))}
                     </Select>
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       type="submit"
-                      className="h-9 rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                      className="text-xs"
                     >
                       Salvar
-                    </button>
+                    </Button>
                   </form>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
                   <form action={syncGoogleCalendarAction}>
                     <input type="hidden" name="month" value={month} />
-                    <button
-                      type="submit"
-                      className="h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:opacity-90"
-                    >
+                    <Button size="sm" type="submit" className="text-xs">
                       Sincronizar Google Agenda
-                    </button>
+                    </Button>
                   </form>
                   <form action="/api/integrations/google-calendar/disconnect" method="post">
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       type="submit"
-                      className="h-9 rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                      className="text-xs"
                     >
                       Desconectar
-                    </button>
+                    </Button>
                   </form>
                 </div>
               </div>
@@ -565,14 +566,16 @@ function Modal({
       <div className="w-full max-w-3xl rounded-md bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-xl text-muted-foreground transition hover:bg-muted"
             aria-label="Fechar"
+            className="h-9 w-9 text-xl text-muted-foreground"
           >
             ×
-          </button>
+          </Button>
         </div>
         <div className="p-5">{children}</div>
       </div>

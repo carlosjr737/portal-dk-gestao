@@ -13,6 +13,15 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 
@@ -130,90 +139,81 @@ export default async function UsuariosPage({ searchParams }: UsuariosPageProps) 
         </div>
       </form>
 
-      <section className="overflow-hidden rounded-md border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Nome</th>
-                <th className="px-4 py-3 font-semibold">E-mail</th>
-                <th className="px-4 py-3 font-semibold">Perfil</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Criado em</th>
-                <th className="px-4 py-3 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {users.length > 0 ? (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {user.name ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {user.email ?? "-"}
-                    </td>
-                    <td className="px-4 py-3">{roleLabels[user.role]}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={
-                          user.active
-                            ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                            : "rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600"
-                        }
-                      >
-                        {user.active ? "Ativo" : "Inativo"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(user.createdAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={`/configuracoes/usuarios?edit=${user.id}`}
-                          className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
-                        >
-                          Editar
-                        </Link>
-                        <form action={toggleUserActive}>
-                          <input type="hidden" name="userId" value={user.id} />
-                          <input
-                            type="hidden"
-                            name="nextActive"
-                            value={String(!user.active)}
-                          />
-                          <button
-                            type="submit"
-                            className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
-                          >
-                            {user.active ? "Desativar" : "Ativar"}
-                          </button>
-                        </form>
-                        <Link
-                          href={`/configuracoes/usuarios?reset=${user.id}`}
-                          className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
-                        >
-                          Redefinir senha
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome</TableHead>
+            <TableHead>E-mail</TableHead>
+            <TableHead>Perfil</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Criado em</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users.length > 0 ? (
+            users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="font-medium text-foreground">
+                  {user.name ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {user.email ?? "-"}
+                </TableCell>
+                <TableCell>{roleLabels[user.role]}</TableCell>
+                <TableCell>
+                  <span
+                    className={
+                      user.active
+                        ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+                        : "rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600"
+                    }
                   >
-                    Nenhum usuário encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    {user.active ? "Ativo" : "Inativo"}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(user.createdAt)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/configuracoes/usuarios?edit=${user.id}`}
+                      className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Editar
+                    </Link>
+                    <form action={toggleUserActive}>
+                      <input type="hidden" name="userId" value={user.id} />
+                      <input
+                        type="hidden"
+                        name="nextActive"
+                        value={String(!user.active)}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="submit"
+                        className="h-8 text-xs"
+                      >
+                        {user.active ? "Desativar" : "Ativar"}
+                      </Button>
+                    </form>
+                    <Link
+                      href={`/configuracoes/usuarios?reset=${user.id}`}
+                      className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Redefinir senha
+                    </Link>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>Nenhum usuário encontrado.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

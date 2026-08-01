@@ -5,7 +5,7 @@ import { studentStatusOptions } from "@/features/students/schemas";
 import { formatDate, formatText } from "@/features/students/formatters";
 import { StatusBadge } from "@/features/students/status-badge";
 import type { Student } from "@/features/students/types";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
@@ -86,12 +86,9 @@ export default async function AlunosPage({ searchParams }: AlunosPageProps) {
         </label>
 
         <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-          >
+          <Button variant="secondary" type="submit">
             Filtrar
-          </button>
+          </Button>
           <Link
             href="/alunos"
             className={buttonVariants({ variant: "outline" })}

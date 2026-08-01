@@ -16,7 +16,7 @@ import type { CatalogOption } from "@/features/class-catalog/types";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import type { TeacherOption } from "@/features/staff/types";
 import { formatText } from "@/features/students/formatters";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import {
@@ -79,12 +79,9 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
           />
         </label>
         <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-          >
+          <Button variant="secondary" type="submit">
             Buscar
-          </button>
+          </Button>
           <Link
             href="/turmas"
             className={buttonVariants({ variant: "outline" })}
@@ -161,7 +158,7 @@ export default async function TurmasPage({ searchParams }: TurmasPageProps) {
                     </Link>
                     <DeleteClassButton
                       classId={danceClass.id}
-                      className={danceClass.name}
+                      classeNome={danceClass.name}
                       enrollmentsCount={danceClass.total_enrollments_count}
                     />
                   </div>

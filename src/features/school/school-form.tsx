@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { updateSchool, type SchoolActionState } from "@/features/school/actions";
 import { Input } from "@/components/ui/input";
 import { Field as FormField } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 export type SchoolData = {
   nome: string;
@@ -99,13 +100,9 @@ export function SchoolForm({ school }: { school: SchoolData }) {
       </section>
 
       <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="h-10 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={pending} className="px-5">
           {pending ? "Salvando…" : "Salvar dados da escola"}
-        </button>
+        </Button>
       </div>
     </form>
   );

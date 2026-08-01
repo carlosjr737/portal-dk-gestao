@@ -8,14 +8,15 @@ import { Alert } from "@/components/ui/alert";
 
 type DeleteClassButtonProps = {
   classId: string;
-  className: string;
+  /* O nome da turma, exibido na confirmação — não é classe CSS. */
+  classeNome: string;
   enrollmentsCount: number;
   redirectOnSuccess?: boolean;
 };
 
 export function DeleteClassButton({
   classId,
-  className,
+  classeNome,
   enrollmentsCount,
   redirectOnSuccess,
 }: DeleteClassButtonProps) {
@@ -75,7 +76,7 @@ export function DeleteClassButton({
                 : "Esta turma não possui matrículas. Ela será excluída definitivamente."}
             </p>
             <p className="mt-3 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground">
-              {className}
+              {classeNome}
             </p>
 
             {errorMessage ? (

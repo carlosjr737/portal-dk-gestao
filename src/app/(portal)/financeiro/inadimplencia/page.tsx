@@ -1,6 +1,14 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { getInadimplencia } from "@/features/baas/inadimplencia-queries";
 import { FaturaBotao } from "@/features/baas/fatura-modal";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -61,59 +69,57 @@ export default async function InadimplenciaPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-left text-sm">
-              <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Responsável</th>
-                  <th className="px-4 py-3 font-semibold">Aluno(s)</th>
-                  <th className="px-4 py-3 font-semibold">Atraso</th>
-                  <th className="px-4 py-3 font-semibold">Venceu em</th>
-                  <th className="px-4 py-3 text-right font-semibold">Valor</th>
-                  <th className="px-4 py-3 font-semibold">Cobrar</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {devedores.map((d) => (
-                  <tr key={d.contratoId} className="align-top hover:bg-muted/40">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{d.responsavel}</p>
-                      {d.telefone ? (
-                        <p className="text-xs text-muted-foreground">{d.telefone}</p>
-                      ) : (
-                        <p className="text-xs text-amber-700">sem telefone</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {d.alunos.join(", ") || "—"}
-                      {d.turmas.length > 0 ? (
-                        <p className="mt-0.5 text-xs text-muted-foreground/80">
-                          {d.turmas.length}{" "}
-                          {d.turmas.length === 1 ? "turma" : "turmas"}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${tomDoAtraso(d.diasDeAtraso)}`}
-                      >
-                        {d.diasDeAtraso} {d.diasDeAtraso === 1 ? "dia" : "dias"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {dataBR(d.vencimento)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
-                      {brl.format(d.valor)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <FaturaBotao contratoId={d.contratoId} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table containerClassName="rounded-none border-0" minWidth="820px">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Responsável</TableHead>
+                <TableHead>Aluno(s)</TableHead>
+                <TableHead>Atraso</TableHead>
+                <TableHead>Venceu em</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Cobrar</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {devedores.map((d) => (
+                <TableRow key={d.contratoId} className="align-top">
+                  <TableCell>
+                    <p className="font-medium text-foreground">{d.responsavel}</p>
+                    {d.telefone ? (
+                      <p className="text-xs text-muted-foreground">{d.telefone}</p>
+                    ) : (
+                      <p className="text-xs text-amber-700">sem telefone</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {d.alunos.join(", ") || "—"}
+                    {d.turmas.length > 0 ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground/80">
+                        {d.turmas.length}{" "}
+                        {d.turmas.length === 1 ? "turma" : "turmas"}
+                      </p>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${tomDoAtraso(d.diasDeAtraso)}`}
+                    >
+                      {d.diasDeAtraso} {d.diasDeAtraso === 1 ? "dia" : "dias"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {dataBR(d.vencimento)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums text-foreground">
+                    {brl.format(d.valor)}
+                  </TableCell>
+                  <TableCell>
+                    <FaturaBotao contratoId={d.contratoId} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

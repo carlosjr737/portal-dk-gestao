@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { obterFatura, type FaturaState } from "@/features/baas/fatura-actions";
+import { Button } from "@/components/ui/button";
 
 /**
  * Entrega da cobrança ao responsável, feita pela escola.
@@ -80,23 +81,27 @@ export function FaturaBotao({ contratoId }: { contratoId: string }) {
             sem telefone
           </span>
         )}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           onClick={() => copiar(fatura.invoiceUrl ?? "", "link")}
-          className="inline-flex h-7 items-center rounded-md border border-border bg-white px-2 font-medium text-foreground hover:bg-muted"
+          className="h-7 bg-white px-2 text-xs"
         >
           {copiado === "link" ? "Copiado" : "Copiar link"}
-        </button>
+        </Button>
       </div>
 
       {fatura.pixCopiaECola ? (
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           onClick={() => copiar(fatura.pixCopiaECola ?? "", "pix")}
-          className="mt-1.5 w-full rounded-md border border-border bg-white px-2 py-1 font-medium text-foreground hover:bg-muted"
+          className="mt-1.5 h-7 w-full bg-white px-2 text-xs"
         >
           {copiado === "pix" ? "Pix copiado" : "Copiar Pix copia-e-cola"}
-        </button>
+        </Button>
       ) : null}
 
       <button

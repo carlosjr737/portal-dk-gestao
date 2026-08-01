@@ -8,6 +8,7 @@ import {
   type UserRole,
 } from "@/features/auth/permissions";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type SidebarProps = {
   isOpen: boolean;
@@ -123,13 +124,15 @@ export function Sidebar({
             </p>
             <p className="text-xs text-muted-foreground">DK Studio</p>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
-            className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground md:hidden"
             onClick={onClose}
+            className="text-xs text-muted-foreground md:hidden"
           >
             Fechar
-          </button>
+          </Button>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteCoreografia } from "@/features/espetaculo/actions";
+import { Button } from "@/components/ui/button";
 
 export function DeleteCoreografiaButton({
   espetaculoId,
@@ -19,12 +20,14 @@ export function DeleteCoreografiaButton({
         }
       }}
     >
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="submit"
-        className="inline-flex h-8 items-center rounded-md border border-rose-200 px-3 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+        className="h-8 border-destructive/40 text-xs text-destructive hover:bg-destructive/5"
       >
         Remover
-      </button>
+      </Button>
     </form>
   );
 }

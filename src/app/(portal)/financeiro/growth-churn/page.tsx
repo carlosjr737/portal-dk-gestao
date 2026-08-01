@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -76,13 +85,14 @@ export default async function GrowthChurnPage({
             >
               Financeiro
             </Link>
-            <button
+            <Button
+              variant="outline"
               type="button"
               disabled
-              className="h-10 cursor-not-allowed rounded-md border border-border bg-muted px-4 text-sm font-medium text-muted-foreground"
+              className="bg-muted text-muted-foreground"
             >
               Importar histórico
-            </button>
+            </Button>
           </>
         }
       />
@@ -149,12 +159,7 @@ export default async function GrowthChurnPage({
           }))}
         />
         <div className="flex items-end gap-2 lg:col-span-6">
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Filtrar
-          </button>
+          <Button type="submit">Filtrar</Button>
           <Link
             href="/financeiro/growth-churn"
             className={buttonVariants({ variant: "outline" })}
@@ -261,69 +266,62 @@ export default async function GrowthChurnPage({
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold text-foreground">Lista de eventos</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Data</th>
-                <th className="px-4 py-3 font-semibold">Tipo</th>
-                <th className="px-4 py-3 font-semibold">Aluno</th>
-                <th className="px-4 py-3 font-semibold">Turma</th>
-                <th className="px-4 py-3 font-semibold">Professor</th>
-                <th className="px-4 py-3 font-semibold">Nível</th>
-                <th className="px-4 py-3 font-semibold">Valor</th>
-                <th className="px-4 py-3 font-semibold">Motivo</th>
-                <th className="px-4 py-3 font-semibold">Origem</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {data.events.length > 0 ? (
-                data.events.map((event) => (
-                  <tr key={event.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(event.event_date)}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {event.event_type === "entrada" ? "Entrada" : "Saída"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.students.get(event.student_id ?? "")?.fullName ??
-                        event.student_name ??
-                        "-"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.classes.get(event.class_id ?? "")?.name ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.teachers.get(event.teacher_id ?? "")?.fullName ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {data.maps.levels.get(event.level_id ?? "")?.name ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatMoney(event.monthly_amount)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {getEventReasonLabel(event, data.maps.reasons)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatSource(event.source)}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum evento de Growth & Churn encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table containerClassName="rounded-none border-0" minWidth="1180px">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Aluno</TableHead>
+              <TableHead>Turma</TableHead>
+              <TableHead>Professor</TableHead>
+              <TableHead>Nível</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Motivo</TableHead>
+              <TableHead>Origem</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.events.length > 0 ? (
+              data.events.map((event) => (
+                <TableRow key={event.id}>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(event.event_date)}
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {event.event_type === "entrada" ? "Entrada" : "Saída"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {data.maps.students.get(event.student_id ?? "")?.fullName ??
+                      event.student_name ??
+                      "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {data.maps.classes.get(event.class_id ?? "")?.name ?? "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {data.maps.teachers.get(event.teacher_id ?? "")?.fullName ?? "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {data.maps.levels.get(event.level_id ?? "")?.name ?? "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatMoney(event.monthly_amount)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {getEventReasonLabel(event, data.maps.reasons)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatSource(event.source)}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableEmpty colSpan={9}>
+                Nenhum evento de Growth &amp; Churn encontrado.
+              </TableEmpty>
+            )}
+          </TableBody>
+        </Table>
       </section>
     </div>
   );
@@ -781,48 +779,39 @@ function AnalyticTable({
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              {headers.map((header) => (
-                <th key={header} className="px-4 py-3 font-semibold">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.length > 0 ? (
-              rows.map((row, rowIndex) => (
-                <tr key={`${title}-${rowIndex}`} className="hover:bg-muted/50">
-                  {row.map((cell, cellIndex) => (
-                    <td
-                      key={`${title}-${rowIndex}-${cellIndex}`}
-                      className={
-                        cellIndex === 0
-                          ? "px-4 py-3 font-medium text-foreground"
-                          : "px-4 py-3 text-muted-foreground"
-                      }
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={headers.length}
-                  className="px-4 py-8 text-center text-sm text-muted-foreground"
-                >
-                  Nenhum dado encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Table containerClassName="rounded-none border-0" minWidth="860px">
+        <TableHeader>
+          <TableRow>
+            {headers.map((header) => (
+              <TableHead key={header}>{header}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((row, rowIndex) => (
+              <TableRow key={`${title}-${rowIndex}`}>
+                {row.map((cell, cellIndex) => (
+                  <TableCell
+                    key={`${title}-${rowIndex}-${cellIndex}`}
+                    className={
+                      cellIndex === 0
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {cell}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={headers.length}>
+              Nenhum dado encontrado.
+            </TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </section>
   );
 }

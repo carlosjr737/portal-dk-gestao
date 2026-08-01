@@ -6,6 +6,7 @@ import {
   type AssinaturaState,
 } from "@/features/plataforma/assinatura-actions";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 export type PlanoOption = {
   id: string;
@@ -83,13 +84,14 @@ export function AssinaturaForm({
         </Select>
       </label>
 
-      <button
+      <Button
+        variant="secondary"
+        size="sm"
         type="submit"
         disabled={pending}
-        className="h-9 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
       >
         {pending ? "Criando…" : "Criar assinatura"}
-      </button>
+      </Button>
     </form>
   );
 }

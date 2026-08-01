@@ -11,6 +11,15 @@ import type {
   TeacherDnaFilters,
   TeacherDnaTeacherScore,
 } from "@/features/teacher-dna/types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export function TeacherDnaRankingTable({
   scores,
@@ -29,28 +38,28 @@ export function TeacherDnaRankingTable({
           Ordenado pela pontuação geral no período filtrado.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">#</th>
-              <th className="px-4 py-3">Professor</th>
-              <th className="px-4 py-3">Pontuação</th>
-              <th className="px-4 py-3">Aulas</th>
-              <th className="px-4 py-3">Melhor pilar</th>
-              <th className="px-4 py-3">Pilar de atenção</th>
-              <th className="px-4 py-3">Tendência</th>
-              <th className="px-4 py-3">Última avaliação</th>
-              <th className="px-4 py-3">Ação</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {scores.map((score, index) => (
-              <tr key={score.teacher.id}>
-                <td className="px-4 py-3 font-semibold text-muted-foreground">
+      <Table containerClassName="rounded-none border-0" minWidth="980px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>#</TableHead>
+            <TableHead>Professor</TableHead>
+            <TableHead>Pontuação</TableHead>
+            <TableHead>Aulas</TableHead>
+            <TableHead>Melhor pilar</TableHead>
+            <TableHead>Pilar de atenção</TableHead>
+            <TableHead>Tendência</TableHead>
+            <TableHead>Última avaliação</TableHead>
+            <TableHead>Ação</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {scores.length > 0 ? (
+            scores.map((score, index) => (
+              <TableRow key={score.teacher.id}>
+                <TableCell className="font-semibold text-muted-foreground">
                   {index + 1}
-                </td>
-                <td className="px-4 py-3 font-medium text-foreground">
+                </TableCell>
+                <TableCell className="font-medium text-foreground">
                   <div className="flex items-center gap-2">
                     <TeacherAvatar
                       name={getTeacherName(score.teacher)}
@@ -64,42 +73,46 @@ export function TeacherDnaRankingTable({
                       {getTeacherName(score.teacher)}
                     </TeacherDnaLessonsDialog>
                   </div>
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <ScoreBadge score={score.overallScore} />
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {score.evaluatedLessons}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {score.bestPillar
                     ? `${score.bestPillar.name} (${score.bestPillar.score})`
                     : "-"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {score.attentionPillar
                     ? `${score.attentionPillar.name} (${score.attentionPillar.score})`
                     : "-"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {formatTrend(score.trend)}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {formatDate(score.lastAssessmentDate)}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <Link
                     href={`/dna-professores/${score.teacher.id}?${getTeacherDnaQuery(filters)}`}
                     className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                   >
                     Ver detalhe
                   </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={9}>
+              Nenhum professor avaliado no período.
+            </TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </section>
   );
 }

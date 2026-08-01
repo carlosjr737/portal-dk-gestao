@@ -1,6 +1,16 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { getTeacherPaymentData } from "@/features/teacher-payments/queries";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +49,7 @@ export default async function FinanceiroProfessoresPage({
             className="mt-1"
           />
         </label>
-        <button
-          type="submit"
-          className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Ver
-        </button>
+        <Button type="submit">Ver</Button>
         <a
           href={`/api/financeiro/professores?month=${month}`}
           className="h-10 inline-flex items-center rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
@@ -62,36 +67,46 @@ export default async function FinanceiroProfessoresPage({
             Aulas = ocorrências do dia da turma no mês (paga cheio, sem descontar recesso).
           </p>
         </div>
-        <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Professor</th>
-              <th className="px-5 py-3 text-right font-semibold">Turmas</th>
-              <th className="px-5 py-3 text-right font-semibold">Total a pagar</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {data.professores.map((p) => (
-              <tr key={p.professor} className="hover:bg-muted/50">
-                <td className="px-5 py-3 font-medium text-foreground">{p.professor}</td>
-                <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
-                  {p.turmas.length}
-                </td>
-                <td className="px-5 py-3 text-right font-semibold tabular-nums text-foreground">
-                  {brl(p.total)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
+        {/* px-5 nas células para acompanhar o padding do cabeçalho da seção. */}
+        <Table
+          containerClassName="rounded-none border-0"
+          className="[&_td]:px-5 [&_th]:px-5"
+        >
+          <TableHeader>
+            <TableRow>
+              <TableHead>Professor</TableHead>
+              <TableHead className="text-right">Turmas</TableHead>
+              <TableHead className="text-right">Total a pagar</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.professores.length > 0 ? (
+              data.professores.map((p) => (
+                <TableRow key={p.professor}>
+                  <TableCell className="font-medium text-foreground">
+                    {p.professor}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {p.turmas.length}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-foreground">
+                    {brl(p.total)}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableEmpty colSpan={3}>Nenhum professor encontrado.</TableEmpty>
+            )}
+          </TableBody>
           <tfoot>
             <tr className="border-t-2 border-border bg-muted/40 font-semibold">
-              <td className="px-5 py-3" colSpan={2}>
-                Total geral
-              </td>
-              <td className="px-5 py-3 text-right tabular-nums">{brl(data.grandTotal)}</td>
+              <TableCell colSpan={2}>Total geral</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {brl(data.grandTotal)}
+              </TableCell>
             </tr>
           </tfoot>
-        </table>
+        </Table>
       </section>
     </div>
   );

@@ -14,6 +14,16 @@ import type {
 } from "@/features/school-metrics/queries";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -523,128 +533,126 @@ function ClassRevenueTable({
             os descontos cadastrados (MRR líquido).
           </p>
         </div>
-        <button
-          className="inline-flex items-center justify-center rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
           disabled={rows.length === 0}
           onClick={exportToExcel}
-          type="button"
+          className="bg-white font-semibold shadow-sm"
         >
           Exportar Excel
-        </button>
+        </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Turma</th>
-              <th className="px-4 py-3">Professor</th>
-              <th className="px-4 py-3">Matrículas ativas</th>
-              <th className="px-4 py-3">Receita mensal</th>
-              <th className="px-4 py-3">Ticket por matrícula</th>
-              <th className="px-4 py-3">Sem valor</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.length > 0 ? (
-              rows.map((row) => {
-                const needsAttention =
-                  row.enrollmentsWithoutAmount > 0 ||
-                  (row.monthlyRevenue === 0 && row.activeEnrollments > 0);
+      <Table containerClassName="rounded-none border-0" minWidth="980px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Turma</TableHead>
+            <TableHead>Professor</TableHead>
+            <TableHead>Matrículas ativas</TableHead>
+            <TableHead>Receita mensal</TableHead>
+            <TableHead>Ticket por matrícula</TableHead>
+            <TableHead>Sem valor</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((row) => {
+              const needsAttention =
+                row.enrollmentsWithoutAmount > 0 ||
+                (row.monthlyRevenue === 0 && row.activeEnrollments > 0);
 
-                return (
-                  <tr
-                    className={needsAttention ? "bg-amber-50/60" : undefined}
-                    key={row.classId}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">
-                        {row.className}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {row.modalityName} · {row.levelName}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {row.scheduleLabel}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Capacidade: {row.capacity ?? "-"} · Ocupação:{" "}
-                        {formatPercent(row.occupancyRate)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {row.teacherName}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <div>{row.activeEnrollments}</div>
-                      <div className="mt-1 text-xs">
-                        {row.activeStudents} alunos distintos
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-foreground">
-                      {formatCurrencyBRL(row.monthlyRevenue)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatCurrencyBRL(row.averageTicketPerEnrollment)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={
-                          row.enrollmentsWithoutAmount > 0
-                            ? "font-semibold text-amber-800"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {row.enrollmentsWithoutAmount}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {statusLabels.get(row.classStatus) ?? row.classStatus}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        className="text-sm font-semibold text-primary hover:underline"
-                        href={`/turmas/${row.classId}`}
-                      >
-                        Ver turma
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td
-                  className="px-4 py-6 text-center text-muted-foreground"
-                  colSpan={8}
+              return (
+                <TableRow
+                  // O hover padrão é cinza e apagaria o âmbar de "precisa de
+                  // atenção" justo na linha que o usuário está mirando.
+                  className={
+                    needsAttention
+                      ? "bg-amber-50/60 hover:bg-amber-50/60"
+                      : undefined
+                  }
+                  key={row.classId}
                 >
-                  Nenhuma turma com matrícula ativa encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">
-                {rows.reduce((sum, row) => sum + row.activeEnrollments, 0)}
-              </td>
-              <td className="px-4 py-3">{formatCurrencyBRL(totalRevenue)}</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">
-                {rows.reduce(
-                  (sum, row) => sum + row.enrollmentsWithoutAmount,
-                  0,
-                )}
-              </td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3"></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+                  <TableCell>
+                    <div className="font-medium text-foreground">
+                      {row.className}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {row.modalityName} · {row.levelName}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {row.scheduleLabel}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Capacidade: {row.capacity ?? "-"} · Ocupação:{" "}
+                      {formatPercent(row.occupancyRate)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {row.teacherName}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <div>{row.activeEnrollments}</div>
+                    <div className="mt-1 text-xs">
+                      {row.activeStudents} alunos distintos
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-semibold text-foreground">
+                    {formatCurrencyBRL(row.monthlyRevenue)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatCurrencyBRL(row.averageTicketPerEnrollment)}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={
+                        row.enrollmentsWithoutAmount > 0
+                          ? "font-semibold text-amber-800"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {row.enrollmentsWithoutAmount}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {statusLabels.get(row.classStatus) ?? row.classStatus}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      className="text-sm font-semibold text-primary hover:underline"
+                      href={`/turmas/${row.classId}`}
+                    >
+                      Ver turma
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          ) : (
+            <TableEmpty colSpan={8}>
+              Nenhuma turma com matrícula ativa encontrada.
+            </TableEmpty>
+          )}
+        </TableBody>
+        <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
+          <tr>
+            <TableCell>Total</TableCell>
+            <TableCell />
+            <TableCell>
+              {rows.reduce((sum, row) => sum + row.activeEnrollments, 0)}
+            </TableCell>
+            <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
+            <TableCell />
+            <TableCell>
+              {rows.reduce((sum, row) => sum + row.enrollmentsWithoutAmount, 0)}
+            </TableCell>
+            <TableCell />
+            <TableCell />
+          </tr>
+        </tfoot>
+      </Table>
     </div>
   );
 }
@@ -701,55 +709,46 @@ function GroupTable({
       <div className="border-b border-border px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[460px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">{firstColumn}</th>
-              <th className="px-4 py-3">Turmas</th>
-              <th className="px-4 py-3">Matrículas</th>
-              <th className="px-4 py-3">Receita mensal</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.length > 0 ? (
-              rows.map((row) => (
-                <tr key={row.id ?? "__none__"}>
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.classesCount}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.activeEnrollments}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-foreground">
-                    {formatCurrencyBRL(row.monthlyRevenue)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  className="px-4 py-6 text-center text-muted-foreground"
-                  colSpan={4}
-                >
-                  Sem dados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">{totalEnrollments}</td>
-              <td className="px-4 py-3">{formatCurrencyBRL(totalRevenue)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <Table containerClassName="rounded-none border-0" minWidth="460px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{firstColumn}</TableHead>
+            <TableHead>Turmas</TableHead>
+            <TableHead>Matrículas</TableHead>
+            <TableHead>Receita mensal</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((row) => (
+              <TableRow key={row.id ?? "__none__"}>
+                <TableCell className="font-medium text-foreground">
+                  {row.name}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.classesCount}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.activeEnrollments}
+                </TableCell>
+                <TableCell className="font-semibold text-foreground">
+                  {formatCurrencyBRL(row.monthlyRevenue)}
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={4}>Sem dados.</TableEmpty>
+          )}
+        </TableBody>
+        <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
+          <tr>
+            <TableCell>Total</TableCell>
+            <TableCell />
+            <TableCell>{totalEnrollments}</TableCell>
+            <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
+          </tr>
+        </tfoot>
+      </Table>
     </div>
   );
 }
@@ -773,60 +772,53 @@ function TeacherTable({
           Ordenado por receita mensal, com a nota de DNA do mês.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[620px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Professor</th>
-              <th className="px-4 py-3">Turmas</th>
-              <th className="px-4 py-3">Matrículas</th>
-              <th className="px-4 py-3">Nota DNA</th>
-              <th className="px-4 py-3">Receita mensal</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.length > 0 ? (
-              rows.map((row) => (
-                <tr key={row.id ?? "__none__"}>
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.classesCount}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.activeEnrollments}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatScore(row.dnaScore)}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-foreground">
-                    {formatCurrencyBRL(row.monthlyRevenue)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  className="px-4 py-6 text-center text-muted-foreground"
-                  colSpan={5}
-                >
-                  Sem turmas vinculadas a professores.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">{totalEnrollments}</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">{formatCurrencyBRL(totalRevenue)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <Table containerClassName="rounded-none border-0" minWidth="620px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Professor</TableHead>
+            <TableHead>Turmas</TableHead>
+            <TableHead>Matrículas</TableHead>
+            <TableHead>Nota DNA</TableHead>
+            <TableHead>Receita mensal</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((row) => (
+              <TableRow key={row.id ?? "__none__"}>
+                <TableCell className="font-medium text-foreground">
+                  {row.name}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.classesCount}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.activeEnrollments}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatScore(row.dnaScore)}
+                </TableCell>
+                <TableCell className="font-semibold text-foreground">
+                  {formatCurrencyBRL(row.monthlyRevenue)}
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={5}>
+              Sem turmas vinculadas a professores.
+            </TableEmpty>
+          )}
+        </TableBody>
+        <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
+          <tr>
+            <TableCell>Total</TableCell>
+            <TableCell />
+            <TableCell>{totalEnrollments}</TableCell>
+            <TableCell />
+            <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
+          </tr>
+        </tfoot>
+      </Table>
     </div>
   );
 }

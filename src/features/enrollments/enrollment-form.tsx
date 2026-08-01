@@ -181,13 +181,13 @@ export function EnrollmentForm({
               placeholder="Digite pelo menos parte do nome, telefone ou e-mail"
             />
           </label>
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => updateSearchParams({ studentSearch })}
-            className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
           >
             Buscar aluno
-          </button>
+          </Button>
         </div>
         {state.errors?.student_id?.[0] ? (
           <span className="mt-2 block text-xs text-red-600">
@@ -254,13 +254,13 @@ export function EnrollmentForm({
               placeholder="Digite nome, modalidade, nível ou professor"
             />
           </label>
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => updateSearchParams({ classSearch })}
-            className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
           >
             Buscar turma
-          </button>
+          </Button>
         </div>
         {state.errors?.class_id?.[0] ? (
           <span className="mt-2 block text-xs text-red-600">
@@ -507,13 +507,9 @@ function ResultRow({
           {details.filter(Boolean).join(" · ")}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="h-9 rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted"
-      >
+      <Button variant="outline" size="sm" type="button" onClick={onSelect}>
         {selected ? "Selecionado" : actionLabel}
-      </button>
+      </Button>
     </div>
   );
 }

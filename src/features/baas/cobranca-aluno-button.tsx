@@ -6,6 +6,7 @@ import {
   type CobrancaAlunoState,
 } from "@/features/baas/cobranca-aluno-actions";
 import { FaturaBotao } from "@/features/baas/fatura-modal";
+import { Button } from "@/components/ui/button";
 
 const initial: CobrancaAlunoState = {};
 
@@ -61,16 +62,18 @@ export function CobrancaAlunoButton({
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="contrato_id" value={contratoId} />
       <input type="hidden" name="billing_type" value="UNDEFINED" />
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="submit"
         disabled={pending}
-        className="inline-flex h-7 items-center justify-center rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground transition hover:bg-muted disabled:opacity-60"
         title="A cobrança normalmente é criada junto com a matrícula"
+        className="h-7 border-dashed px-2 text-xs font-normal text-muted-foreground"
       >
         {pending
           ? "Criando…"
           : `Gerar cobrança${valor ? ` ${brl.format(valor)}` : ""}`}
-      </button>
+      </Button>
       {state.message ? (
         <p
           className={`text-xs ${state.ok ? "text-emerald-700" : "text-rose-600"}`}

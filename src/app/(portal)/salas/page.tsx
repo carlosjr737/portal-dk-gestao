@@ -10,6 +10,7 @@ import type { RoomRecord } from "@/features/rooms/types";
 import { createClient } from "@/lib/supabase/server";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -115,15 +116,20 @@ function RoomQuickActions({ room }: { room: RoomRecord }) {
       <form action={toggleRoomActive}>
         <input type="hidden" name="roomId" value={room.id} />
         <input type="hidden" name="active" value={String(!room.active)} />
-        <button className="rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+        <Button variant="outline" size="sm" type="submit" className="text-xs">
           {room.active ? "Desativar" : "Ativar"}
-        </button>
+        </Button>
       </form>
       <form action={deleteRoom}>
         <input type="hidden" name="roomId" value={room.id} />
-        <button className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-red-600">
+        <Button
+          variant="outline"
+          size="sm"
+          type="submit"
+          className="text-xs text-destructive"
+        >
           Excluir
-        </button>
+        </Button>
       </form>
     </div>
   );

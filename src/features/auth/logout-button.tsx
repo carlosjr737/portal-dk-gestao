@@ -1,16 +1,19 @@
 "use client";
 
 import { logout } from "@/features/auth/actions";
+import { Button } from "@/components/ui/button";
 
 export function LogoutButton() {
   return (
     <form action={logout}>
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="submit"
-        className="rounded-md border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        className="bg-white text-xs text-muted-foreground hover:text-foreground"
       >
         Sair
-      </button>
+      </Button>
     </form>
   );
 }

@@ -219,12 +219,9 @@ export function StudentForm({
                     className="mt-1 py-2"
                   />
                 </label>
-                <button
-                  type="button"
-                  className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-                >
+                <Button variant="secondary" type="button">
                   Buscar
-                </button>
+                </Button>
               </div>
               {state.errors?.existing_guardian_id?.[0] ? (
                 <span className="block text-xs text-red-600">

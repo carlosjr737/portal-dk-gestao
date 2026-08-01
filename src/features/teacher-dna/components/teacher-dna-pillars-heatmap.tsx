@@ -3,6 +3,15 @@ import { TeacherAvatar } from "@/features/staff/teacher-avatar";
 import { getHeatmapColor } from "@/features/teacher-dna/scoring";
 import { getTeacherName } from "@/features/teacher-dna/queries";
 import type { TeacherDnaTeacherScore } from "@/features/teacher-dna/types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export function TeacherDnaPillarsHeatmap({
   scores,
@@ -19,24 +28,32 @@ export function TeacherDnaPillarsHeatmap({
           Heatmap de pontuação por professor e pilar.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[1120px] w-full text-left text-xs">
-          <thead className="bg-muted/60 text-muted-foreground">
-            <tr>
-              <th className="sticky left-0 z-10 bg-muted/60 px-4 py-3">
-                Professor
-              </th>
-              {teacherDnaPillars.map((pillar) => (
-                <th key={pillar.key} className="px-2 py-3 text-center">
-                  {pillar.shortName}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {scores.map((score) => (
-              <tr key={score.teacher.id}>
-                <td className="sticky left-0 z-10 bg-white px-4 py-3 font-semibold text-foreground">
+      <Table
+        containerClassName="rounded-none border-0"
+        className="text-xs"
+        minWidth="1120px"
+      >
+        {/* Os nomes curtos dos pilares já vêm capitalizados; o uppercase padrão
+            do cabeçalho os deixaria em caixa alta. */}
+        <TableHeader className="normal-case tracking-normal">
+          <TableRow>
+            <TableHead className="sticky left-0 z-10 bg-muted">
+              Professor
+            </TableHead>
+            {teacherDnaPillars.map((pillar) => (
+              <TableHead key={pillar.key} className="px-2 text-center">
+                {pillar.shortName}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {scores.length > 0 ? (
+            scores.map((score) => (
+              // Sem hover: a primeira coluna é sticky com fundo próprio e não
+              // acompanharia o realce do resto da linha.
+              <TableRow key={score.teacher.id} className="hover:bg-transparent">
+                <TableCell className="sticky left-0 z-10 bg-card font-semibold text-foreground">
                   <div className="flex items-center gap-2">
                     <TeacherAvatar
                       name={getTeacherName(score.teacher)}
@@ -45,26 +62,33 @@ export function TeacherDnaPillarsHeatmap({
                     />
                     <span>{getTeacherName(score.teacher)}</span>
                   </div>
-                </td>
+                </TableCell>
                 {teacherDnaPillars.map((pillar) => {
                   const value = score.pillarScores[pillar.key];
 
                   return (
-                    <td key={pillar.key} className="px-2 py-2 text-center">
+                    <TableCell
+                      key={pillar.key}
+                      className="px-2 py-2 text-center"
+                    >
                       <span
                         className={`inline-flex h-8 min-w-10 items-center justify-center rounded-md px-2 font-bold ${getHeatmapColor(value)}`}
                         title={pillar.name}
                       >
                         {value ?? "-"}
                       </span>
-                    </td>
+                    </TableCell>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={teacherDnaPillars.length + 1}>
+              Nenhum professor avaliado no período.
+            </TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </section>
   );
 }

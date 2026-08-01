@@ -12,6 +12,16 @@ import {
 import type { EnrollmentStatus } from "@/features/enrollments/schemas";
 import { formatDate } from "@/features/students/formatters";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 export type ClassEnrollmentItem = {
   id: string;
@@ -74,72 +84,63 @@ export function ClassEnrollmentsSection({
           Alunos matriculados
         </h2>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Aluno</th>
-              <th className="px-4 py-3 font-semibold">Mensalidade</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Vigência</th>
-              <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
-              <th className="px-4 py-3 font-semibold">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {enrollments.length > 0 ? (
-              enrollments.map((enrollment) => (
-                <tr key={enrollment.id}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/alunos/${enrollment.student.id}`}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {enrollment.student.full_name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <EnrollmentFeeCell
-                      monthlyAmount={enrollment.monthlyAmount}
-                      discountAmount={enrollment.discountAmount}
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatEnrollmentStatus(enrollment.status)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(enrollment.start_date)} até{" "}
-                    {formatDate(enrollment.end_date)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatFinancialGuardianName(
-                      enrollment.financialGuardianName,
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedEnrollmentId(enrollment.id)}
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-rose-200 px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50"
-                    >
-                      Cancelar matrícula
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-10 text-center text-sm text-muted-foreground"
-                >
-                  Nenhum aluno matriculado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Table containerClassName="rounded-none border-0" minWidth="760px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Aluno</TableHead>
+            <TableHead>Mensalidade</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Vigência</TableHead>
+            <TableHead>Resp. financeiro</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {enrollments.length > 0 ? (
+            enrollments.map((enrollment) => (
+              <TableRow key={enrollment.id}>
+                <TableCell>
+                  <Link
+                    href={`/alunos/${enrollment.student.id}`}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    {enrollment.student.full_name}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <EnrollmentFeeCell
+                    monthlyAmount={enrollment.monthlyAmount}
+                    discountAmount={enrollment.discountAmount}
+                  />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatEnrollmentStatus(enrollment.status)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.start_date)} até{" "}
+                  {formatDate(enrollment.end_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatFinancialGuardianName(enrollment.financialGuardianName)}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => setSelectedEnrollmentId(enrollment.id)}
+                    className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                  >
+                    Cancelar matrícula
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>Nenhum aluno matriculado.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
 
       <CancelEnrollmentModal
         open={Boolean(selectedEnrollmentId)}

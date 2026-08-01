@@ -1,5 +1,14 @@
 import { ES_DATA, type EsPoint } from "@/features/entradas-saidas/data";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const pf = new Intl.NumberFormat("pt-BR", {
@@ -276,42 +285,49 @@ function YearTable() {
           Base no fim do ano e fluxo acumulado de alunos.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-5 py-3 font-semibold">Ano</th>
-              <th className="px-5 py-3 text-right font-semibold">Alunos (fim)</th>
-              <th className="px-5 py-3 text-right font-semibold">Matrículas (fim)</th>
-              <th className="px-5 py-3 text-right font-semibold">Novos</th>
-              <th className="px-5 py-3 text-right font-semibold">Saídas</th>
-              <th className="px-5 py-3 text-right font-semibold">Saldo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.map((r) => (
-              <tr key={r.year} className="hover:bg-muted/50">
-                <td className="px-5 py-3 font-medium text-foreground">{r.year}</td>
-                <td className="px-5 py-3 text-right tabular-nums text-foreground">
+      {/* px-5 nas células para acompanhar o padding do cabeçalho da seção. */}
+      <Table
+        containerClassName="rounded-none border-0"
+        className="[&_td]:px-5 [&_th]:px-5"
+        minWidth="560px"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ano</TableHead>
+            <TableHead className="text-right">Alunos (fim)</TableHead>
+            <TableHead className="text-right">Matrículas (fim)</TableHead>
+            <TableHead className="text-right">Novos</TableHead>
+            <TableHead className="text-right">Saídas</TableHead>
+            <TableHead className="text-right">Saldo</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((r) => (
+              <TableRow key={r.year}>
+                <TableCell className="font-medium text-foreground">{r.year}</TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">
                   {fmt(r.alunos)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-foreground">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">
                   {fmt(r.matriculas)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-emerald-700">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-emerald-700">
                   {fmt(r.novos)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-rose-700">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-rose-700">
                   {fmt(r.saidas)}
-                </td>
-                <td className={`px-5 py-3 text-right tabular-nums ${deltaClass(r.net)}`}>
+                </TableCell>
+                <TableCell className={`text-right tabular-nums ${deltaClass(r.net)}`}>
                   {fmtDelta(r.net)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>Nenhum ano com movimentação.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </section>
   );
 }

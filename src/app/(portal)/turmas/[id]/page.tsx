@@ -68,7 +68,7 @@ export default async function TurmaDetalhePage({
             </Link>
             <DeleteClassButton
               classId={danceClass.id}
-              className={danceClass.name}
+              classeNome={danceClass.name}
               enrollmentsCount={danceClass.total_enrollments_count}
               redirectOnSuccess
             />

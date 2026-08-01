@@ -14,7 +14,7 @@ import {
   getTeacherDnaDashboardData,
   normalizeTeacherDnaFilters,
 } from "@/features/teacher-dna/queries";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
@@ -109,9 +109,7 @@ export default async function DnaProfessoresPage({
 
           </Field>
           <div className="flex items-end gap-2">
-            <button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-              Filtrar
-            </button>
+            <Button type="submit">Filtrar</Button>
             <Link
               href="/dna-professores"
               className={buttonVariants({ variant: "outline" })}
@@ -161,15 +159,15 @@ function EmptyState() {
         pilares aparecerão aqui.
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <button className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground">
+        <Button variant="outline" className="text-muted-foreground">
           Importar avaliações
-        </button>
-        <button className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground">
+        </Button>
+        <Button variant="outline" className="text-muted-foreground">
           Criar avaliação manual
-        </button>
-        <button className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground">
+        </Button>
+        <Button variant="outline" className="text-muted-foreground">
           Conectar relatórios de aula
-        </button>
+        </Button>
       </div>
     </section>
   );

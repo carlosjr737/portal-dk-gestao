@@ -11,6 +11,7 @@ import {
   roundScore,
 } from "@/features/teacher-dna/scoring";
 import type { TeacherDnaAssessment } from "@/features/teacher-dna/types";
+import { Button } from "@/components/ui/button";
 
 export function TeacherDnaLessonsModal({
   teacherName,
@@ -86,14 +87,16 @@ export function TeacherDnaLessonsModal({
               </p>
             )}
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="rounded-md p-1 text-2xl leading-none text-muted-foreground hover:bg-muted"
+            className="h-8 w-8 text-2xl leading-none text-muted-foreground"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">

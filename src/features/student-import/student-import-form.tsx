@@ -12,6 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Field as FormField } from "@/components/ui/field";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const initialState: StudentImportState = {
   status: "ready",
@@ -196,50 +205,53 @@ function Report({ rows }: { rows: StudentImportReportRow[] }) {
         <h2 className="text-base font-semibold text-foreground">
           Relatório da importação
         </h2>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           onClick={() => downloadReport(rows)}
-          className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted"
         >
           Baixar CSV do relatório
-        </button>
+        </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Linha</th>
-              <th className="px-4 py-3 font-semibold">Aluno</th>
-              <th className="px-4 py-3 font-semibold">Turma</th>
-              <th className="px-4 py-3 font-semibold">Ação</th>
-              <th className="px-4 py-3 font-semibold">Avisos</th>
-              <th className="px-4 py-3 font-semibold">Erros</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.slice(0, 80).map((row) => (
-              <tr key={row.rowNumber}>
-                <td className="px-4 py-3 text-muted-foreground">
+      <Table containerClassName="rounded-none border-0" minWidth="920px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Linha</TableHead>
+            <TableHead>Aluno</TableHead>
+            <TableHead>Turma</TableHead>
+            <TableHead>Ação</TableHead>
+            <TableHead>Avisos</TableHead>
+            <TableHead>Erros</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.slice(0, 80).map((row) => (
+              <TableRow key={row.rowNumber}>
+                <TableCell className="text-muted-foreground">
                   {row.rowNumber}
-                </td>
-                <td className="px-4 py-3 font-medium text-foreground">
+                </TableCell>
+                <TableCell className="font-medium text-foreground">
                   {row.studentName || "-"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {row.classText || "-"}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{row.action}</td>
-                <td className="px-4 py-3 text-amber-700">
+                </TableCell>
+                <TableCell className="text-muted-foreground">{row.action}</TableCell>
+                <TableCell className="text-amber-700">
                   {row.warnings.join(" | ") || "-"}
-                </td>
-                <td className="px-4 py-3 text-red-700">
+                </TableCell>
+                <TableCell className="text-red-700">
                   {row.errors.join(" | ") || "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={6}>Nenhuma linha no relatório.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
       {rows.length > 80 ? (
         <p className="border-t border-border px-5 py-3 text-sm text-muted-foreground">
           Mostrando as primeiras 80 linhas. Baixe o CSV para ver o relatório

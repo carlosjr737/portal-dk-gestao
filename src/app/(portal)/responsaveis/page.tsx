@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime, formatText } from "@/features/students/formatters";
 import type { Guardian } from "@/features/guardians/types";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -59,12 +59,9 @@ export default async function ResponsaveisPage({
         </label>
 
         <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90"
-          >
+          <Button variant="secondary" type="submit">
             Buscar
-          </button>
+          </Button>
           <Link
             href="/responsaveis"
             className={buttonVariants({ variant: "outline" })}

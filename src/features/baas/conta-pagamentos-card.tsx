@@ -12,6 +12,7 @@ import {
 import { AsaasSelo } from "@/components/brand/asaas-selo";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 const initial: CriarSubcontaEscolaState = {};
 
@@ -115,14 +116,15 @@ export function ContaPagamentosCard({
                   Necessário para liberar os recebimentos.
                 </p>
               </div>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
                 onClick={verificarCadastro}
                 disabled={consultando}
-                className="h-9 rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
               >
                 {consultando ? "Consultando…" : "Verificar pendências"}
-              </button>
+              </Button>
             </div>
 
             {onboarding?.message ? (
@@ -218,13 +220,14 @@ export function ContaPagamentosCard({
               <option value="ASSOCIATION">Associação</option>
             </Select>
           </label>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             type="submit"
             disabled={pending}
-            className="h-9 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {pending ? "Criando…" : "Criar conta de pagamentos"}
-          </button>
+          </Button>
         </form>
       )}
 

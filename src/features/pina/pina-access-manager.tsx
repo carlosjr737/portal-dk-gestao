@@ -9,6 +9,16 @@ import {
 } from "@/features/pina/access-actions";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 type Professor = { id: string; nome: string; email: string | null };
 
@@ -49,14 +59,15 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
             “Provisionar todos” só cria/atualiza as contas, sem gerar links.
           </span>
         </p>
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={provisionAll}
           disabled={pending}
-          className="h-10 shrink-0 rounded-md bg-foreground px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+          className="shrink-0"
         >
           {pending ? "Processando…" : "Provisionar todos"}
-        </button>
+        </Button>
       </div>
 
       {backfill ? (
@@ -72,33 +83,34 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-border bg-white">
-        <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Professor</th>
-              <th className="px-4 py-3 font-semibold">E-mail</th>
-              <th className="px-4 py-3 font-semibold">Acesso ao Pina</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {professores.map((p) => {
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Professor</TableHead>
+            <TableHead>E-mail</TableHead>
+            <TableHead>Acesso ao Pina</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {professores.length > 0 ? (
+            professores.map((p) => {
               const res = results[p.id];
               return (
-                <tr key={p.id} className="align-top">
-                  <td className="px-4 py-3 font-medium text-foreground">{p.nome}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                <TableRow key={p.id} className="align-top">
+                  <TableCell className="font-medium text-foreground">{p.nome}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {p.email ?? <span className="text-amber-700">sem e-mail</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       type="button"
                       onClick={() => provisionOne(p.id)}
                       disabled={pending || !p.email}
-                      className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-50"
                     >
                       {res?.status === "ok" ? "Reenviar acesso" : "Enviar acesso"}
-                    </button>
+                    </Button>
                     {res?.status === "ok" ? (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs text-emerald-700">
@@ -118,13 +130,15 @@ export function PinaAccessManager({ professores }: { professores: Professor[] })
                         {ERROS[res.error] ?? res.error}
                       </p>
                     ) : null}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
-            })}
-          </tbody>
-        </table>
-      </div>
+            })
+          ) : (
+            <TableEmpty colSpan={3}>Nenhum professor encontrado.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

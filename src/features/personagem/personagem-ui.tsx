@@ -8,6 +8,7 @@ import {
   type PersonagemActionState,
 } from "@/features/personagem/actions";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export type AlunoOption = { id: string; nome: string };
 export type PersonagemItem = {
@@ -75,14 +76,16 @@ function AlunoCombobox({
           className="h-9 w-56 px-2"
         />
         {selectedId || query ? (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             onClick={clear}
             aria-label="Limpar aluno"
-            className="h-9 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-muted"
+            className="px-2 text-xs text-muted-foreground"
           >
             ✕
-          </button>
+          </Button>
         ) : null}
       </div>
       {open && matches.length > 0 ? (
@@ -150,13 +153,9 @@ export function PersonagemCreate({
         <span className="mb-1 block text-sm font-medium text-foreground">Aluno (opcional)</span>
         <AlunoCombobox name="aluno_id" alunos={alunos} />
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
-      >
+      <Button size="sm" type="submit" disabled={pending}>
         {pending ? "Criando…" : "Adicionar personagem"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -196,13 +195,14 @@ export function PersonagemRow({
             className="h-9 w-12 cursor-pointer"
           />
           <AlunoCombobox name="aluno_id" alunos={alunos} defaultId={personagem.aluno_id} />
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="submit"
             disabled={pending}
-            className="h-9 rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-60"
           >
             {pending ? "Salvando…" : "Salvar"}
-          </button>
+          </Button>
           {state.message ? (
             <span className="text-xs text-muted-foreground">{state.message}</span>
           ) : null}
@@ -210,12 +210,14 @@ export function PersonagemRow({
       </td>
       <td className="px-4 py-2 text-right align-top">
         <form action={deletePersonagem.bind(null, personagem.id, espetaculoId)}>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="submit"
-            className="h-9 rounded-md border border-rose-200 px-3 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+            className="border-destructive/40 text-xs text-destructive hover:bg-destructive/5"
           >
             Excluir
-          </button>
+          </Button>
         </form>
       </td>
     </tr>

@@ -24,7 +24,7 @@ import type {
   RoomRotationPageData,
   RoomRotationPlan,
 } from "@/features/room-rotation/types";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -382,9 +382,7 @@ export function RoomRotationPlanner({
 
           </Field>
           <div className="flex items-end gap-2 xl:col-span-2">
-            <button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-              Filtrar
-            </button>
+            <Button type="submit">Filtrar</Button>
             <a
               href="/rodizio-salas"
               className={buttonVariants({ variant: "outline" })}
@@ -396,16 +394,16 @@ export function RoomRotationPlanner({
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <PlanActionForm filters={filters} action={createRoomRotationPlan}>
-            <button className="h-10 rounded-md bg-foreground px-4 text-sm font-medium text-white">
+            <Button variant="secondary" type="submit">
               Novo rodízio
-            </button>
+            </Button>
           </PlanActionForm>
 
           {currentPlan ? (
             <>
-              <button
+              <Button
+                variant="outline"
                 type="button"
-                className="h-10 rounded-md border border-border px-4 text-sm font-medium"
                 onClick={() =>
                   setNotice({
                     tone: "success",
@@ -414,23 +412,23 @@ export function RoomRotationPlanner({
                 }
               >
                 Salvar
-              </button>
+              </Button>
               <PlanActionForm
                 filters={filters}
                 action={publishRoomRotationPlan}
                 rotationPlanId={currentPlan.id}
               >
-                <button className="h-10 rounded-md border border-border px-4 text-sm font-medium">
+                <Button variant="outline" type="submit">
                   Publicar
-                </button>
+                </Button>
               </PlanActionForm>
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => window.print()}
-                className="h-10 rounded-md border border-border px-4 text-sm font-medium"
               >
                 Imprimir
-              </button>
+              </Button>
               {sourcePlans.length > 0 ? (
                 <form action={copyPreviousRoomRotationPlan} className="flex gap-2">
                   <HiddenFilters filters={filters} />
@@ -448,9 +446,9 @@ export function RoomRotationPlanner({
                       </option>
                     ))}
                   </Select>
-                  <button className="h-10 rounded-md border border-border px-4 text-sm font-medium">
+                  <Button variant="outline" type="submit">
                     Copiar rodízio
-                  </button>
+                  </Button>
                 </form>
               ) : null}
               <span className="inline-flex h-10 items-center rounded-md bg-muted px-3 text-sm font-medium">
@@ -968,14 +966,16 @@ function AssignedClassBlock({
             {danceClass.activeStudentsCount})
           </p>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
           aria-label="Remover alocação"
           onClick={() => onRemove(assignment.id)}
-          className="no-print shrink-0 rounded bg-white/80 px-1 text-[10px] font-bold text-muted-foreground opacity-80 hover:text-red-600 group-hover:opacity-100"
+          className="no-print h-5 w-5 shrink-0 rounded bg-white/80 px-1 text-[10px] font-bold text-muted-foreground opacity-80 hover:text-red-600 group-hover:opacity-100"
         >
           x
-        </button>
+        </Button>
       </div>
       {hasWarning ? (
         <p className="no-print mt-0.5 text-[10px] font-medium text-amber-800">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { LogoutButton } from "@/features/auth/logout-button";
 import { roleLabels, type UserProfile } from "@/features/auth/permissions";
+import { Button } from "@/components/ui/button";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -41,13 +42,15 @@ export function AppShell({
         <header className="sticky top-0 z-20 border-b border-border bg-white/95 backdrop-blur">
           <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
-                className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground md:hidden"
                 onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden"
               >
                 Menu
-              </button>
+              </Button>
               <div>
                 <p className="text-sm font-semibold text-foreground">
                   Portal DK Gestão

@@ -7,6 +7,15 @@ import type {
   TeacherGroupMetric,
 } from "@/features/teacher-dna/teacher-metrics";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -111,55 +120,53 @@ export function TeacherBusinessMetrics({
             Receita por turma
           </h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-[640px] w-full text-left text-sm">
-            <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Turma</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Alunos</th>
-                <th className="px-4 py-3">Ocupação</th>
-                <th className="px-4 py-3">Receita mensal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {metrics.perClass.map((row) => (
-                <tr key={row.classId}>
-                  <td className="px-4 py-3 font-medium text-foreground">
+        <Table containerClassName="rounded-none border-0" minWidth="640px">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Turma</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Alunos</TableHead>
+              <TableHead>Ocupação</TableHead>
+              <TableHead>Receita mensal</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {metrics.perClass.length > 0 ? (
+              metrics.perClass.map((row) => (
+                <TableRow key={row.classId}>
+                  <TableCell className="font-medium text-foreground">
                     {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {classStatusLabels[row.status] ?? row.status}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {row.activeStudents}
                     {row.capacity ? ` / ${row.capacity}` : ""}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {row.capacity
                       ? formatPercent(row.activeStudents / row.capacity)
                       : "-"}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-foreground">
+                  </TableCell>
+                  <TableCell className="font-semibold text-foreground">
                     {formatCurrency(row.monthlyRevenue)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
-              <tr>
-                <td className="px-4 py-3" colSpan={2}>
-                  Total
-                </td>
-                <td className="px-4 py-3">{metrics.activeStudents}</td>
-                <td className="px-4 py-3">{formatPercent(metrics.occupancyRate)}</td>
-                <td className="px-4 py-3">
-                  {formatCurrency(metrics.monthlyRevenue)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableEmpty colSpan={5}>Nenhuma turma vinculada.</TableEmpty>
+            )}
+          </TableBody>
+          <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
+            <tr>
+              <TableCell colSpan={2}>Total</TableCell>
+              <TableCell>{metrics.activeStudents}</TableCell>
+              <TableCell>{formatPercent(metrics.occupancyRate)}</TableCell>
+              <TableCell>{formatCurrency(metrics.monthlyRevenue)}</TableCell>
+            </tr>
+          </tfoot>
+        </Table>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -322,44 +329,46 @@ function GroupRevenueTable({
       <div className="border-b border-border px-5 py-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[420px] w-full text-left text-sm">
-          <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">{firstColumn}</th>
-              <th className="px-4 py-3">Turmas</th>
-              <th className="px-4 py-3">Alunos</th>
-              <th className="px-4 py-3">Receita mensal</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.map((row) => (
-              <tr key={row.id ?? "__none__"}>
-                <td className="px-4 py-3 font-medium text-foreground">
+      <Table containerClassName="rounded-none border-0" minWidth="420px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{firstColumn}</TableHead>
+            <TableHead>Turmas</TableHead>
+            <TableHead>Alunos</TableHead>
+            <TableHead>Receita mensal</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((row) => (
+              <TableRow key={row.id ?? "__none__"}>
+                <TableCell className="font-medium text-foreground">
                   {row.id ? nameById[row.id] ?? emptyName : emptyName}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {row.classesCount}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {row.activeStudents}
-                </td>
-                <td className="px-4 py-3 font-semibold text-foreground">
+                </TableCell>
+                <TableCell className="font-semibold text-foreground">
                   {formatCurrency(row.monthlyRevenue)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3"></td>
-              <td className="px-4 py-3">{totalStudents}</td>
-              <td className="px-4 py-3">{formatCurrency(totalRevenue)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={4}>Sem dados.</TableEmpty>
+          )}
+        </TableBody>
+        <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
+          <tr>
+            <TableCell>Total</TableCell>
+            <TableCell />
+            <TableCell>{totalStudents}</TableCell>
+            <TableCell>{formatCurrency(totalRevenue)}</TableCell>
+          </tr>
+        </tfoot>
+      </Table>
     </div>
   );
 }

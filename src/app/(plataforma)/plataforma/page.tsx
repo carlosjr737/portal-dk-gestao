@@ -4,6 +4,15 @@ import {
   type PlanoOption,
 } from "@/features/plataforma/assinatura-form";
 import { NovaEscolaForm } from "@/features/plataforma/nova-escola-form";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -95,96 +104,90 @@ export default async function PlataformaEscolasPage() {
         <NovaEscolaForm />
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Escola</th>
-              <th className="px-4 py-3 font-semibold">CNPJ</th>
-              <th className="px-4 py-3 font-semibold">Cidade</th>
-              <th className="px-4 py-3 font-semibold text-right">Alunos</th>
-              <th className="px-4 py-3 font-semibold">Assinatura</th>
-              <th className="px-4 py-3 font-semibold">Conta de pagamentos</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {lista.length > 0 ? (
-              lista.map((e) => {
-                const kyc =
-                  KYC_LABEL[(e.kyc_status as string) ?? "pendente"] ??
-                  KYC_LABEL.pendente;
-                return (
-                  <tr key={e.id as string} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{e.nome as string}</p>
-                      {e.razao_social && e.razao_social !== e.nome ? (
-                        <p className="text-xs text-slate-500">
-                          {e.razao_social as string}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {(e.cnpj as string | null) ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {[e.cidade, e.uf].filter(Boolean).join("/") || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-600">
-                      {alunosPorEscola.get(e.id as string) ?? 0}
-                    </td>
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const a = assinaturaPorEscola.get(e.id as string);
-                        if (!a) {
-                          return (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                              Sem assinatura
-                            </span>
-                          );
-                        }
-                        const label =
-                          ASSINATURA_LABEL[a.status as string] ??
-                          ASSINATURA_LABEL.pendente;
+      <Table containerClassName="mt-6" minWidth="900px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Escola</TableHead>
+            <TableHead>CNPJ</TableHead>
+            <TableHead>Cidade</TableHead>
+            <TableHead className="text-right">Alunos</TableHead>
+            <TableHead>Assinatura</TableHead>
+            <TableHead>Conta de pagamentos</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {lista.length > 0 ? (
+            lista.map((e) => {
+              const kyc =
+                KYC_LABEL[(e.kyc_status as string) ?? "pendente"] ??
+                KYC_LABEL.pendente;
+              return (
+                <TableRow key={e.id as string}>
+                  <TableCell>
+                    <p className="font-medium text-foreground">{e.nome as string}</p>
+                    {e.razao_social && e.razao_social !== e.nome ? (
+                      <p className="text-xs text-muted-foreground">
+                        {e.razao_social as string}
+                      </p>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {(e.cnpj as string | null) ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {[e.cidade, e.uf].filter(Boolean).join("/") || "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {alunosPorEscola.get(e.id as string) ?? 0}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const a = assinaturaPorEscola.get(e.id as string);
+                      if (!a) {
                         return (
-                          <div>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${label.classe}`}
-                            >
-                              {label.texto}
-                            </span>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {brl.format(Number(a.valor))}
-                              {a.proximo_vencimento
-                                ? ` · vence ${(a.proximo_vencimento as string)
-                                    .split("-")
-                                    .reverse()
-                                    .join("/")}`
-                                : ""}
-                            </p>
-                          </div>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            Sem assinatura
+                          </span>
                         );
-                      })()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${kyc.classe}`}
-                      >
-                        {kyc.texto}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                  Nenhuma escola cadastrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                      }
+                      const label =
+                        ASSINATURA_LABEL[a.status as string] ??
+                        ASSINATURA_LABEL.pendente;
+                      return (
+                        <div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${label.classe}`}
+                          >
+                            {label.texto}
+                          </span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {brl.format(Number(a.valor))}
+                            {a.proximo_vencimento
+                              ? ` · vence ${(a.proximo_vencimento as string)
+                                  .split("-")
+                                  .reverse()
+                                  .join("/")}`
+                              : ""}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${kyc.classe}`}
+                    >
+                      {kyc.texto}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          ) : (
+            <TableEmpty colSpan={6}>Nenhuma escola cadastrada.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
 
       {lista.filter((e) => !assinaturaPorEscola.has(e.id as string)).length > 0 ? (
         <section className="mt-8 rounded-lg border border-slate-200 bg-white p-5">

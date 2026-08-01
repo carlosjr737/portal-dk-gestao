@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { criarEscola, type NovaEscolaState } from "@/features/plataforma/escola-actions";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const initial: NovaEscolaState = {};
 
@@ -13,13 +14,14 @@ export function NovaEscolaForm() {
 
   if (!aberto && !state.ok) {
     return (
-      <button
+      <Button
+        variant="secondary"
+        size="sm"
         type="button"
         onClick={() => setAberto(true)}
-        className="h-9 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
       >
         + Cadastrar escola
-      </button>
+      </Button>
     );
   }
 
@@ -53,27 +55,31 @@ export function NovaEscolaForm() {
               onFocus={(e) => e.currentTarget.select()}
               className="border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs"
             />
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(state.linkAcesso ?? "");
                 setCopiado(true);
               }}
-              className="h-9 shrink-0 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="shrink-0 text-xs"
             >
               {copiado ? "Copiado" : "Copiar"}
-            </button>
+            </Button>
           </div>
           <p className="mt-1 text-xs text-slate-500">
             Envie para {state.emailAdmin}. O sistema não dispara e-mail.
           </p>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-4 h-9 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            className="mt-4"
           >
             Concluir
-          </button>
+          </Button>
         </div>
       ) : (
         <form action={formAction} className="mt-4 space-y-4">
@@ -110,20 +116,22 @@ export function NovaEscolaForm() {
           </div>
 
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               type="submit"
               disabled={pending}
-              className="h-9 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
             >
               {pending ? "Cadastrando…" : "Cadastrar escola"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               onClick={() => setAberto(false)}
-              className="h-9 rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}

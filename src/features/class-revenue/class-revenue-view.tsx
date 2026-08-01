@@ -1,4 +1,13 @@
 import type { SchoolClassRevenueMetric } from "@/features/school-metrics/queries";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -55,71 +64,75 @@ export function ClassRevenueView({ classes }: ClassRevenueViewProps) {
             para o menor.
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Turma</th>
-                <th className="px-4 py-3 font-semibold">Professor</th>
-                <th className="px-4 py-3 font-semibold">Nível</th>
-                <th className="px-4 py-3 font-semibold">Horário</th>
-                <th className="px-4 py-3 text-right font-semibold">Alunos</th>
-                <th className="px-4 py-3 text-right font-semibold">Desconto</th>
-                <th className="px-4 py-3 text-right font-semibold">Ticket médio</th>
-                <th className="px-4 py-3 text-right font-semibold">Faturamento</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row) => (
-                <tr key={row.classId} className="hover:bg-muted/50">
-                  <td className="px-4 py-3 font-medium text-foreground">
+        <Table containerClassName="rounded-none border-0" minWidth="980px">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Turma</TableHead>
+              <TableHead>Professor</TableHead>
+              <TableHead>Nível</TableHead>
+              <TableHead>Horário</TableHead>
+              <TableHead className="text-right">Alunos</TableHead>
+              <TableHead className="text-right">Desconto</TableHead>
+              <TableHead className="text-right">Ticket médio</TableHead>
+              <TableHead className="text-right">Faturamento</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.length > 0 ? (
+              rows.map((row) => (
+                <TableRow key={row.classId}>
+                  <TableCell className="font-medium text-foreground">
                     {row.className}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {row.teacherName}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {row.levelName}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {row.scheduleLabel}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
                     {row.activeStudents}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
                     {row.totalDiscount > 0
                       ? `- ${formatCurrencyBRL(row.totalDiscount)}`
                       : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
                     {formatCurrencyBRL(row.averageTicketPerEnrollment)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-foreground">
                     {formatCurrencyBRL(row.monthlyRevenue)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-border bg-muted/40 font-semibold">
-                <td className="px-4 py-3 text-foreground" colSpan={4}>
-                  Total
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                  {totalStudents}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                  {totalDiscount > 0 ? `- ${formatCurrencyBRL(totalDiscount)}` : "—"}
-                </td>
-                <td className="px-4 py-3" />
-                <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                  {formatCurrencyBRL(totalRevenue)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableEmpty colSpan={8}>
+                Nenhuma turma com matrícula ativa.
+              </TableEmpty>
+            )}
+          </TableBody>
+          <tfoot>
+            <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+              <TableCell className="text-foreground" colSpan={4}>
+                Total
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-foreground">
+                {totalStudents}
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-foreground">
+                {totalDiscount > 0 ? `- ${formatCurrencyBRL(totalDiscount)}` : "—"}
+              </TableCell>
+              <TableCell />
+              <TableCell className="text-right tabular-nums text-foreground">
+                {formatCurrencyBRL(totalRevenue)}
+              </TableCell>
+            </tr>
+          </tfoot>
+        </Table>
       </section>
     </div>
   );

@@ -17,6 +17,16 @@ import {
   formatText,
 } from "@/features/students/formatters";
 import { Alert } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 export type StudentEnrollmentItem = {
   id: string;
@@ -81,98 +91,94 @@ export function StudentEnrollmentsSection({
           Não foi possível carregar as matrículas do aluno.
         </Alert>
       ) : null}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Turma</th>
-              <th className="px-4 py-3 font-semibold">Modalidade</th>
-              <th className="px-4 py-3 font-semibold">Professor</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Início</th>
-              <th className="px-4 py-3 font-semibold">Final</th>
-              <th className="px-4 py-3 font-semibold">Resp. financeiro</th>
-              <th className="px-4 py-3 font-semibold">Valor mensal</th>
-              <th className="px-4 py-3 font-semibold">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {enrollments.length > 0 ? (
-              enrollments.map((enrollment) => (
-                <tr key={enrollment.id}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/turmas/${enrollment.class.id}`}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {enrollment.class.name}
-                    </Link>
-                    {enrollment.status === "cancelled" ? (
-                      <Alert tone="danger" className="mt-2 px-3 py-2 text-xs">
-                        <p>Motivo: {formatText(enrollment.cancellation_reason)}</p>
-                        {enrollment.cancellation_notes ? (
-                          <p className="mt-1">
-                            Observação:{" "}
-                            {formatText(enrollment.cancellation_notes)}
-                          </p>
-                        ) : null}
+      {/* w-auto min-w-full: com 9 colunas, largura fixa espremeria as células
+          em vez de deixar rolar na horizontal. */}
+      <Table
+        containerClassName="rounded-none border-0"
+        className="w-auto min-w-full"
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead>Turma</TableHead>
+            <TableHead>Modalidade</TableHead>
+            <TableHead>Professor</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Início</TableHead>
+            <TableHead>Final</TableHead>
+            <TableHead>Resp. financeiro</TableHead>
+            <TableHead>Valor mensal</TableHead>
+            <TableHead>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {enrollments.length > 0 ? (
+            enrollments.map((enrollment) => (
+              <TableRow key={enrollment.id}>
+                <TableCell>
+                  <Link
+                    href={`/turmas/${enrollment.class.id}`}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    {enrollment.class.name}
+                  </Link>
+                  {enrollment.status === "cancelled" ? (
+                    <Alert tone="danger" className="mt-2 px-3 py-2 text-xs">
+                      <p>Motivo: {formatText(enrollment.cancellation_reason)}</p>
+                      {enrollment.cancellation_notes ? (
                         <p className="mt-1">
-                          Cancelada em: {formatDateTime(enrollment.cancelled_at)}
+                          Observação:{" "}
+                          {formatText(enrollment.cancellation_notes)}
                         </p>
-                      </Alert>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatText(enrollment.class.category)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatText(enrollment.class.teacherName)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatEnrollmentStatus(enrollment.status)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(enrollment.start_date)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(enrollment.end_date)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatFinancialGuardianName(
-                      enrollment.financialGuardianName,
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatMoney(enrollment.monthly_amount)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {enrollment.status === "active" ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedEnrollmentId(enrollment.id)}
-                        className="inline-flex h-9 items-center justify-center rounded-md border border-rose-200 px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50"
-                      >
-                        Cancelar
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={9}
-                  className="px-4 py-10 text-center text-sm text-muted-foreground"
-                >
-                  Nenhuma matrícula encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                      ) : null}
+                      <p className="mt-1">
+                        Cancelada em: {formatDateTime(enrollment.cancelled_at)}
+                      </p>
+                    </Alert>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(enrollment.class.category)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatText(enrollment.class.teacherName)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatEnrollmentStatus(enrollment.status)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.start_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(enrollment.end_date)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatFinancialGuardianName(enrollment.financialGuardianName)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatMoney(enrollment.monthly_amount)}
+                </TableCell>
+                <TableCell>
+                  {enrollment.status === "active" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => setSelectedEnrollmentId(enrollment.id)}
+                      className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                    >
+                      Cancelar
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty colSpan={9}>Nenhuma matrícula encontrada.</TableEmpty>
+          )}
+        </TableBody>
+      </Table>
 
       <CancelEnrollmentModal
         open={Boolean(selectedEnrollmentId)}

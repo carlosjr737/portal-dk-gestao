@@ -6,6 +6,7 @@ import {
   type CoreografiaDefaults,
 } from "@/features/espetaculo/coreografia-form";
 import { DeleteCoreografiaButton } from "@/features/espetaculo/delete-coreografia-button";
+import { Button } from "@/components/ui/button";
 
 type Option = { id: string; nome: string };
 
@@ -54,13 +55,15 @@ export function CoreografiaEditor({
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium text-foreground transition hover:bg-muted"
+            className="h-8 text-xs"
           >
             {open ? "Fechar" : "Editar"}
-          </button>
+          </Button>
           <DeleteCoreografiaButton
             espetaculoId={espetaculoId}
             coreografiaId={defaults.coreografiaId}
