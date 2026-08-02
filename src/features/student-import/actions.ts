@@ -525,6 +525,11 @@ async function analyzeRows(
             end_date: defaults.endDate,
             monthly_amount: defaults.monthlyAmount,
             financial_guardian_id: guardianId,
+            // Importação traz a base que já existia; o start_date aqui é o que
+            // a escola declara, não uma entrada observada por nós. A marca faz
+            // o trigger de growth_churn ignorar estas linhas — sem ela, o dia
+            // da importação viraria um pico de centenas de "entradas".
+            imported_at: new Date().toISOString(),
           });
 
           if (error) {

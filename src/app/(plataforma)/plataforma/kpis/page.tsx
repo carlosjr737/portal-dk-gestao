@@ -20,7 +20,12 @@ import {
   variacaoUltimoMes,
 } from "@/features/plataforma/kpis-historico";
 import {
+  agregarChurn,
+  churnDoUltimoMesFechado,
+  getChurnMensal,
   getEvolucaoDaBase,
+  rotuloDoMes,
+  INICIO_DA_SERIE_DE_CHURN,
   variacaoDaBase,
   variacaoMesAMes,
 } from "@/features/plataforma/kpis-base";
@@ -48,6 +53,9 @@ export default async function KpisPage() {
     ]);
 
   const basePor = new Map(evolucao.map((e) => [e.escolaId, e.pontos]));
+
+  const churnTotal = agregarChurn(await getChurnMensal(evolucao));
+  const churn = churnDoUltimoMesFechado(churnTotal);
 
   // Série somada de todas as escolas, mês a mês.
   const baseTotal = (evolucao[0]?.pontos ?? []).map((_, i) => ({
@@ -118,15 +126,7 @@ export default async function KpisPage() {
           Do nosso banco, não do Asaas. Entradas e saídas usam a mesma fonte da
           tela de Growth &amp; Churn do portal.
         </p>
-        {/*
-          Sem "taxa de churn" de propósito. Ela precisaria dividir as saídas
-          pela base, e as duas fontes discordam: em fev/mar/abr o log de
-          eventos registra 17, 19 e 22 saídas enquanto nenhuma matrícula tem
-          cancelamento no período. Dividir uma pela outra daria um número com
-          cara de precisão e nada de verdade. A variação da base responde a
-          mesma pergunta usando uma fonte só.
-        */}
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Indicador
             rotulo="Matrículas ativas"
             valor={inteiro.format(totais.matriculasAtivas)}
@@ -171,6 +171,30 @@ export default async function KpisPage() {
                 : `saldo ${totais.entradasNoMes - totais.saidasNoMes}`
             }
             alarme={totais.saidasNoMes > totais.entradasNoMes}
+          />
+          {/*
+            A taxa é do último mês FECHADO, não do mês corrente como os dois
+            cards ao lado — por isso o mês aparece escrito no apoio. Churn de
+            mês pela metade cai todo dia 1º e sobe até o dia 30, e o dono leria
+            isso como melhora.
+          */}
+          <Indicador
+            rotulo="Taxa de churn"
+            valor={
+              churn?.taxa === null || churn === null
+                ? "—"
+                : `${churn.taxa.toFixed(1)}%`
+            }
+            apoio={
+              churn
+                ? `${churn.rotulo}: ${inteiro.format(churn.saidas)} de ${inteiro.format(churn.baseInicial)}`
+                : `primeiro mês fechado: ${rotuloDoMes(INICIO_DA_SERIE_DE_CHURN)}`
+            }
+            legenda={
+              churn
+                ? "saídas sobre a base do dia 1º"
+                : "antes disso, entradas e saídas vinham da planilha"
+            }
           />
         </div>
       </section>

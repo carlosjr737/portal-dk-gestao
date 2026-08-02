@@ -5,6 +5,10 @@ import type {
 } from "@/features/audience-metrics/queries";
 import { Alert } from "@/components/ui/alert";
 import { PALETA_CATEGORICA } from "@/lib/chart-palette";
+import {
+  findBulkLoadPoint,
+  recentSignups,
+} from "@/features/audience-metrics/derived";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -98,13 +102,16 @@ export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
         </ChartCard>
       </section>
 
-      {/* Crescimento (largura total) */}
+      {/* Cadastros recentes (largura total) */}
       <section>
         <ChartCard
-          title="Novos alunos por mês"
-          subtitle="Entradas nos últimos 12 meses (data de cadastro)"
+          title="Cadastros recentes"
+          subtitle="Data de cadastro no sistema, não data de entrada na escola"
         >
-          <GrowthBars points={metrics.growth} />
+          <RecentSignupsSummary
+            points={metrics.growth}
+            totalActiveStudents={metrics.totalActiveStudents}
+          />
         </ChartCard>
       </section>
 
@@ -263,34 +270,47 @@ function BarList({ slices }: { slices: AudienceSlice[] }) {
   );
 }
 
-/* ---------------------------- Growth columns ---------------------------- */
+/* ---------------------------- Cadastros recentes ---------------------------- */
 
-function GrowthBars({ points }: { points: AudienceGrowthPoint[] }) {
-  const max = Math.max(1, ...points.map((point) => point.count));
+/**
+ * Uma frase, não um gráfico.
+ *
+ * O gráfico de barras que existia aqui era ilegível por escala: um mês tinha
+ * 541 cadastros — a carga inicial da base — e os demais tinham 1, 2 ou 3.
+ * Com o máximo em 541, um mês de 3 alunos renderizava a 0,55% de 176px, ou
+ * seja menos de um pixel. Doze meses de dado invisíveis por causa de um ponto.
+ *
+ * Corrigir a escala não bastaria: enquanto o volume orgânico for de 1 a 3 por
+ * mês, uma barra de 2px não comunica nada que a frase não comunique melhor.
+ */
+function RecentSignupsSummary({
+  points,
+  totalActiveStudents,
+}: {
+  points: AudienceGrowthPoint[];
+  totalActiveStudents: number;
+}) {
+  const bulkLoad = findBulkLoadPoint(points, totalActiveStudents);
+  const recent = recentSignups(points, bulkLoad);
 
   return (
-    <div className="flex h-44 items-end justify-between gap-1.5">
-      {points.map((point) => (
-        <div
-          key={point.month}
-          className="flex flex-1 flex-col items-center justify-end gap-1.5"
-        >
-          <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
-            {point.count > 0 ? point.count : ""}
-          </span>
-          <div
-            className="w-full rounded-t bg-primary/80"
-            style={{
-              height: `${(point.count / max) * 100}%`,
-              minHeight: point.count > 0 ? 2 : 0,
-            }}
-            title={`${point.label}: ${point.count}`}
-          />
-          <span className="text-[10px] text-muted-foreground">
-            {point.label}
-          </span>
-        </div>
-      ))}
+    <div className="space-y-2">
+      <p className="text-sm text-foreground">
+        <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums">
+          {formatNumber(recent.count)}
+        </span>{" "}
+        {recent.count === 1 ? "aluno cadastrado" : "alunos cadastrados"} nos
+        últimos {recent.months} meses
+        {recent.lastLabel ? ` · último em ${recent.lastLabel}` : ""}
+      </p>
+
+      {bulkLoad ? (
+        <p className="text-xs text-muted-foreground">
+          Fora da conta: {formatNumber(bulkLoad.count)} cadastros de{" "}
+          {bulkLoad.label} são a carga inicial da base — data do import, não
+          captação.
+        </p>
+      ) : null}
     </div>
   );
 }

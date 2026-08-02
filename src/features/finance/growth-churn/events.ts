@@ -33,6 +33,19 @@ type EnrollmentSnapshot = {
     | null;
 };
 
+/**
+ * Redundante desde `trg_growth_churn_from_enrollment`
+ * (scripts/growth_churn_01_trigger.sql): o banco já grava o evento em toda
+ * criação e todo cancelamento, inclusive nos caminhos que não passam por
+ * aqui — importação em massa e SQL direto, que foram exatamente os que
+ * deixaram 42 cancelamentos sem saída registrada.
+ *
+ * Fica por ser inofensivo: o índice único (enrollment_id, event_type) impede
+ * duplicata, e esta função sai cedo ao encontrar o evento que o trigger acabou
+ * de gravar. Pode ser removida junto com suas duas chamadas em
+ * `enrollments/actions.ts` depois que o trigger tiver rodado um mês em
+ * produção — não antes, para não ficar sem nenhuma rede se ele precisar voltar.
+ */
 export async function ensureGrowthChurnEvent({
   enrollmentId,
   eventType,
