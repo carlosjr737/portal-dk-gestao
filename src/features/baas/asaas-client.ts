@@ -413,3 +413,87 @@ export async function consultarStatusSubconta(
     bankAccountInfo: (data?.bankAccountInfo as string) ?? "PENDING",
   };
 }
+
+/* -------------------------------------------------------------------------
+ * Leitura financeira da subconta.
+ *
+ * Todas usam a chave DA ESCOLA, não a da plataforma. Isso é uma consequência
+ * do desenho de BaaS e vale entender: a plataforma não consegue ver as
+ * cobranças da escola com a própria chave — tentar dá 404, e eu conferi. O
+ * que ela tem é a chave da subconta guardada, e com ela consulta em nome da
+ * escola.
+ *
+ * Ou seja: o dinheiro nunca passa pela plataforma, mas a leitura passa. São
+ * coisas diferentes, e é bom que a escola saiba da segunda.
+ * ---------------------------------------------------------------------- */
+
+export type SaldoResult =
+  | { ok: true; saldo: number }
+  | { ok: false; error: string };
+
+/** Saldo disponível na conta agora. */
+export async function consultarSaldoSubconta(
+  subcontaApiKey: string,
+): Promise<SaldoResult> {
+  const res = await fetch(`${ASAAS_API_BASE}/finance/balance`, {
+    headers: { access_token: subcontaApiKey },
+  });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    return { ok: false, error: mensagemErro(data, res.status) };
+  }
+
+  return { ok: true, saldo: Number(data?.balance ?? 0) };
+}
+
+export type EstatisticaResult =
+  | { ok: true; quantidade: number; valor: number; valorLiquido: number }
+  | { ok: false; error: string };
+
+/**
+ * Soma das cobranças num status, opcionalmente num intervalo.
+ *
+ * `valorLiquido` é o que sobra depois da taxa do Asaas — é esse número que a
+ * escola realmente recebe, e é ele que deve aparecer como "faturamento", não
+ * o bruto. Mostrar o bruto infla o que a escola acha que ganhou.
+ */
+export type StatusCobranca =
+  | "RECEIVED"
+  | "CONFIRMED"
+  | "RECEIVED_IN_CASH"
+  | "PENDING"
+  | "OVERDUE";
+
+export async function estatisticasCobrancas(
+  subcontaApiKey: string,
+  filtros: {
+    status?: StatusCobranca;
+    /** Data de VENCIMENTO inicial, em ISO (2026-08-01). */
+    vencimentoDe?: string;
+    vencimentoAte?: string;
+  } = {},
+): Promise<EstatisticaResult> {
+  const params = new URLSearchParams();
+  if (filtros.status) params.set("status", filtros.status);
+  if (filtros.vencimentoDe) params.set("dueDate[ge]", filtros.vencimentoDe);
+  if (filtros.vencimentoAte) params.set("dueDate[le]", filtros.vencimentoAte);
+
+  const query = params.toString();
+  const res = await fetch(
+    `${ASAAS_API_BASE}/finance/payment/statistics${query ? `?${query}` : ""}`,
+    { headers: { access_token: subcontaApiKey } },
+  );
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    return { ok: false, error: mensagemErro(data, res.status) };
+  }
+
+  return {
+    ok: true,
+    quantidade: Number(data?.quantity ?? 0),
+    valor: Number(data?.value ?? 0),
+    valorLiquido: Number(data?.netValue ?? 0),
+  };
+}

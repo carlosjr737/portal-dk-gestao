@@ -35,6 +35,12 @@ export default async function PlataformaLayout({
               <Link href="/plataforma" className="text-slate-300 hover:text-white">
                 Escolas
               </Link>
+              <Link
+                href="/plataforma/kpis"
+                className="text-slate-300 hover:text-white"
+              >
+                Indicadores
+              </Link>
             </nav>
           </div>
           <Link
