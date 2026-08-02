@@ -253,23 +253,31 @@ function AgeBandColumns({
 
   return (
     <div>
-      <div className="flex h-48 items-end gap-2">
+      <div className="flex items-end gap-2">
         {bands.map((band) => (
           <div
-            className="flex flex-1 flex-col items-center justify-end gap-1.5"
+            className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
             key={band.label}
           >
             <span className="text-xs font-medium tabular-nums text-foreground">
               {formatNumber(band.count)}
             </span>
-            <div
-              className="w-full rounded-t bg-primary"
-              style={{
-                height: `${max > 0 ? (band.count / max) * 100 : 0}%`,
-                minHeight: band.count > 0 ? 4 : 0,
-              }}
-              title={`${band.label} anos: ${formatNumber(band.count)}`}
-            />
+
+            {/* A trilha precisa de altura EXPLÍCITA. Antes o percentual da
+                barra era medido contra uma coluna dimensionada pelo conteúdo,
+                não resolvia, e todas as barras caíam no mínimo de 4px — sete
+                faixas de valores diferentes viravam sete traços iguais. */}
+            <div className="flex h-40 w-full items-end">
+              <div
+                className="w-full rounded-t bg-primary"
+                style={{
+                  height: `${max > 0 ? (band.count / max) * 100 : 0}%`,
+                  minHeight: band.count > 0 ? 4 : 0,
+                }}
+                title={`${band.label} anos: ${formatNumber(band.count)}`}
+              />
+            </div>
+
             <span className="text-[11px] text-muted-foreground">
               {band.label}
             </span>
