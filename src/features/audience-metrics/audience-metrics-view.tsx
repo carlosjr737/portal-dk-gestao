@@ -56,16 +56,6 @@ export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
           value={metrics.averageAge !== null ? `${metrics.averageAge} anos` : "—"}
           detail="Cadastros com data de nascimento válida"
         />
-        <MetricCard
-          label="Faixa predominante"
-          value={metrics.dominantAgeBand ? `${metrics.dominantAgeBand} anos` : "—"}
-          detail="Faixa etária com mais alunos"
-        />
-        <MetricCard
-          label="Modalidades"
-          value={formatNumber(metrics.modalitiesCount)}
-          detail="Modalidades com alunos ativos"
-        />
       </section>
 
       {/* Pizzas: idade e modalidade */}
