@@ -19,6 +19,11 @@ import {
   getHistoricoFaturamento,
   variacaoUltimoMes,
 } from "@/features/plataforma/kpis-historico";
+import {
+  getEvolucaoDaBase,
+  variacaoDaBase,
+  variacaoMesAMes,
+} from "@/features/plataforma/kpis-base";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +40,24 @@ function valor(v: number | null) {
 }
 
 export default async function KpisPage() {
-  const [{ escolas, totais, mrrPlataforma }, historico] = await Promise.all([
-    getKpisPlataforma(),
-    getHistoricoFaturamento(),
-  ]);
+  const [{ escolas, totais, mrrPlataforma }, historico, evolucao] =
+    await Promise.all([
+      getKpisPlataforma(),
+      getHistoricoFaturamento(),
+      getEvolucaoDaBase(),
+    ]);
+
+  const basePor = new Map(evolucao.map((e) => [e.escolaId, e.pontos]));
+
+  // Série somada de todas as escolas, mês a mês.
+  const baseTotal = (evolucao[0]?.pontos ?? []).map((_, i) => ({
+    mes: evolucao[0].pontos[i].mes,
+    rotulo: evolucao[0].pontos[i].rotulo,
+    matriculas: evolucao.reduce((s, e) => s + (e.pontos[i]?.matriculas ?? 0), 0),
+    alunos: evolucao.reduce((s, e) => s + (e.pontos[i]?.alunos ?? 0), 0),
+  }));
+  const variacaoPeriodo = variacaoDaBase(baseTotal);
+  const variacaoUltimo = variacaoMesAMes(baseTotal);
 
   const historicoPor = new Map(
     historico.porEscola.map((h) => [h.escolaId, h.pontos]),
@@ -99,11 +118,39 @@ export default async function KpisPage() {
           Do nosso banco, não do Asaas. Entradas e saídas usam a mesma fonte da
           tela de Growth &amp; Churn do portal.
         </p>
+        {/*
+          Sem "taxa de churn" de propósito. Ela precisaria dividir as saídas
+          pela base, e as duas fontes discordam: em fev/mar/abr o log de
+          eventos registra 17, 19 e 22 saídas enquanto nenhuma matrícula tem
+          cancelamento no período. Dividir uma pela outra daria um número com
+          cara de precisão e nada de verdade. A variação da base responde a
+          mesma pergunta usando uma fonte só.
+        */}
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Indicador
             rotulo="Matrículas ativas"
             valor={inteiro.format(totais.matriculasAtivas)}
             apoio={`${(totais.matriculasAtivas / Math.max(totais.alunosAtivos, 1)).toFixed(2)} por aluno`}
+            variacao={variacaoUltimo}
+            grafico={
+              baseTotal.length > 1 ? (
+                <Sparkline
+                  values={baseTotal.map((p) => p.matriculas)}
+                  label={`Base ativa de ${baseTotal[0].rotulo} a ${baseTotal[baseTotal.length - 1].rotulo}`}
+                  className="mt-3 h-9 w-full"
+                  color={
+                    (variacaoPeriodo ?? 0) < 0
+                      ? "hsl(var(--danger))"
+                      : "hsl(var(--success))"
+                  }
+                />
+              ) : null
+            }
+            legenda={
+              baseTotal.length > 1 && variacaoPeriodo !== null
+                ? `${variacaoPeriodo >= 0 ? "+" : ""}${variacaoPeriodo.toFixed(1)}% desde ${baseTotal[0].rotulo}`
+                : undefined
+            }
           />
           <Indicador
             rotulo="Famílias pagantes"
@@ -186,13 +233,14 @@ export default async function KpisPage() {
         ) : null}
       </section>
 
-      <Table containerClassName="mt-6" minWidth="1180px">
+      <Table containerClassName="mt-6" minWidth="1320px">
         <TableHeader>
           <TableRow>
             <TableHead>Escola</TableHead>
             <TableHead className="text-right tabular-nums">Alunos</TableHead>
             <TableHead className="text-right tabular-nums">Matrículas</TableHead>
             <TableHead className="text-right tabular-nums">Famílias</TableHead>
+            <TableHead>Base ativa</TableHead>
             <TableHead className="text-right tabular-nums">Entradas / saídas</TableHead>
             <TableHead>Faturamento</TableHead>
             <TableHead className="text-right tabular-nums">No mês</TableHead>
@@ -204,7 +252,7 @@ export default async function KpisPage() {
         </TableHeader>
         <TableBody>
           {escolas.length === 0 ? (
-            <TableEmpty colSpan={11}>Nenhuma escola cadastrada ainda.</TableEmpty>
+            <TableEmpty colSpan={12}>Nenhuma escola cadastrada ainda.</TableEmpty>
           ) : null}
           {escolas.map((e) => {
             const pontos = historicoPor.get(e.escolaId) ?? [];
@@ -231,6 +279,37 @@ export default async function KpisPage() {
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {e.familias}
+                </TableCell>
+                <TableCell>
+                  {(basePor.get(e.escolaId)?.length ?? 0) > 1 ? (
+                    <>
+                      <Sparkline
+                        values={(basePor.get(e.escolaId) ?? []).map(
+                          (p) => p.matriculas,
+                        )}
+                        label={`Base ativa de ${e.nome}`}
+                        className="h-7 w-24"
+                        color={
+                          (variacaoDaBase(basePor.get(e.escolaId) ?? []) ?? 0) < 0
+                            ? "hsl(var(--danger))"
+                            : "hsl(var(--success))"
+                        }
+                      />
+                      {(() => {
+                        const v = variacaoDaBase(basePor.get(e.escolaId) ?? []);
+                        return v === null ? null : (
+                          <span
+                            className={`mt-0.5 block text-xs ${v < 0 ? "text-danger-text" : "text-success-text"}`}
+                          >
+                            {v >= 0 ? "+" : ""}
+                            {v.toFixed(1)}%
+                          </span>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   <span className="text-success-text">+{e.entradasNoMes}</span>
