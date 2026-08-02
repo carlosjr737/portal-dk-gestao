@@ -19,7 +19,7 @@ export default async function MetricasEscolaPage() {
         description="Visão geral de matrículas, ocupação e receita da escola."
       />
       <div className="mt-6">
-        <SchoolMetricsView metrics={metrics} />
+        <SchoolMetricsView metrics={metrics} monthlyBase={monthlyBase} />
       </div>
       <MonthlyBaseView points={monthlyBase} />
     </div>

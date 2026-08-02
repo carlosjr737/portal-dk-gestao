@@ -9,6 +9,15 @@ import type {
   SchoolMetrics,
   SchoolTeacherMetric,
 } from "@/features/school-metrics/queries";
+import type { MonthlyBasePoint } from "@/features/school-metrics/monthly-base";
+import {
+  discountShare,
+  enrollmentsPerStudent,
+  idleCapacity,
+  studentsDelta,
+  studentsPerClass,
+} from "@/features/school-metrics/derived";
+import { MetricCard } from "@/components/ui/metric-card";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
 import {
@@ -43,6 +52,20 @@ function formatPercentValue(value: number | null) {
   return value === null ? null : Number((value * 100).toFixed(2));
 }
 
+const decimalFormatter = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+function formatDecimal(value: number) {
+  return decimalFormatter.format(value);
+}
+
+/** Percentual com uma casa: 11,3% diz mais que 11% num número de desconto. */
+function formatPercentDecimal(value: number) {
+  return `${decimalFormatter.format(value * 100)}%`;
+}
+
 type SortKey = "revenue" | "students" | "ticket" | "name";
 
 /**
@@ -68,7 +91,13 @@ const statusLabels = new Map([
   ["planning", "Planejamento"],
 ]);
 
-export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
+export function SchoolMetricsView({
+  metrics,
+  monthlyBase,
+}: {
+  metrics: SchoolMetrics;
+  monthlyBase?: MonthlyBasePoint[];
+}) {
   if (!metrics.available) {
     return (
       <Alert tone="warning" className="p-4">
@@ -80,60 +109,7 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-        <MetricCard label="Alunos ativos" value={String(metrics.activeStudents)} />
-        <MetricCard
-          label="Matrículas ativas"
-          value={String(metrics.activeEnrollments)}
-        />
-        <MetricCard label="Turmas ativas" value={String(metrics.activeClasses)} />
-        <MetricCard
-          label="Professores ativos"
-          value={String(metrics.teachersActive)}
-        />
-        <MetricCard
-          label="Receita mensal (MRR líquido)"
-          value={formatCurrencyBRL(metrics.monthlyRevenue)}
-          detail="Mensalidade menos descontos · matrículas ativas"
-        />
-        <MetricCard
-          label="Receita bruta contratada"
-          value={formatCurrencyBRL(metrics.grossRevenue)}
-          detail="Mensalidade cheia · sem aplicar descontos"
-        />
-        <MetricCard
-          label="Descontos concedidos"
-          value={formatCurrencyBRL(metrics.totalDiscount)}
-          detail="Bolsas e descontos das matrículas ativas"
-        />
-        <MetricCard
-          label="Ticket médio por matrícula"
-          value={
-            metrics.averageTicketPerEnrollment !== null
-              ? formatCurrencyBRL(metrics.averageTicketPerEnrollment)
-              : "-"
-          }
-          detail={`${metrics.activeEnrollments} matrículas ativas`}
-        />
-        <MetricCard
-          label="Ticket médio por aluno"
-          value={
-            metrics.averageTicketPerStudent !== null
-              ? formatCurrencyBRL(metrics.averageTicketPerStudent)
-              : "-"
-          }
-          detail={`${metrics.activeStudents} alunos distintos`}
-        />
-        <MetricCard
-          label="Ocupação"
-          value={formatPercent(metrics.occupancyRate)}
-          detail={
-            metrics.totalCapacity > 0
-              ? `${metrics.activeEnrollments}/${metrics.totalCapacity} vagas`
-              : "Sem capacidade definida"
-          }
-        />
-      </div>
+      <SchoolKpis metrics={metrics} monthlyBase={monthlyBase} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <GroupTable
@@ -159,6 +135,137 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
       />
 
       <ClassRevenueSection metrics={metrics} />
+    </div>
+  );
+}
+
+/**
+ * Os quatro indicadores que decidem alguma coisa, mais uma faixa com os
+ * derivados de conferência.
+ *
+ * Onze cartões de mesmo peso não têm hierarquia: eram três linhas de cartão
+ * antes de qualquer conteúdo, e vários deles eram o mesmo dado escrito de
+ * outro jeito (bruta − descontos = líquida gastava três cartões para exibir
+ * uma subtração).
+ */
+function SchoolKpis({
+  metrics,
+  monthlyBase,
+}: {
+  metrics: SchoolMetrics;
+  monthlyBase?: MonthlyBasePoint[];
+}) {
+  const perStudent = enrollmentsPerStudent(metrics);
+  const perClass = studentsPerClass(metrics);
+  const discount = discountShare(metrics);
+  const idle = idleCapacity(metrics);
+  const delta = studentsDelta(monthlyBase);
+
+  // Sem capacidade cadastrada, formatPercent devolveria "–" e o cartão
+  // passaria o dia dizendo que não sabe. Melhor não existir.
+  const showOccupancy = metrics.occupancyRate !== null;
+
+  const derived = [
+    `${metrics.activeEnrollments} matrículas ativas`,
+    `${metrics.teachersActive} professores ativos`,
+    `Receita bruta ${formatCurrencyBRL(metrics.grossRevenue)}`,
+    `Descontos ${formatCurrencyBRL(metrics.totalDiscount)}`,
+    metrics.averageTicketPerEnrollment !== null
+      ? `Ticket/matrícula ${formatCurrencyBRL(metrics.averageTicketPerEnrollment)}`
+      : null,
+    metrics.averageTicketPerStudent !== null
+      ? `Ticket/aluno ${formatCurrencyBRL(metrics.averageTicketPerStudent)}`
+      : null,
+  ].filter((item): item is string => item !== null);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Alunos ativos"
+          value={String(metrics.activeStudents)}
+          href="/alunos"
+          delta={
+            delta === null
+              ? undefined
+              : { value: delta, kind: "absolute", hint: "vs. mês anterior" }
+          }
+          hint={
+            perStudent === null
+              ? undefined
+              : `${formatDecimal(perStudent)} matrículas por aluno`
+          }
+        />
+
+        <MetricCard
+          label="Receita mensal"
+          value={formatCurrencyBRL(metrics.monthlyRevenue)}
+          href="/financeiro/faturamento-turmas"
+          hint={
+            discount === null
+              ? "Mensalidade menos descontos"
+              : `${formatPercentDecimal(discount)} de desconto sobre a bruta`
+          }
+        />
+
+        {showOccupancy ? (
+          <MetricCard
+            label="Ocupação"
+            value={formatPercent(metrics.occupancyRate)}
+            href="/turmas"
+            hint={
+              idle === null
+                ? `${metrics.activeEnrollments} matrículas`
+                : idle.amount === null
+                  ? `${idle.seats} vagas ociosas`
+                  : `${idle.seats} vagas ociosas · ${formatCurrencyBRL(idle.amount)} de capacidade não vendida`
+            }
+          >
+            <OccupancyBar rate={metrics.occupancyRate} />
+          </MetricCard>
+        ) : null}
+
+        <MetricCard
+          label="Turmas ativas"
+          value={String(metrics.activeClasses)}
+          href="/turmas"
+          hint={
+            perClass === null
+              ? `${metrics.teachersActive} professores`
+              : `${formatDecimal(perClass)} alunos por turma · ${metrics.teachersActive} professores`
+          }
+        />
+      </div>
+
+      <p className="text-[13px] text-muted-foreground">
+        {derived.map((item, index) => (
+          <span key={item}>
+            {index > 0 ? <span aria-hidden="true"> · </span> : null}
+            <span className="tabular-nums">{item}</span>
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Ocupação é o único dos quatro com barra: é o número que aponta dinheiro
+ * parado, e o peso gráfico é o que o coloca à frente sem quebrar a grade.
+ */
+function OccupancyBar({ rate }: { rate: number | null }) {
+  if (rate === null) {
+    return null;
+  }
+
+  const width = Math.min(100, Math.max(0, rate * 100));
+
+  return (
+    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full bg-primary"
+        style={{ width: `${width}%` }}
+      />
     </div>
   );
 }
@@ -248,7 +355,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         <MetricCard
           label="Receita mensal líquida por turma"
           value={formatCurrencyBRL(monthlyRevenue)}
-          detail="MRR líquido nas turmas filtradas"
+          hint="MRR líquido nas turmas filtradas"
         />
         <MetricCard
           label="Maior faturamento"
@@ -257,7 +364,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
               ? formatCurrencyBRL(highestRevenueClass.monthlyRevenue)
               : "-"
           }
-          detail={highestRevenueClass?.className ?? "Sem turma com alunos"}
+          hint={highestRevenueClass?.className ?? "Sem turma com alunos"}
         />
         <MetricCard
           label="Menor faturamento"
@@ -266,7 +373,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
               ? formatCurrencyBRL(lowestRevenueClass.monthlyRevenue)
               : "-"
           }
-          detail={lowestRevenueClass?.className ?? "Sem turma com alunos"}
+          hint={lowestRevenueClass?.className ?? "Sem turma com alunos"}
         />
       </div>
 
@@ -815,24 +922,3 @@ function TeacherTable({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
-      {detail ? (
-        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-      ) : null}
-    </div>
-  );
-}
