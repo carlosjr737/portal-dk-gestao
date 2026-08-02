@@ -73,25 +73,28 @@ export function AudienceMetricsView({
         />
       </ChartCard>
 
-      {/* Pizzas: modalidade */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Alunos por modalidade"
-          subtitle="Um aluno pode aparecer em mais de uma modalidade"
-        >
-          <PieChart slices={metrics.byModality} />
-        </ChartCard>
-      </section>
+      <ChartCard
+        title="Composição"
+        subtitle="Cada barra é proporcional ao total da sua linha"
+      >
+        <div className="space-y-5">
+          <ShareBars
+            label="Modalidade"
+            slices={metrics.byModality}
+            total={metrics.totalActiveStudents}
+            totalLabel={`${formatNumber(metrics.totalActiveStudents)} alunos ativos`}
+            note="Um aluno pode aparecer em mais de uma modalidade, então as partes somam mais de 100%."
+          />
+          <ShareBars
+            label="Famílias"
+            slices={metrics.familySizes}
+            total={metrics.totalFamilies}
+            totalLabel={`${formatNumber(metrics.totalFamilies)} famílias com matrícula ativa`}
+          />
+        </div>
+      </ChartCard>
 
-      {/* Famílias (pizza) e nível (barras) */}
       <section className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Famílias por nº de filhos"
-          subtitle={`${formatNumber(metrics.totalFamilies)} famílias com matrícula ativa`}
-        >
-          <PieChart slices={metrics.familySizes} />
-        </ChartCard>
-
         <ChartCard
           title="Alunos por nível"
           subtitle="Alunos distintos por nível das turmas"
@@ -302,106 +305,65 @@ function AgeBandColumns({
   );
 }
 
-/* ----------------------------- Pie chart ----------------------------- */
+/* ---------------------------- Barras de composição ---------------------------- */
 
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
-  return {
-    x: cx + r * Math.cos(angleRad),
-    y: cy + r * Math.sin(angleRad),
-  };
-}
-
-function arcPath(
-  cx: number,
-  cy: number,
-  r: number,
-  startAngle: number,
-  endAngle: number,
-) {
-  const start = polarToCartesian(cx, cy, r, endAngle);
-  const end = polarToCartesian(cx, cy, r, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return [
-    `M ${cx} ${cy}`,
-    `L ${start.x} ${start.y}`,
-    `A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`,
-    "Z",
-  ].join(" ");
-}
-
-function PieChart({ slices }: { slices: AudienceSlice[] }) {
-  const total = slices.reduce((sum, slice) => sum + slice.count, 0);
-
-  if (total === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Sem dados para exibir.
-      </p>
-    );
+/**
+ * Três valores com uma parte dominante não precisam de um card de 400px.
+ *
+ * Barras SEPARADAS, não empilhadas, cada uma proporcional ao total da linha.
+ * A empilhada seria mais compacta, mas promete um todo: no caso de
+ * modalidade, um aluno pode estar em duas, as partes somam mais de 100% e a
+ * promessa seria falsa. Separadas, cada barra diz só "esta parte, deste
+ * total" — que é o que os dados sustentam.
+ */
+function ShareBars({
+  label,
+  slices,
+  total,
+  totalLabel,
+  note,
+}: {
+  label: string;
+  slices: AudienceSlice[];
+  total: number;
+  totalLabel: string;
+  note?: string;
+}) {
+  if (slices.length === 0) {
+    return null;
   }
 
-  const cx = 100;
-  const cy = 100;
-  const r = 92;
-
-  let cursor = 0;
-  const arcs = slices.map((slice, index) => {
-    const startAngle = (cursor / total) * 360;
-    cursor += slice.count;
-    const endAngle = (cursor / total) * 360;
-    return {
-      ...slice,
-      color: PALETA_CATEGORICA[index % PALETA_CATEGORICA.length],
-      path:
-        slices.length === 1
-          ? null // círculo cheio renderizado à parte
-          : arcPath(cx, cy, r, startAngle, endAngle),
-    };
-  });
-
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-      <svg
-        viewBox="0 0 200 200"
-        className="h-44 w-44 shrink-0"
-        role="img"
-        aria-label="Gráfico de pizza"
-      >
-        {slices.length === 1 ? (
-          <circle cx={cx} cy={cy} r={r} fill={arcs[0].color} />
-        ) : (
-          arcs.map((arc) => (
-            <path
-              key={arc.label}
-              d={arc.path ?? ""}
-              fill={arc.color}
-              stroke="hsl(var(--card))"
-              strokeWidth={1.5}
-            />
-          ))
-        )}
-      </svg>
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+        <span className="text-xs text-muted-foreground">{totalLabel}</span>
+      </div>
 
-      <ul className="flex w-full flex-col gap-1.5">
-        {arcs.map((arc) => (
-          <li
-            key={arc.label}
-            className="flex items-center justify-between gap-3 text-sm"
-          >
-            <span className="flex items-center gap-2 text-foreground">
-              <span
-                className="inline-block h-3 w-3 shrink-0 rounded-sm"
-                style={{ backgroundColor: arc.color }}
+      <ul className="mt-2 space-y-2">
+        {slices.map((slice) => (
+          <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3" key={slice.label}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="truncate text-foreground">{slice.label}</span>
+            </div>
+            <span className="tabular-nums text-sm text-muted-foreground">
+              {formatNumber(slice.count)} ({formatPercent(slice.count, total)})
+            </span>
+            <div className="col-span-2 mt-1 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${total > 0 ? Math.min(100, (slice.count / total) * 100) : 0}%`,
+                }}
               />
-              {arc.label}
-            </span>
-            <span className="tabular-nums text-muted-foreground">
-              {formatNumber(arc.count)} ({formatPercent(arc.count, total)})
-            </span>
+            </div>
           </li>
         ))}
       </ul>
+
+      {note ? (
+        <p className="mt-2 text-xs text-muted-foreground">{note}</p>
+      ) : null}
     </div>
   );
 }
