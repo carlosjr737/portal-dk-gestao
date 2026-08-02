@@ -491,7 +491,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         />
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 rounded-lg border border-border bg-card p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
         <FilterSelect
           label="Status da turma"
           value={statusFilter}
@@ -537,7 +537,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
       </div>
 
       {!hasClasses ? (
-        <div className="rounded-lg border border-border bg-white p-6 text-center text-sm text-muted-foreground shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
           Nenhuma turma com matrícula ativa encontrada.
         </div>
       ) : !hasRevenue && hasActiveEnrollments ? (
@@ -595,7 +595,7 @@ function TopClassRevenueChart({
   maxRevenue: number;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">
           Top 10 turmas por receita mensal líquida
@@ -774,7 +774,7 @@ function ClassRevenueTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border px-5 py-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
@@ -791,7 +791,7 @@ function ClassRevenueTable({
           type="button"
           disabled={rows.length === 0}
           onClick={exportToExcel}
-          className="bg-white font-semibold shadow-sm"
+          className="bg-card font-semibold shadow-sm"
         >
           Exportar Excel
         </Button>
@@ -1024,7 +1024,7 @@ function GroupTable({
     useCollapsibleRows(rows);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
       <div className="border-b border-border px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
@@ -1102,7 +1102,7 @@ function TeacherTable({
     useCollapsibleRows(rows);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
       <div className="border-b border-border px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">
           Receita por professor
