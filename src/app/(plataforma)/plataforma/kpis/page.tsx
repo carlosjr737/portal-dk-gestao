@@ -62,10 +62,13 @@ export default async function KpisPage() {
       />
 
       {/*
-        Dois blocos separados de propósito. O de cima é o SEU negócio; o de
-        baixo é o das suas clientes. Misturar faria alguém somar receita de
+        Três blocos, separados de propósito e nesta ordem: o SEU negócio, a
+        base das clientes, e o dinheiro delas.
+
+        Misturar o primeiro com o terceiro faria alguém somar receita de
         assinatura com faturamento de escola, que são dinheiros de donos
-        diferentes.
+        diferentes. E o do meio vem antes do financeiro porque aluno que sai
+        aparece na base semanas antes de aparecer na receita.
       */}
       <section className="mt-6">
         <h2 className="text-lg font-semibold text-foreground">Sua plataforma</h2>
@@ -89,9 +92,46 @@ export default async function KpisPage() {
       </section>
 
       <section className="mt-8">
+        <h2 className="text-lg font-semibold text-foreground">
+          Base e movimento
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Do nosso banco, não do Asaas. Entradas e saídas usam a mesma fonte da
+          tela de Growth &amp; Churn do portal.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Indicador
+            rotulo="Matrículas ativas"
+            valor={inteiro.format(totais.matriculasAtivas)}
+            apoio={`${(totais.matriculasAtivas / Math.max(totais.alunosAtivos, 1)).toFixed(2)} por aluno`}
+          />
+          <Indicador
+            rotulo="Famílias pagantes"
+            valor={inteiro.format(totais.familias)}
+            apoio="responsáveis com matrícula ativa"
+          />
+          <Indicador
+            rotulo="Entradas no mês"
+            valor={inteiro.format(totais.entradasNoMes)}
+            apoio="matrículas novas"
+          />
+          <Indicador
+            rotulo="Saídas no mês"
+            valor={inteiro.format(totais.saidasNoMes)}
+            apoio={
+              totais.entradasNoMes - totais.saidasNoMes >= 0
+                ? `saldo +${totais.entradasNoMes - totais.saidasNoMes}`
+                : `saldo ${totais.entradasNoMes - totais.saidasNoMes}`
+            }
+            alarme={totais.saidasNoMes > totais.entradasNoMes}
+          />
+        </div>
+      </section>
+
+      <section className="mt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground">
-            Movimentação das escolas
+            Movimentação financeira
           </h2>
           <p className="text-sm text-muted-foreground">
             Lido do Asaas com a chave de cada escola — o dinheiro não passa
@@ -146,12 +186,14 @@ export default async function KpisPage() {
         ) : null}
       </section>
 
-      <Table containerClassName="mt-6" minWidth="960px">
+      <Table containerClassName="mt-6" minWidth="1180px">
         <TableHeader>
           <TableRow>
             <TableHead>Escola</TableHead>
             <TableHead className="text-right tabular-nums">Alunos</TableHead>
             <TableHead className="text-right tabular-nums">Matrículas</TableHead>
+            <TableHead className="text-right tabular-nums">Famílias</TableHead>
+            <TableHead className="text-right tabular-nums">Entradas / saídas</TableHead>
             <TableHead>Faturamento</TableHead>
             <TableHead className="text-right tabular-nums">No mês</TableHead>
             <TableHead className="text-right tabular-nums">A receber</TableHead>
@@ -162,7 +204,7 @@ export default async function KpisPage() {
         </TableHeader>
         <TableBody>
           {escolas.length === 0 ? (
-            <TableEmpty colSpan={9}>Nenhuma escola cadastrada ainda.</TableEmpty>
+            <TableEmpty colSpan={11}>Nenhuma escola cadastrada ainda.</TableEmpty>
           ) : null}
           {escolas.map((e) => {
             const pontos = historicoPor.get(e.escolaId) ?? [];
@@ -183,6 +225,19 @@ export default async function KpisPage() {
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {e.matriculasAtivas}
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    {e.matriculasPorAluno.toFixed(2)}/aluno
+                  </span>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {e.familias}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  <span className="text-success-text">+{e.entradasNoMes}</span>
+                  {" / "}
+                  <span className={e.saidasNoMes > 0 ? "text-danger-text" : ""}>
+                    −{e.saidasNoMes}
+                  </span>
                 </TableCell>
                 <TableCell>
                   {pontos.length > 1 ? (

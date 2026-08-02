@@ -29,6 +29,16 @@ export type KpiEscola = {
   /** Do nosso banco. */
   alunosAtivos: number;
   matriculasAtivas: number;
+  /**
+   * Famílias PAGANTES: responsáveis financeiros distintos com pelo menos uma
+   * matrícula ativa. Não é o total de responsáveis cadastrados — irmãos
+   * dividem a mesma família, e cadastro antigo sem matrícula não é cliente.
+   */
+  familias: number;
+  /** Matrículas ÷ alunos. Acima de 1 significa aluno em mais de uma turma. */
+  matriculasPorAluno: number;
+  entradasNoMes: number;
+  saidasNoMes: number;
   assinaturaStatus: string | null;
   usaPagamentos: boolean;
   /** Do Asaas, com a chave da escola. `null` = não deu para consultar. */
@@ -46,6 +56,10 @@ export type KpisPlataforma = {
     escolas: number;
     escolasComPagamento: number;
     alunosAtivos: number;
+    matriculasAtivas: number;
+    familias: number;
+    entradasNoMes: number;
+    saidasNoMes: number;
     /** Só soma o que deu para ler; escolas sem dado ficam de fora. */
     recebidoNoMes: number;
     aReceberNoMes: number;
@@ -69,6 +83,7 @@ function primeiroEUltimoDiaDoMes() {
 export async function getKpisPlataforma(): Promise<KpisPlataforma> {
   const admin = createAdminClient();
   const { de, ate } = primeiroEUltimoDiaDoMes();
+  const inicioDoMes = de;
 
   const [
     { data: escolas },
@@ -76,6 +91,9 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
     { data: matriculas },
     { data: assinaturas },
     { data: credenciais },
+    { data: vinculos },
+    { data: matriculasComAluno },
+    { data: eventos },
   ] = await Promise.all([
     admin
       .from("school")
@@ -88,6 +106,22 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
       .select("escola_id, status, valor")
       .neq("status", "cancelada"),
     admin.from("school_payment_credentials").select("escola_id, api_key"),
+    // Famílias: um vínculo por responsável financeiro de aluno com matrícula
+    // ativa. O distinct é feito aqui e não no banco porque o PostgREST não
+    // expõe count(distinct); com a ordem de grandeza atual (centenas) sai
+    // barato.
+    admin
+      .from("student_guardians")
+      .select("guardian_id, student_id, escola_id")
+      .eq("is_financial_responsible", true),
+    admin
+      .from("enrollments")
+      .select("student_id, escola_id")
+      .eq("status", "active"),
+    admin
+      .from("growth_churn_events")
+      .select("escola_id, event_type, event_date")
+      .gte("event_date", inicioDoMes),
   ]);
 
   const contar = (linhas: Array<{ escola_id: unknown }> | null) => {
@@ -101,6 +135,37 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
 
   const alunosPor = contar(alunos);
   const matriculasPor = contar(matriculas);
+
+  // Famílias pagantes: responsável financeiro DISTINTO cujo aluno tem
+  // matrícula ativa. Dois irmãos na escola contam como uma família só — é
+  // isso que faz o número dizer "quantas casas pagam", que é o que interessa
+  // para o dono, e não "quantas linhas tem a tabela de responsáveis".
+  const alunosComMatricula = new Set(
+    (matriculasComAluno ?? []).map((m) => m.student_id as string),
+  );
+  const familiasPor = new Map<string, Set<string>>();
+  for (const v of vinculos ?? []) {
+    const escola = v.escola_id as string | null;
+    const guardian = v.guardian_id as string | null;
+    const aluno = v.student_id as string | null;
+    if (!escola || !guardian || !aluno) continue;
+    if (!alunosComMatricula.has(aluno)) continue;
+    const atual = familiasPor.get(escola) ?? new Set<string>();
+    atual.add(guardian);
+    familiasPor.set(escola, atual);
+  }
+
+  // Entradas e saídas do mês corrente, pela MESMA fonte que a tela de Growth
+  // & Churn do portal usa. Se as duas telas divergirem, uma delas está
+  // mentindo — e ninguém saberia qual.
+  const entradasPor = new Map<string, number>();
+  const saidasPor = new Map<string, number>();
+  for (const e of eventos ?? []) {
+    const escola = e.escola_id as string | null;
+    if (!escola) continue;
+    const alvo = e.event_type === "entrada" ? entradasPor : saidasPor;
+    alvo.set(escola, (alvo.get(escola) ?? 0) + 1);
+  }
   const assinaturaPor = new Map(
     (assinaturas ?? []).map((a) => [a.escola_id as string, a]),
   );
@@ -123,6 +188,13 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
         nome: (escola.nome as string) ?? "Sem nome",
         alunosAtivos: alunosPor.get(escolaId) ?? 0,
         matriculasAtivas: matriculasPor.get(escolaId) ?? 0,
+        familias: familiasPor.get(escolaId)?.size ?? 0,
+        matriculasPorAluno:
+          (alunosPor.get(escolaId) ?? 0) > 0
+            ? (matriculasPor.get(escolaId) ?? 0) / (alunosPor.get(escolaId) ?? 1)
+            : 0,
+        entradasNoMes: entradasPor.get(escolaId) ?? 0,
+        saidasNoMes: saidasPor.get(escolaId) ?? 0,
         assinaturaStatus:
           (assinaturaPor.get(escolaId)?.status as string | undefined) ?? null,
         usaPagamentos: Boolean(escola.usa_pagamentos),
@@ -232,6 +304,10 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
       escolas: resultados.length,
       escolasComPagamento: resultados.filter((e) => e.usaPagamentos).length,
       alunosAtivos: resultados.reduce((s, e) => s + e.alunosAtivos, 0),
+      matriculasAtivas: resultados.reduce((s, e) => s + e.matriculasAtivas, 0),
+      familias: resultados.reduce((s, e) => s + e.familias, 0),
+      entradasNoMes: resultados.reduce((s, e) => s + e.entradasNoMes, 0),
+      saidasNoMes: resultados.reduce((s, e) => s + e.saidasNoMes, 0),
       recebidoNoMes: comLeitura.reduce((s, e) => s + (e.recebidoNoMes ?? 0), 0),
       aReceberNoMes: comLeitura.reduce((s, e) => s + (e.aReceberNoMes ?? 0), 0),
       vencidoEmAberto: comLeitura.reduce(
