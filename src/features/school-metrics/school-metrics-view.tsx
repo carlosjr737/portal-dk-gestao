@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  formatScore,
-  getPerformanceLabel,
-} from "@/features/teacher-dna/scoring";
+import { formatScore } from "@/features/teacher-dna/scoring";
 import type {
   SchoolClassRevenueMetric,
   SchoolGroupMetric,
@@ -47,6 +44,23 @@ function formatPercentValue(value: number | null) {
 }
 
 type SortKey = "revenue" | "students" | "ticket" | "name";
+
+/**
+ * Coluna com um valor só não é coluna: ela ocupa largura para não informar
+ * nada. `Sem valor` zerado em todas as linhas e `Status` quando o filtro já
+ * fixou um status caem os dois nesta regra.
+ */
+function hasMoreThanOneValue<Row, Value>(
+  rows: Row[],
+  pick: (row: Row) => Value,
+) {
+  if (rows.length < 2) {
+    return false;
+  }
+
+  const first = pick(rows[0]);
+  return rows.some((row) => pick(row) !== first);
+}
 
 const statusLabels = new Map([
   ["active", "Ativa"],
@@ -119,11 +133,6 @@ export function SchoolMetricsView({ metrics }: { metrics: SchoolMetrics }) {
               : "Sem capacidade definida"
           }
         />
-        <MetricCard
-          label="Nota DNA média"
-          value={formatScore(metrics.dnaTeamAverage)}
-          detail={`${getPerformanceLabel(metrics.dnaTeamAverage)} · este mês`}
-        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -184,10 +193,6 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
     (sum, row) => sum + row.monthlyRevenue,
     0,
   );
-  const activeEnrollments = filteredRows.reduce(
-    (sum, row) => sum + row.activeEnrollments,
-    0,
-  );
   const enrollmentsWithoutAmount = filteredRows.reduce(
     (sum, row) => sum + row.enrollmentsWithoutAmount,
     0,
@@ -239,7 +244,7 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
           label="Receita mensal líquida por turma"
           value={formatCurrencyBRL(monthlyRevenue)}
@@ -262,43 +267,6 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
               : "-"
           }
           detail={lowestRevenueClass?.className ?? "Sem turma com alunos"}
-        />
-        <MetricCard
-          label="Ticket médio por matrícula"
-          value={
-            activeEnrollments > 0
-              ? formatCurrencyBRL(monthlyRevenue / activeEnrollments)
-              : "-"
-          }
-          detail={`${activeEnrollments} matrículas ativas`}
-        />
-        <MetricCard
-          label="Matrículas sem valor"
-          value={String(enrollmentsWithoutAmount)}
-          detail="monthly_amount nulo ou zerado"
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          label="Matrículas sem turma"
-          value={String(metrics.revenueDiagnostics.activeEnrollmentsWithoutClass)}
-          detail="Ativas sem turma válida"
-        />
-        <MetricCard
-          label="Matrículas sem valor"
-          value={String(
-            metrics.revenueDiagnostics.activeEnrollmentsWithoutAmount +
-              metrics.revenueDiagnostics.activeEnrollmentsWithZeroAmount,
-          )}
-          detail={`${metrics.revenueDiagnostics.activeEnrollmentsWithoutAmount} nulas · ${metrics.revenueDiagnostics.activeEnrollmentsWithZeroAmount} zeradas`}
-        />
-        <MetricCard
-          label="Turmas zeradas com matrículas"
-          value={String(
-            metrics.revenueDiagnostics.zeroRevenueClassesWithActiveEnrollments,
-          )}
-          detail="Receita 0 com matrículas ativas"
         />
       </div>
 
@@ -452,6 +420,13 @@ function ClassRevenueTable({
   rows: SchoolClassRevenueMetric[];
   totalRevenue: number;
 }) {
+  const showWithoutAmount = hasMoreThanOneValue(
+    rows,
+    (row) => row.enrollmentsWithoutAmount > 0,
+  );
+  const showStatus = hasMoreThanOneValue(rows, (row) => row.classStatus);
+  const columnCount = 6 + Number(showWithoutAmount) + Number(showStatus);
+
   async function exportToExcel() {
     const XLSX = await import("xlsx");
     const totalEnrollments = rows.reduce(
@@ -552,8 +527,8 @@ function ClassRevenueTable({
             <TableHead>Matrículas ativas</TableHead>
             <TableHead>Receita mensal</TableHead>
             <TableHead>Ticket por matrícula</TableHead>
-            <TableHead>Sem valor</TableHead>
-            <TableHead>Status</TableHead>
+            {showWithoutAmount ? <TableHead>Sem valor</TableHead> : null}
+            {showStatus ? <TableHead>Status</TableHead> : null}
             <TableHead>Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -605,20 +580,24 @@ function ClassRevenueTable({
                   <TableCell className="text-muted-foreground">
                     {formatCurrencyBRL(row.averageTicketPerEnrollment)}
                   </TableCell>
-                  <TableCell>
-                    <span
-                      className={
-                        row.enrollmentsWithoutAmount > 0
-                          ? "font-semibold text-amber-800"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {row.enrollmentsWithoutAmount}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {statusLabels.get(row.classStatus) ?? row.classStatus}
-                  </TableCell>
+                  {showWithoutAmount ? (
+                    <TableCell>
+                      <span
+                        className={
+                          row.enrollmentsWithoutAmount > 0
+                            ? "font-semibold text-amber-800"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {row.enrollmentsWithoutAmount}
+                      </span>
+                    </TableCell>
+                  ) : null}
+                  {showStatus ? (
+                    <TableCell className="text-muted-foreground">
+                      {statusLabels.get(row.classStatus) ?? row.classStatus}
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <Link
                       className="text-sm font-semibold text-primary hover:underline"
@@ -631,7 +610,7 @@ function ClassRevenueTable({
               );
             })
           ) : (
-            <TableEmpty colSpan={8}>
+            <TableEmpty colSpan={columnCount}>
               Nenhuma turma com matrícula ativa encontrada.
             </TableEmpty>
           )}
@@ -645,10 +624,15 @@ function ClassRevenueTable({
             </TableCell>
             <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
             <TableCell />
-            <TableCell>
-              {rows.reduce((sum, row) => sum + row.enrollmentsWithoutAmount, 0)}
-            </TableCell>
-            <TableCell />
+            {showWithoutAmount ? (
+              <TableCell>
+                {rows.reduce(
+                  (sum, row) => sum + row.enrollmentsWithoutAmount,
+                  0,
+                )}
+              </TableCell>
+            ) : null}
+            {showStatus ? <TableCell /> : null}
             <TableCell />
           </tr>
         </tfoot>
@@ -762,6 +746,10 @@ function TeacherTable({
   totalRevenue: number;
   totalEnrollments: number;
 }) {
+  // Sem nenhuma avaliação no mês, a coluna vira uma pilha de "–". A ausência
+  // de avaliação é uma frase, não uma coluna.
+  const showDnaScore = rows.some((row) => row.dnaScore !== null);
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
       <div className="border-b border-border px-5 py-4">
@@ -769,7 +757,9 @@ function TeacherTable({
           Receita por professor
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ordenado por receita mensal, com a nota de DNA do mês.
+          {showDnaScore
+            ? "Ordenado por receita mensal, com a nota de DNA do mês."
+            : "Ordenado por receita mensal. Nenhum professor foi avaliado este mês."}
         </p>
       </div>
       <Table containerClassName="rounded-none border-0" minWidth="620px">
@@ -778,7 +768,7 @@ function TeacherTable({
             <TableHead>Professor</TableHead>
             <TableHead>Turmas</TableHead>
             <TableHead>Matrículas</TableHead>
-            <TableHead>Nota DNA</TableHead>
+            {showDnaScore ? <TableHead>Nota DNA</TableHead> : null}
             <TableHead>Receita mensal</TableHead>
           </TableRow>
         </TableHeader>
@@ -795,16 +785,18 @@ function TeacherTable({
                 <TableCell className="text-muted-foreground">
                   {row.activeEnrollments}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatScore(row.dnaScore)}
-                </TableCell>
+                {showDnaScore ? (
+                  <TableCell className="text-muted-foreground">
+                    {formatScore(row.dnaScore)}
+                  </TableCell>
+                ) : null}
                 <TableCell className="font-semibold text-foreground">
                   {formatCurrencyBRL(row.monthlyRevenue)}
                 </TableCell>
               </TableRow>
             ))
           ) : (
-            <TableEmpty colSpan={5}>
+            <TableEmpty colSpan={showDnaScore ? 5 : 4}>
               Sem turmas vinculadas a professores.
             </TableEmpty>
           )}
@@ -814,7 +806,7 @@ function TeacherTable({
             <TableCell>Total</TableCell>
             <TableCell />
             <TableCell>{totalEnrollments}</TableCell>
-            <TableCell />
+            {showDnaScore ? <TableCell /> : null}
             <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
           </tr>
         </tfoot>
