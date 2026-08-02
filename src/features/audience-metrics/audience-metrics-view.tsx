@@ -50,7 +50,7 @@ export function AudienceMetricsView({
 }: AudienceMetricsViewProps) {
   if (!metrics.available || metrics.totalActiveStudents === 0) {
     return (
-      <div className="rounded-lg border border-border bg-white p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
         Ainda não há alunos com matrícula ativa para analisar.
       </div>
     );
@@ -93,6 +93,8 @@ export function AudienceMetricsView({
         </div>
       </ChartCard>
 
+      {/* Nível e cadastros recentes dividem a última linha: os dois cabem em
+          meia largura, ao contrário dos cards acima. */}
       <section className="grid gap-6 lg:grid-cols-2">
         <ChartCard
           title="Alunos por nível"
@@ -100,10 +102,7 @@ export function AudienceMetricsView({
         >
           <BarList slices={metrics.byLevel} />
         </ChartCard>
-      </section>
 
-      {/* Cadastros recentes (largura total) */}
-      <section>
         <ChartCard
           title="Cadastros recentes"
           subtitle="Data de cadastro no sistema, não data de entrada na escola"
@@ -114,7 +113,6 @@ export function AudienceMetricsView({
           />
         </ChartCard>
       </section>
-
     </div>
   );
 }
@@ -493,7 +491,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-5">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {subtitle ? (
