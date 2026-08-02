@@ -18,6 +18,10 @@ import {
   studentsPerClass,
 } from "@/features/school-metrics/derived";
 import { MetricCard } from "@/components/ui/metric-card";
+import {
+  getClassPerformanceStatus,
+  type ClassPerformanceTone,
+} from "@/lib/class-performance";
 import { Select } from "@/components/ui/select";
 import { Alert } from "@/components/ui/alert";
 import {
@@ -541,11 +545,13 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         </Alert>
       ) : null}
 
+      {/* O ranking é leitura complementar: fica depois da tabela para não
+          empurrar as turmas para fora da primeira tela. */}
+      <ClassRevenueTable rows={filteredRows} totalRevenue={monthlyRevenue} />
+
       {topClasses.length > 0 ? (
         <TopClassRevenueChart rows={topClasses} maxRevenue={maxRevenue} />
       ) : null}
-
-      <ClassRevenueTable rows={filteredRows} totalRevenue={monthlyRevenue} />
     </section>
   );
 }
@@ -624,6 +630,60 @@ function TopClassRevenueChart({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const performanceToneColor: Record<ClassPerformanceTone, string> = {
+  danger: "hsl(var(--danger))",
+  warning: "hsl(var(--warning))",
+  success: "hsl(var(--success))",
+  success_strong: "hsl(var(--success-strong))",
+};
+
+/**
+ * Ocupação da turma em uma célula: `24/30 · 80%` mais a barra.
+ *
+ * Atenção à leitura: o COMPRIMENTO da barra é ocupação (matrículas sobre
+ * capacidade) e a COR é a faixa de desempenho, que getClassPerformanceStatus
+ * calcula por contagem absoluta de alunos. São duas grandezas no mesmo
+ * elemento — uma turma pequena e cheia fica curta e vermelha. Por isso o
+ * percentual continua em texto e a faixa vai no title: cor sozinha não
+ * informa.
+ */
+function OccupancyCell({ row }: { row: SchoolClassRevenueMetric }) {
+  const status = getClassPerformanceStatus(row.activeStudents);
+  const rate = row.occupancyRate;
+  const width = rate === null ? 0 : Math.min(100, Math.max(0, rate * 100));
+
+  return (
+    <div className="min-w-[104px]">
+      <div className="tabular-nums text-foreground">
+        {row.activeEnrollments}
+        {row.capacity !== null ? `/${row.capacity}` : ""}
+        {rate !== null ? ` · ${formatPercent(rate)}` : ""}
+      </div>
+
+      {rate !== null ? (
+        <div
+          className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted"
+          title={`${status.label} · ${status.description}`}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${width}%`,
+              backgroundColor: performanceToneColor[status.tone],
+            }}
+          />
+        </div>
+      ) : null}
+
+      {/* Igual a matrículas seria repetição; diferente é o dado interessante:
+          aluno com duas matrículas na mesma turma. */}
+      {row.activeStudents !== row.activeEnrollments ? (
+        <div className="mt-1 text-xs">{row.activeStudents} alunos distintos</div>
+      ) : null}
     </div>
   );
 }
@@ -734,12 +794,12 @@ function ClassRevenueTable({
           Exportar Excel
         </Button>
       </div>
-      <Table containerClassName="rounded-none border-0" minWidth="980px">
+      <Table containerClassName="rounded-none border-0" minWidth="860px">
         <TableHeader>
           <TableRow>
             <TableHead>Turma</TableHead>
             <TableHead>Professor</TableHead>
-            <TableHead>Matrículas ativas</TableHead>
+            <TableHead>Ocupação</TableHead>
             <TableHead>Receita mensal</TableHead>
             <TableHead>Ticket por matrícula</TableHead>
             {showWithoutAmount ? <TableHead>Sem valor</TableHead> : null}
@@ -760,7 +820,7 @@ function ClassRevenueTable({
                   // atenção" justo na linha que o usuário está mirando.
                   className={
                     needsAttention
-                      ? "bg-amber-50/60 hover:bg-amber-50/60"
+                      ? "bg-warning-tint hover:bg-warning-tint"
                       : undefined
                   }
                   key={row.classId}
@@ -769,25 +829,15 @@ function ClassRevenueTable({
                     <div className="font-medium text-foreground">
                       {row.className}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {row.modalityName} · {row.levelName}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {row.scheduleLabel}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Capacidade: {row.capacity ?? "-"} · Ocupação:{" "}
-                      {formatPercent(row.occupancyRate)}
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {row.modalityName} · {row.levelName} · {row.scheduleLabel}
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {row.teacherName}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    <div>{row.activeEnrollments}</div>
-                    <div className="mt-1 text-xs">
-                      {row.activeStudents} alunos distintos
-                    </div>
+                    <OccupancyCell row={row} />
                   </TableCell>
                   <TableCell className="font-semibold text-foreground">
                     {formatCurrencyBRL(row.monthlyRevenue)}
@@ -800,7 +850,7 @@ function ClassRevenueTable({
                       <span
                         className={
                           row.enrollmentsWithoutAmount > 0
-                            ? "font-semibold text-amber-800"
+                            ? "font-semibold text-warning-text"
                             : "text-muted-foreground"
                         }
                       >
