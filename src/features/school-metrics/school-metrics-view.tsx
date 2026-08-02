@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { formatScore } from "@/features/teacher-dna/scoring";
 import type {
   SchoolClassRevenueMetric,
@@ -136,6 +136,109 @@ export function SchoolMetricsView({
 
       <ClassRevenueSection metrics={metrics} />
     </div>
+  );
+}
+
+/**
+ * Verificações de qualidade de dado, e só quando existem.
+ *
+ * Antes eram três cartões marcando "0" numa linha inteira da tela, todo dia,
+ * mais dois alertas soltos. Quando um deles virasse 3, ninguém notaria —
+ * a posição já era território de ruído. Nada disso é indicador de gestão:
+ * importa apenas quando não é zero.
+ */
+function DataQualityBanner({
+  diagnostics,
+  showRevenueDifference,
+}: {
+  diagnostics: SchoolMetrics["revenueDiagnostics"];
+  showRevenueDifference: boolean;
+}) {
+  const items: ReactNode[] = [];
+
+  if (diagnostics.activeEnrollmentsWithoutClass > 0) {
+    items.push(
+      <>
+        <strong className="font-semibold tabular-nums">
+          {diagnostics.activeEnrollmentsWithoutClass}
+        </strong>{" "}
+        matrículas ativas sem turma válida —{" "}
+        <Link className="underline hover:no-underline" href="/matriculas">
+          ver matrículas
+        </Link>
+      </>,
+    );
+  }
+
+  // Nulas e zeradas ficam em linhas separadas de propósito: as duas contagens
+  // de queries.ts se sobrepõem (toda nula também conta como zerada), então
+  // somar as duas inflaria o número. Separadas, cada uma é exata.
+  if (diagnostics.activeEnrollmentsWithoutAmount > 0) {
+    items.push(
+      <>
+        <strong className="font-semibold tabular-nums">
+          {diagnostics.activeEnrollmentsWithoutAmount}
+        </strong>{" "}
+        matrículas ativas sem mensalidade cadastrada —{" "}
+        <Link className="underline hover:no-underline" href="/matriculas">
+          ver matrículas
+        </Link>
+      </>,
+    );
+  }
+
+  if (diagnostics.activeEnrollmentsWithZeroAmount > 0) {
+    items.push(
+      <>
+        <strong className="font-semibold tabular-nums">
+          {diagnostics.activeEnrollmentsWithZeroAmount}
+        </strong>{" "}
+        matrículas ativas com mensalidade zerada —{" "}
+        <Link className="underline hover:no-underline" href="/matriculas">
+          ver matrículas
+        </Link>
+      </>,
+    );
+  }
+
+  if (diagnostics.zeroRevenueClassesWithActiveEnrollments > 0) {
+    items.push(
+      <>
+        <strong className="font-semibold tabular-nums">
+          {diagnostics.zeroRevenueClassesWithActiveEnrollments}
+        </strong>{" "}
+        turmas com matrícula ativa e receita zero —{" "}
+        <Link className="underline hover:no-underline" href="/turmas">
+          ver turmas
+        </Link>
+      </>,
+    );
+  }
+
+  if (showRevenueDifference) {
+    items.push(
+      <>
+        A receita geral não bate com a soma por turma. Verifique matrículas
+        duplicadas ou valores inconsistentes.
+      </>,
+    );
+  }
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <Alert tone="warning" className="p-4">
+      <div>
+        <p className="font-semibold">Verificar cadastro</p>
+        <ul className="mt-1 space-y-1">
+          {items.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </Alert>
   );
 }
 
@@ -300,10 +403,6 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
     (sum, row) => sum + row.monthlyRevenue,
     0,
   );
-  const enrollmentsWithoutAmount = filteredRows.reduce(
-    (sum, row) => sum + row.enrollmentsWithoutAmount,
-    0,
-  );
   const highestRevenueClass = activeRows.reduce<SchoolClassRevenueMetric | null>(
     (current, row) =>
       !current || row.monthlyRevenue > current.monthlyRevenue ? row : current,
@@ -337,25 +436,16 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
         </p>
       </div>
 
-      {showRevenueDifferenceAlert ? (
-        <Alert tone="warning" className="p-4 font-medium">
-          Atenção: há diferença entre a receita geral e a soma por turma.
-          Verifique matrículas sem turma, duplicadas ou valores inconsistentes.
-        </Alert>
-      ) : null}
-
-      {enrollmentsWithoutAmount > 0 ? (
-        <Alert tone="warning" className="p-4 font-medium">
-          Existem {enrollmentsWithoutAmount} matrículas ativas sem valor mensal
-          cadastrado. Isso pode distorcer o faturamento por turma.
-        </Alert>
-      ) : null}
+      <DataQualityBanner
+        diagnostics={metrics.revenueDiagnostics}
+        showRevenueDifference={showRevenueDifferenceAlert}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          label="Receita mensal líquida por turma"
+          label="Receita mensal líquida"
           value={formatCurrencyBRL(monthlyRevenue)}
-          hint="MRR líquido nas turmas filtradas"
+          hint={`${filteredRows.length} ${filteredRows.length === 1 ? "turma" : "turmas"} no filtro atual`}
         />
         <MetricCard
           label="Maior faturamento"
@@ -364,7 +454,16 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
               ? formatCurrencyBRL(highestRevenueClass.monthlyRevenue)
               : "-"
           }
-          hint={highestRevenueClass?.className ?? "Sem turma com alunos"}
+          href={
+            highestRevenueClass
+              ? `/turmas/${highestRevenueClass.classId}`
+              : undefined
+          }
+          hint={
+            <span className="block truncate" title={highestRevenueClass?.className}>
+              {highestRevenueClass?.className ?? "Sem turma com alunos"}
+            </span>
+          }
         />
         <MetricCard
           label="Menor faturamento"
@@ -373,7 +472,16 @@ function ClassRevenueSection({ metrics }: { metrics: SchoolMetrics }) {
               ? formatCurrencyBRL(lowestRevenueClass.monthlyRevenue)
               : "-"
           }
-          hint={lowestRevenueClass?.className ?? "Sem turma com alunos"}
+          href={
+            lowestRevenueClass
+              ? `/turmas/${lowestRevenueClass.classId}`
+              : undefined
+          }
+          hint={
+            <span className="block truncate" title={lowestRevenueClass?.className}>
+              {lowestRevenueClass?.className ?? "Sem turma com alunos"}
+            </span>
+          }
         />
       </div>
 
