@@ -485,6 +485,7 @@ async function getDashboardData(): Promise<DashboardData> {
       activeStudentsResult,
       activeEnrollmentsResult,
       classesResult,
+      schedulesResult,
       activeEnrollmentsRowsResult,
       monthlyBase,
     ] = await Promise.all([
@@ -498,9 +499,15 @@ async function getDashboardData(): Promise<DashboardData> {
         .eq("status", "active"),
       supabase
         .from("classes")
-        .select("id, name, room, instructor_name, capacity")
+        .select("id, name, instructor_name, capacity")
         .eq("status", "active")
         .order("name", { ascending: true }),
+      // `room` NÃO existe em `classes` — a sala é do HORÁRIO, porque a mesma
+      // turma pode ocupar salas diferentes em dias diferentes. Pedir a coluna
+      // no select de classes fazia a consulta inteira falhar, e o painel caía
+      // no estado vazio: 0 alunos, 0 turmas, R$ 0, com 669 matrículas ativas
+      // no banco.
+      supabase.from("class_schedules").select("class_id, room"),
       supabase
         .from("enrollments")
         .select("id, class_id, monthly_amount")
@@ -512,6 +519,7 @@ async function getDashboardData(): Promise<DashboardData> {
       activeStudentsResult.error,
       activeEnrollmentsResult.error,
       classesResult.error,
+      schedulesResult.error,
       activeEnrollmentsRowsResult.error,
     ].filter(Boolean);
 
@@ -533,10 +541,22 @@ async function getDashboardData(): Promise<DashboardData> {
       contractedMonthly += Number(enrollment.monthly_amount ?? 0);
     }
 
+    // Uma turma com dois horários em salas diferentes conta na primeira que
+    // aparece — o bloco "Turmas por sala" é uma leitura de ocupação, não um
+    // inventário; contar a mesma turma duas vezes inflaria o total.
+    const salaPorTurma = new Map<string, string>();
+    for (const horario of schedulesResult.data ?? []) {
+      const classId = horario.class_id as string | null;
+      const sala = (horario.room as string | null)?.trim();
+      if (classId && sala && !salaPorTurma.has(classId)) {
+        salaPorTurma.set(classId, sala);
+      }
+    }
+
     const classes: DashboardClass[] = (classesResult.data ?? []).map((row) => ({
       id: row.id as string,
       name: (row.name as string) ?? "Turma sem nome",
-      room: (row.room as string | null) ?? null,
+      room: salaPorTurma.get(row.id as string) ?? null,
       instructorName: (row.instructor_name as string | null) ?? null,
       capacity: (row.capacity as number | null) ?? null,
       activeEnrollmentsCount: activeByClass.get(row.id as string) ?? 0,
