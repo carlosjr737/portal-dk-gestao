@@ -3,6 +3,7 @@ import type {
   AudienceMetrics,
   AudienceSlice,
 } from "@/features/audience-metrics/queries";
+import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { PALETA_CATEGORICA } from "@/lib/chart-palette";
 import {
@@ -60,15 +61,20 @@ export function AudienceMetricsView({
     <div className="flex flex-col gap-6">
       <AudienceKpis metrics={metrics} monthlyBase={monthlyBase} />
 
-      {/* Pizzas: idade e modalidade */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Alunos por faixa etária"
-          subtitle={`${formatNumber(metrics.totalActiveStudents)} alunos ativos`}
-        >
-          <PieChart slices={metrics.ageBands} />
-        </ChartCard>
+      <ChartCard
+        title="Alunos por faixa etária"
+        subtitle={`${formatNumber(metrics.ageValidCount)} cadastros com data de nascimento válida`}
+      >
+        <AgeBandColumns
+          bands={metrics.ageBands}
+          coreAgeCount={metrics.coreAgeCount}
+          ageValidCount={metrics.ageValidCount}
+          ageInvalidCount={metrics.ageInvalidCount}
+        />
+      </ChartCard>
 
+      {/* Pizzas: modalidade */}
+      <section className="grid gap-6 lg:grid-cols-2">
         <ChartCard
           title="Alunos por modalidade"
           subtitle="Um aluno pode aparecer em mais de uma modalidade"
@@ -107,15 +113,6 @@ export function AudienceMetricsView({
         </ChartCard>
       </section>
 
-      {metrics.ageInvalidCount > 0 ? (
-        <Alert tone="warning" className="text-xs">
-          ⚠️ {metrics.ageInvalidCount}{" "}
-          {metrics.ageInvalidCount === 1 ? "aluno tem" : "alunos têm"} data de
-          nascimento provavelmente incorreta (idade fora de 0–80 anos) e{" "}
-          {metrics.ageInvalidCount === 1 ? "foi excluído" : "foram excluídos"} da
-          análise de idade. Vale conferir o cadastro.
-        </Alert>
-      ) : null}
     </div>
   );
 }
@@ -214,6 +211,94 @@ function AudienceKpis({
         />
       ) : null}
     </section>
+  );
+}
+
+/* ---------------------------- Faixa etária ---------------------------- */
+
+/**
+ * Colunas, não pizza.
+ *
+ * Faixa etária é variável ORDINAL — 4-6 vem antes de 7-9, que vem antes de
+ * 10-12. A pizza embaralhava essa ordem e obrigava a percorrer a legenda para
+ * reconstruir a distribuição. Em colunas ordenadas por idade, a forma da
+ * distribuição — pico no miolo, cauda nos adultos — aparece de imediato, que
+ * é a leitura que interessa.
+ *
+ * Uma cor só: aqui a cor não codificaria nada além da posição no array.
+ */
+function AgeBandColumns({
+  bands,
+  coreAgeCount,
+  ageValidCount,
+  ageInvalidCount,
+}: {
+  bands: AudienceSlice[];
+  coreAgeCount: number;
+  ageValidCount: number;
+  ageInvalidCount: number;
+}) {
+  if (bands.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        Sem dados para exibir.
+      </p>
+    );
+  }
+
+  const max = Math.max(...bands.map((band) => band.count));
+  const adults = bands
+    .filter((band) => band.label === "19 a 25" || band.label === "26+")
+    .reduce((sum, band) => sum + band.count, 0);
+
+  return (
+    <div>
+      <div className="flex h-48 items-end gap-2">
+        {bands.map((band) => (
+          <div
+            className="flex flex-1 flex-col items-center justify-end gap-1.5"
+            key={band.label}
+          >
+            <span className="text-xs font-medium tabular-nums text-foreground">
+              {formatNumber(band.count)}
+            </span>
+            <div
+              className="w-full rounded-t bg-primary"
+              style={{
+                height: `${max > 0 ? (band.count / max) * 100 : 0}%`,
+                minHeight: band.count > 0 ? 4 : 0,
+              }}
+              title={`${band.label} anos: ${formatNumber(band.count)}`}
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {band.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-sm text-muted-foreground">
+        {formatPercent(coreAgeCount, ageValidCount)} dos alunos entre 7 e 15
+        anos · {formatPercent(adults, ageValidCount)} com 19 anos ou mais
+      </p>
+
+      {/* O aviso mora junto do gráfico que ele qualifica, não no rodapé da
+          página. É a nota de rodapé desta análise. */}
+      {ageInvalidCount > 0 ? (
+        <Alert tone="warning" className="mt-3 text-xs">
+          <span>
+            {formatNumber(ageInvalidCount)}{" "}
+            {ageInvalidCount === 1 ? "aluno está" : "alunos estão"} fora desta
+            análise por não{" "}
+            {ageInvalidCount === 1 ? "ter" : "terem"} data de nascimento válida
+            no cadastro (ausente ou fora de 0 a 80 anos).{" "}
+            <Link className="underline hover:no-underline" href="/alunos">
+              Conferir cadastros
+            </Link>
+          </span>
+        </Alert>
+      ) : null}
+    </div>
   );
 }
 
