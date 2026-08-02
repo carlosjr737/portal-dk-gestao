@@ -7,8 +7,14 @@ import { Alert } from "@/components/ui/alert";
 import { PALETA_CATEGORICA } from "@/lib/chart-palette";
 import {
   findBulkLoadPoint,
+  modalityConcentration,
   recentSignups,
+  singleChildFamilies,
+  studentsPerFamily,
 } from "@/features/audience-metrics/derived";
+import type { MonthlyBasePoint } from "@/features/school-metrics/monthly-base";
+import { studentsDelta } from "@/features/school-metrics/derived";
+import { MetricCard } from "@/components/ui/metric-card";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -23,12 +29,25 @@ function formatPercent(part: number, total: number) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
+const decimalFormatter = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 2,
+});
+
+function formatDecimal(value: number) {
+  return decimalFormatter.format(value);
+}
+
 
 type AudienceMetricsViewProps = {
   metrics: AudienceMetrics;
+  monthlyBase?: MonthlyBasePoint[];
 };
 
-export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
+export function AudienceMetricsView({
+  metrics,
+  monthlyBase,
+}: AudienceMetricsViewProps) {
   if (!metrics.available || metrics.totalActiveStudents === 0) {
     return (
       <div className="rounded-lg border border-border bg-white p-8 text-center text-sm text-muted-foreground">
@@ -39,24 +58,7 @@ export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* KPIs */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <MetricCard
-          label="Alunos ativos"
-          value={formatNumber(metrics.totalActiveStudents)}
-          detail="Com pelo menos uma matrícula ativa"
-        />
-        <MetricCard
-          label="Famílias"
-          value={formatNumber(metrics.totalFamilies)}
-          detail="Responsáveis financeiros distintos"
-        />
-        <MetricCard
-          label="Idade média"
-          value={metrics.averageAge !== null ? `${metrics.averageAge} anos` : "—"}
-          detail="Cadastros com data de nascimento válida"
-        />
-      </section>
+      <AudienceKpis metrics={metrics} monthlyBase={monthlyBase} />
 
       {/* Pizzas: idade e modalidade */}
       <section className="grid gap-6 lg:grid-cols-2">
@@ -115,6 +117,103 @@ export function AudienceMetricsView({ metrics }: AudienceMetricsViewProps) {
         </Alert>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Quatro indicadores, e um deles aponta dinheiro.
+ *
+ * Os cinco anteriores eram todos descritivos: respondiam "quem são" e não
+ * respondiam "e daí". Nenhum apontava ação, e a maior oportunidade comercial
+ * da escola estava escondida numa pizza de rodapé.
+ */
+function AudienceKpis({
+  metrics,
+  monthlyBase,
+}: {
+  metrics: AudienceMetrics;
+  monthlyBase?: MonthlyBasePoint[];
+}) {
+  const perFamily = studentsPerFamily(metrics);
+  const singleChild = singleChildFamilies(metrics);
+  const concentration = modalityConcentration(metrics);
+  const delta = studentsDelta(monthlyBase);
+
+  return (
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricCard
+        label="Alunos ativos"
+        value={formatNumber(metrics.totalActiveStudents)}
+        href="/alunos"
+        delta={
+          delta === null
+            ? undefined
+            : { value: delta, kind: "absolute", hint: "vs. mês anterior" }
+        }
+        hint="Com pelo menos uma matrícula ativa"
+      />
+
+      {/* O principal da tela: irmão de aluno matriculado é o lead mais barato
+          que existe, e esse número estava numa pizza de rodapé. */}
+      <MetricCard
+        label="Famílias"
+        value={formatNumber(metrics.totalFamilies)}
+        href="/responsaveis"
+        hint={
+          <>
+            {perFamily === null
+              ? "Responsáveis financeiros distintos"
+              : `${formatDecimal(perFamily)} aluno por família`}
+            {singleChild
+              ? ` · ${formatNumber(singleChild.count)} com um filho só`
+              : ""}
+          </>
+        }
+      />
+
+      {/* Mediana no tamanho grande, média rebaixada para apoio: a média é
+          puxada para cima pela cauda de adultos e faz parecer uma escola de
+          adolescentes. A mediana descreve o aluno típico. */}
+      <MetricCard
+        label="Idade"
+        value={
+          metrics.medianAgeBand ? `${metrics.medianAgeBand} anos` : "—"
+        }
+        hint={
+          metrics.averageAge === null
+            ? "Faixa mediana dos cadastros com data válida"
+            : `média ${formatDecimal(metrics.averageAge)} · ${formatPercent(
+                metrics.coreAgeCount,
+                metrics.ageValidCount,
+              )} entre 7 e 15`
+        }
+      />
+
+      {concentration ? (
+        <MetricCard
+          label="Concentração"
+          value={`${formatPercent(
+            concentration.top.count,
+            metrics.totalActiveStudents,
+          )} em ${concentration.top.label}`}
+          href="/modalidades"
+          hint={
+            concentration.rest.length > 0
+              ? concentration.rest
+                  .slice(0, 2)
+                  .map(
+                    (slice) =>
+                      `${slice.label} ${formatPercent(
+                        slice.count,
+                        metrics.totalActiveStudents,
+                      )}`,
+                  )
+                  .join(" · ")
+              : "Única modalidade com alunos ativos"
+          }
+        />
+      ) : null}
+    </section>
   );
 }
 
@@ -329,24 +428,3 @@ function ChartCard({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
-      {detail ? (
-        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-      ) : null}
-    </div>
-  );
-}

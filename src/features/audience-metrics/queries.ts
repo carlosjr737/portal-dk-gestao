@@ -17,6 +17,14 @@ export type AudienceMetrics = {
   totalActiveStudents: number;
   totalFamilies: number;
   averageAge: number | null;
+  /** Idade mediana — descreve o aluno típico, ao contrário da média. */
+  medianAge: number | null;
+  /** Faixa em que a mediana cai. */
+  medianAgeBand: string | null;
+  /** Alunos entre 7 e 15 anos, o miolo da escola. */
+  coreAgeCount: number;
+  /** Cadastros com data de nascimento válida. */
+  ageValidCount: number;
   dominantAgeBand: string | null;
   modalitiesCount: number;
   ageInvalidCount: number;
@@ -53,6 +61,10 @@ const emptyMetrics: AudienceMetrics = {
   totalActiveStudents: 0,
   totalFamilies: 0,
   averageAge: null,
+  medianAge: null,
+  medianAgeBand: null,
+  coreAgeCount: 0,
+  ageValidCount: 0,
   dominantAgeBand: null,
   modalitiesCount: 0,
   ageInvalidCount: 0,
@@ -202,8 +214,12 @@ export async function getAudienceMetrics(): Promise<AudienceMetrics> {
       AGE_BANDS.map((band) => [band.label, 0]),
     );
     let ageSum = 0;
-    let ageValidCount = 0;
     let ageInvalidCount = 0;
+    // Guardadas em vez de só somadas: a mediana precisa da distribuição, e a
+    // média sozinha descreve um aluno que não existe. A escola é de crianças
+    // (a mediana cai na faixa de 10 a 12), mas a média é puxada para cima
+    // pela cauda de adultos.
+    const ages: number[] = [];
 
     for (const studentId of activeStudentIds) {
       const student = studentsById.get(studentId);
@@ -213,12 +229,14 @@ export async function getAudienceMetrics(): Promise<AudienceMetrics> {
         continue;
       }
       ageSum += age;
-      ageValidCount += 1;
+      ages.push(age);
       const band = AGE_BANDS.find((b) => age >= b.min && age <= b.max);
       if (band) {
         bandCounts.set(band.label, (bandCounts.get(band.label) ?? 0) + 1);
       }
     }
+
+    const ageValidCount = ages.length;
 
     const ageBands: AudienceSlice[] = AGE_BANDS.map((band) => ({
       label: band.label,
@@ -236,6 +254,26 @@ export async function getAudienceMetrics(): Promise<AudienceMetrics> {
             slice.count > max.count ? slice : max,
           ).label
         : null;
+
+    const sortedAges = [...ages].sort((a, b) => a - b);
+    const medianAge =
+      sortedAges.length > 0
+        ? sortedAges.length % 2 === 1
+          ? sortedAges[(sortedAges.length - 1) / 2]
+          : (sortedAges[sortedAges.length / 2 - 1] +
+              sortedAges[sortedAges.length / 2]) /
+            2
+        : null;
+
+    // A faixa em que a mediana cai — é ela que descreve o aluno típico.
+    const medianAgeBand =
+      medianAge === null
+        ? null
+        : (AGE_BANDS.find((b) => medianAge >= b.min && medianAge <= b.max)
+            ?.label ?? null);
+
+    // Quantos alunos estão nas faixas centrais, para a linha de apoio.
+    const coreAgeCount = ages.filter((age) => age >= 7 && age <= 15).length;
 
     // ----- Por modalidade (alunos distintos) -----
     const modalityCounts = new Map<string, number>();
@@ -314,6 +352,10 @@ export async function getAudienceMetrics(): Promise<AudienceMetrics> {
       totalActiveStudents,
       totalFamilies: studentsByFamily.size,
       averageAge,
+      medianAge,
+      medianAgeBand,
+      coreAgeCount,
+      ageValidCount,
       dominantAgeBand,
       modalitiesCount: byModality.length,
       ageInvalidCount,
