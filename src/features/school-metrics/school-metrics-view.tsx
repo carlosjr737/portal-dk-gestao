@@ -115,7 +115,9 @@ export function SchoolMetricsView({
     <div className="space-y-6">
       <SchoolKpis metrics={metrics} monthlyBase={monthlyBase} />
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      {/* Nível tem cerca de três vezes mais linhas que modalidade: colunas de
+          largura igual deixariam um vão vertical na esquerda. */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <GroupTable
           title="Receita por modalidade"
           firstColumn="Modalidade"
@@ -940,6 +942,71 @@ function FilterSelect({
   );
 }
 
+/** Acima disto a cauda longa quase nunca é lida, e sempre é rolada. */
+const COLLAPSED_ROWS = 8;
+
+function useCollapsibleRows<Row>(rows: Row[]) {
+  const [expanded, setExpanded] = useState(false);
+  const collapsible = rows.length > COLLAPSED_ROWS;
+  const visibleRows =
+    collapsible && !expanded ? rows.slice(0, COLLAPSED_ROWS) : rows;
+
+  return { expanded, setExpanded, collapsible, visibleRows };
+}
+
+function ShowAllRowsButton({
+  expanded,
+  onToggle,
+  total,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+  total: number;
+}) {
+  return (
+    <div className="border-t border-border px-5 py-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="text-sm font-semibold text-primary hover:underline"
+      >
+        {expanded ? "Ver menos" : `Ver todas as ${total}`}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Participação na receita.
+ *
+ * Sem esta coluna é preciso dividir de cabeça para perceber que uma
+ * modalidade responde por 87% do faturamento, ou que um professor sozinho
+ * responde por um quarto dele. A barra é o que transforma a tabela em
+ * leitura em vez de consulta.
+ */
+function ShareCell({ value, total }: { value: number; total: number }) {
+  if (total <= 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const share = value / total;
+  const width = Math.min(100, Math.max(0, share * 100));
+
+  return (
+    <div className="min-w-[92px]">
+      <div className="tabular-nums text-muted-foreground">
+        {formatPercentDecimal(share)}
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function GroupTable({
   title,
   firstColumn,
@@ -953,6 +1020,9 @@ function GroupTable({
   totalRevenue: number;
   totalEnrollments: number;
 }) {
+  const { expanded, setExpanded, collapsible, visibleRows } =
+    useCollapsibleRows(rows);
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
       <div className="border-b border-border px-5 py-4">
@@ -965,11 +1035,12 @@ function GroupTable({
             <TableHead>Turmas</TableHead>
             <TableHead>Matrículas</TableHead>
             <TableHead>Receita mensal</TableHead>
+            <TableHead>% da receita</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length > 0 ? (
-            rows.map((row) => (
+          {visibleRows.length > 0 ? (
+            visibleRows.map((row) => (
               <TableRow key={row.id ?? "__none__"}>
                 <TableCell className="font-medium text-foreground">
                   {row.name}
@@ -983,21 +1054,34 @@ function GroupTable({
                 <TableCell className="font-semibold text-foreground">
                   {formatCurrencyBRL(row.monthlyRevenue)}
                 </TableCell>
+                <TableCell>
+                  <ShareCell value={row.monthlyRevenue} total={totalRevenue} />
+                </TableCell>
               </TableRow>
             ))
           ) : (
-            <TableEmpty colSpan={4}>Sem dados.</TableEmpty>
+            <TableEmpty colSpan={5}>Sem dados.</TableEmpty>
           )}
         </TableBody>
+        {/* Os totais vêm de props e seguem completos com a tabela colapsada:
+            é o total do conjunto, não o da fatia visível. */}
         <tfoot className="border-t border-border bg-muted/40 text-sm font-semibold">
           <tr>
             <TableCell>Total</TableCell>
             <TableCell />
             <TableCell>{totalEnrollments}</TableCell>
             <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
+            <TableCell />
           </tr>
         </tfoot>
       </Table>
+      {collapsible ? (
+        <ShowAllRowsButton
+          expanded={expanded}
+          onToggle={() => setExpanded((value) => !value)}
+          total={rows.length}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1014,6 +1098,8 @@ function TeacherTable({
   // Sem nenhuma avaliação no mês, a coluna vira uma pilha de "–". A ausência
   // de avaliação é uma frase, não uma coluna.
   const showDnaScore = rows.some((row) => row.dnaScore !== null);
+  const { expanded, setExpanded, collapsible, visibleRows } =
+    useCollapsibleRows(rows);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
@@ -1035,11 +1121,12 @@ function TeacherTable({
             <TableHead>Matrículas</TableHead>
             {showDnaScore ? <TableHead>Nota DNA</TableHead> : null}
             <TableHead>Receita mensal</TableHead>
+            <TableHead>% da receita</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length > 0 ? (
-            rows.map((row) => (
+          {visibleRows.length > 0 ? (
+            visibleRows.map((row) => (
               <TableRow key={row.id ?? "__none__"}>
                 <TableCell className="font-medium text-foreground">
                   {row.name}
@@ -1058,10 +1145,13 @@ function TeacherTable({
                 <TableCell className="font-semibold text-foreground">
                   {formatCurrencyBRL(row.monthlyRevenue)}
                 </TableCell>
+                <TableCell>
+                  <ShareCell value={row.monthlyRevenue} total={totalRevenue} />
+                </TableCell>
               </TableRow>
             ))
           ) : (
-            <TableEmpty colSpan={showDnaScore ? 5 : 4}>
+            <TableEmpty colSpan={showDnaScore ? 6 : 5}>
               Sem turmas vinculadas a professores.
             </TableEmpty>
           )}
@@ -1073,9 +1163,17 @@ function TeacherTable({
             <TableCell>{totalEnrollments}</TableCell>
             {showDnaScore ? <TableCell /> : null}
             <TableCell>{formatCurrencyBRL(totalRevenue)}</TableCell>
+            <TableCell />
           </tr>
         </tfoot>
       </Table>
+      {collapsible ? (
+        <ShowAllRowsButton
+          expanded={expanded}
+          onToggle={() => setExpanded((value) => !value)}
+          total={rows.length}
+        />
+      ) : null}
     </div>
   );
 }
