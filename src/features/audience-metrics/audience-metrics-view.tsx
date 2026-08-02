@@ -5,7 +5,6 @@ import type {
 } from "@/features/audience-metrics/queries";
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
-import { PALETA_CATEGORICA } from "@/lib/chart-palette";
 import {
   findBulkLoadPoint,
   modalityConcentration,
@@ -370,6 +369,18 @@ function ShareBars({
 
 /* --------------------------- Horizontal bars --------------------------- */
 
+/** Acima disto é cauda: no dado real, do sétimo nível em diante ninguém lê. */
+const VISIBLE_BARS = 6;
+
+/**
+ * Uma cor, não onze.
+ *
+ * Cada barra tinha uma cor diferente da paleta categórica, indexada pela
+ * posição no array. As cores não codificavam nada — e o olho tenta achar
+ * significado onde não há. Onde a cor precisa significar algo, ela significa
+ * (ver a faixa de desempenho em docs/identidade-visual.md); onde não precisa,
+ * é ruído.
+ */
 function BarList({ slices }: { slices: AudienceSlice[] }) {
   if (slices.length === 0) {
     return (
@@ -380,10 +391,32 @@ function BarList({ slices }: { slices: AudienceSlice[] }) {
   }
 
   const max = Math.max(...slices.map((slice) => slice.count));
+  const visible = slices.slice(0, VISIBLE_BARS);
+  const rest = slices.slice(VISIBLE_BARS);
 
   return (
+    <div>
+      <BarRows slices={visible} max={max} />
+
+      {/* <details> em vez de estado: mantém o arquivo como server component. */}
+      {rest.length > 0 ? (
+        <details className="mt-2.5">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-primary hover:underline">
+            Ver todos os {slices.length}
+          </summary>
+          <div className="mt-2.5">
+            <BarRows slices={rest} max={max} />
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function BarRows({ slices, max }: { slices: AudienceSlice[]; max: number }) {
+  return (
     <ul className="flex flex-col gap-2.5">
-      {slices.map((slice, index) => (
+      {slices.map((slice) => (
         <li key={slice.label} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-sm">
             <span className="text-foreground">{slice.label}</span>
@@ -393,11 +426,8 @@ function BarList({ slices }: { slices: AudienceSlice[] }) {
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full"
-              style={{
-                width: `${max > 0 ? (slice.count / max) * 100 : 0}%`,
-                backgroundColor: PALETA_CATEGORICA[index % PALETA_CATEGORICA.length],
-              }}
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${max > 0 ? (slice.count / max) * 100 : 0}%` }}
             />
           </div>
         </li>
