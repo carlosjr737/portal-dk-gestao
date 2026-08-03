@@ -72,6 +72,47 @@ export async function marcarRecebido(
   if (matricula.escola_id !== auth.escolaId) {
     return { ok: false, message: "Matrícula de outra escola." };
   }
+  /*
+   * A lista só monta matrícula ativa, mas a action é um endpoint próprio: uma
+   * tela aberta desde antes do cancelamento ainda tem o id na mão, e marcar
+   * recebimento de matrícula cancelada inventa receita de quem saiu.
+   */
+  if (matricula.status !== "active") {
+    return { ok: false, message: "Matrícula não está ativa." };
+  }
+
+  /*
+   * COBRANÇA DO ASAAS É SOMENTE LEITURA — quem manda nela é o webhook.
+   *
+   * A tela já esconde o botão nas linhas travadas, e `marcarDiaRecebido` já
+   * filtra em lote. Faltava aqui, no caminho individual, que é justamente o
+   * que uma action expõe como endpoint. Sem esta trava, a mesma competência
+   * pode ser dada como recebida duas vezes — uma pelo webhook, outra à mão —
+   * e o total do mês passa a somar dinheiro que entrou uma vez só.
+   */
+  const { data: item } = await admin
+    .from("guardian_financial_contract_items")
+    .select("guardian_contract_id")
+    .eq("enrollment_id", enrollmentId)
+    .maybeSingle();
+
+  if (item?.guardian_contract_id) {
+    const { data: assinatura } = await admin
+      .from("aluno_assinatura")
+      .select("status")
+      .eq("guardian_contract_id", item.guardian_contract_id as string)
+      .eq("origem", "asaas")
+      .neq("status", "cancelada")
+      .maybeSingle();
+
+    if (assinatura) {
+      return {
+        ok: false,
+        message:
+          "Esta cobrança é do Asaas e dá baixa sozinha. Não dá para marcar à mão.",
+      };
+    }
+  }
 
   // Valor padrão vem da matrícula; só é sobrescrito se entrou diferente.
   const padrao = Math.max(
