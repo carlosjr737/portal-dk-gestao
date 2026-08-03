@@ -1,35 +1,145 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getFaturamentoDoMes } from "@/features/faturamento/queries";
 
-export default function FinanceiroPage() {
+export const dynamic = "force-dynamic";
+
+const dinheiro = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  maximumFractionDigits: 0,
+});
+const inteiro = new Intl.NumberFormat("pt-BR");
+
+export default async function FinanceiroPage() {
+  const f = await getFaturamentoDoMes();
+
+  const mes = new Date(`${f.competencia}T12:00:00`).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const semCobranca = Math.max(0, f.contratado - f.contratadoCoberto);
+  const pctCobertura =
+    f.matriculasAtivas > 0
+      ? (f.matriculasCobertas / f.matriculasAtivas) * 100
+      : 0;
+
   return (
     <div>
       <PageHeader
         title="Financeiro"
-        description="Área reservada para evoluções financeiras."
+        description={`Faturamento e recebimento de ${mes}.`}
       />
 
+      {f.modeloPendente ? (
+        <Alert tone="warning" className="mt-6">
+          O modelo de recebimento ainda não existe no banco. O faturamento
+          contratado abaixo está correto; recebimento e conciliação só passam a
+          funcionar depois de rodar{" "}
+          <code className="font-mono text-xs">
+            scripts/recebimento_01_modelo.sql
+          </code>
+          .
+        </Alert>
+      ) : null}
+
+      {/*
+        Faturamento contratado vem primeiro e sozinho, porque é o único número
+        desta tela que independe de integração: matrícula ativa × mensalidade.
+        Toda escola tem, desde o primeiro dia, com Asaas ou sem — e era
+        justamente ele que sumia quando `usa_pagamentos` desligava o módulo.
+      */}
       <Card className="mt-6 p-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Faturamento contratado
+        </p>
+        <p className="mt-2 text-[32px] font-bold leading-[38px] tabular-nums text-foreground">
+          {dinheiro.format(f.contratado)}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {inteiro.format(f.matriculasAtivas)} matrículas ativas · mensalidades
+          já com desconto
+        </p>
+      </Card>
+
+      {/*
+        A LINHA DE COBERTURA É OBRIGATÓRIA.
+
+        Sem ela, "recebido" seria lido contra o faturamento inteiro, e uma
+        escola com poucos contratos no sistema pareceria estar levando calote
+        de quase tudo. A causa seria outra: o sistema não acompanha aquelas
+        cobranças. A linha diz de quantas matrículas o número está falando, e
+        é o que torna o recebimento interpretável.
+      */}
+      <Card className="mt-4 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Cobrança pelo sistema
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {inteiro.format(f.matriculasCobertas)} de{" "}
+            {inteiro.format(f.matriculasAtivas)} matrículas (
+            {pctCobertura.toFixed(pctCobertura > 0 && pctCobertura < 1 ? 1 : 0)}%)
+          </p>
+        </div>
+
+        <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+          {dinheiro.format(f.contratadoCoberto)}
+        </p>
+
+        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">No Asaas</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+              {inteiro.format(f.matriculasNoAsaas)} matrículas
+            </dd>
+            <dd className="text-xs text-muted-foreground">
+              baixa automática pelo webhook
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Conciliado à mão</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+              {dinheiro.format(f.recebidoManual)}
+            </dd>
+            <dd className="text-xs text-muted-foreground">
+              {inteiro.format(f.marcacoesManuais)} marcações neste mês
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Fora do sistema</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+              {dinheiro.format(semCobranca)}
+            </dd>
+            <dd className="text-xs text-muted-foreground">
+              conta no faturamento, não no recebimento
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+          &ldquo;Fora do sistema&rdquo; não é inadimplência: é contrato cuja
+          cobrança o sistema não acompanha.
+        </p>
+      </Card>
+
+      <Card className="mt-4 p-5">
         <h2 className="text-sm font-semibold text-foreground">
           Operações financeiras
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Consulte informações financeiras vindas do provider configurado.
-        </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/financeiro/inadimplencia"
-            className={buttonVariants()}
-          >
+          <Link href="/financeiro/inadimplencia" className={buttonVariants()}>
             Inadimplência
           </Link>
           <Link
             href="/financeiro/growth-churn"
             className={buttonVariants({ variant: "outline" })}
           >
-            Growth & Churn
+            Growth &amp; Churn
           </Link>
           <Link
             href="/financeiro/configuracoes"
