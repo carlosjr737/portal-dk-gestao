@@ -12,6 +12,7 @@ import {
   criarClienteAsaas,
   type FormaPagamento,
 } from "@/features/baas/asaas-client";
+import { conferirAmbienteDaCredencial } from "@/features/baas/config";
 
 export type CobrancaAlunoState = {
   ok?: boolean;
@@ -67,7 +68,7 @@ export async function criarCobrancaAluno(
       .maybeSingle(),
     admin
       .from("school_payment_credentials")
-      .select("api_key")
+      .select("api_key, environment")
       .eq("escola_id", escolaId)
       .maybeSingle(),
     admin
@@ -84,6 +85,16 @@ export async function criarCobrancaAluno(
   }
   if (jaExiste) {
     return { ok: false, message: "Este contrato já tem cobrança recorrente ativa." };
+  }
+
+  // Antes de chamar o Asaas: a chave guardada vale no ambiente em que o
+  // sistema está? Chave de sandbox contra a URL de produção é recusada lá, e
+  // o erro chegava aqui como texto cru do provedor.
+  const ambiente = conferirAmbienteDaCredencial(
+    cred?.environment as string | undefined,
+  );
+  if (!ambiente.ok) {
+    return { ok: false, message: ambiente.message };
   }
 
   const apiKey = (cred?.api_key as string | undefined) ?? null;
