@@ -44,12 +44,19 @@ export function conferirAmbienteDaCredencial(
   const nome = (valor: string) =>
     valor === "production" ? "produção" : "sandbox";
 
+  /*
+   * A mensagem NÃO manda recriar a conta em Minha escola: aquele formulário
+   * some assim que `school.asaas_account_id` é preenchido, e não existe
+   * caminho na interface para refazer a conta. Mandar o usuário para um botão
+   * que não existe é pior que não dizer nada.
+   */
   return {
     ok: false as const,
     message:
       `A conta de pagamentos desta escola foi criada em ${nome(gravado)} e o ` +
-      `sistema está rodando em ${nome(ASAAS_ENV)}. Recrie a conta em ` +
-      `Sistema > Minha escola, ou volte o ambiente para ${nome(gravado)}.`,
+      `sistema está rodando em ${nome(ASAAS_ENV)}. Nenhuma cobrança é emitida ` +
+      `enquanto os dois não coincidirem: é preciso alinhar o ambiente do ` +
+      `sistema, ou refazer a conta no ambiente atual.`,
   };
 }
 
