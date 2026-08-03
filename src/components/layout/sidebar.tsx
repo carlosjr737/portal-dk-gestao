@@ -117,6 +117,7 @@ const navigationGroups = [
       "/financeiro",
       "/financeiro/faturamento-turmas",
       "/financeiro/professores",
+      "/financeiro/recebimentos",
       "/financeiro/inadimplencia",
       "/financeiro/growth-churn",
       "/financeiro/entradas-saidas",
