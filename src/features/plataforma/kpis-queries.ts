@@ -21,6 +21,30 @@ import {
  *
  * Uma escola sem chave guardada aparece com os campos financeiros nulos, e a
  * tela diz isso — não zero, que seria mentira.
+ *
+ * DUAS FONTES, DUAS PERGUNTAS DIFERENTES
+ * Escola sem o módulo de pagamentos ficava com a coluna financeira inteira
+ * vazia, e um painel só de travessões não serve para nada. Então ela passa a
+ * mostrar o CONTRATADO — a soma das mensalidades das matrículas ativas.
+ *
+ * Mas contratado e recebido não são o mesmo número com nomes diferentes:
+ *
+ *   contratado  o que as famílias se comprometeram a pagar
+ *   recebido    o que efetivamente caiu na conta
+ *
+ * A diferença entre os dois é a inadimplência. Por isso o contratado é
+ * calculado para TODA escola, inclusive as que usam o Asaas: sem ele o
+ * recebido é um número solto, e ninguém sabe se R$ 200 mil num mês é ótimo
+ * ou é metade do esperado.
+ *
+ * O que a tela nunca faz é somar os dois no mesmo total nem usar o mesmo
+ * rótulo para os dois. Escrever "recebido" em cima de um valor contratado
+ * mostraria dinheiro que não entrou.
+ *
+ * O CONTRATADO VEM DA MATRÍCULA, NÃO DE `guardian_financial_contracts`
+ * Aquela tabela é o DESTINO da consolidação por família, e hoje está vazia
+ * de dado útil — 460 linhas em rascunho, nenhuma ativa, sobra da integração
+ * antiga. A matrícula é a origem e tem valor em 100% das linhas.
  */
 
 export type KpiEscola = {
@@ -41,6 +65,16 @@ export type KpiEscola = {
   saidasNoMes: number;
   assinaturaStatus: string | null;
   usaPagamentos: boolean;
+  /**
+   * Qual número a coluna "no mês" está mostrando. A tela muda o rótulo com
+   * isto — é o que impede um valor contratado de aparecer como recebido.
+   */
+  fonteFinanceira: "asaas" | "contrato";
+  /**
+   * Soma das mensalidades ativas, já com desconto. Do NOSSO banco, existe
+   * para toda escola. É previsão, não caixa.
+   */
+  contratadoNoMes: number;
   /** Do Asaas, com a chave da escola. `null` = não deu para consultar. */
   saldo: number | null;
   recebidoNoMes: number | null;
@@ -60,12 +94,22 @@ export type KpisPlataforma = {
     familias: number;
     entradasNoMes: number;
     saidasNoMes: number;
-    /** Só soma o que deu para ler; escolas sem dado ficam de fora. */
+    /** Todas as escolas. Do nosso banco, sempre existe. */
+    contratadoNoMes: number;
+    /**
+     * Só as escolas com Asaas lido. NÃO somar com `contratadoNoMes`: são
+     * dinheiro esperado e dinheiro entrado, e a soma dos dois não significa
+     * nada.
+     */
     recebidoNoMes: number;
     aReceberNoMes: number;
     vencidoEmAberto: number;
     /** Quantas escolas não entraram na soma acima. */
     escolasSemLeitura: number;
+    /** Base do "recebido", para a tela dizer sobre quantas escolas ele fala. */
+    escolasComLeitura: number;
+    /** Contratado apenas das escolas que entraram no "recebido". */
+    contratadoDasComLeitura: number;
   };
   /** MRR da PLATAFORMA — o que as escolas pagam a você, não o que elas faturam. */
   mrrPlataforma: number;
@@ -92,7 +136,6 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
     { data: assinaturas },
     { data: credenciais },
     { data: vinculos },
-    { data: matriculasComAluno },
     { data: eventos },
   ] = await Promise.all([
     admin
@@ -100,7 +143,13 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
       .select("id, nome, usa_pagamentos")
       .order("nome", { ascending: true }),
     admin.from("students").select("escola_id").eq("status", "active"),
-    admin.from("enrollments").select("escola_id").eq("status", "active"),
+    // Uma consulta só de matrículas serve a três números: quantas são, de
+    // quantos alunos distintos, e quanto somam. Buscar as mesmas linhas duas
+    // vezes abria espaço para as duas versões discordarem.
+    admin
+      .from("enrollments")
+      .select("student_id, escola_id, monthly_amount, discount_amount")
+      .eq("status", "active"),
     admin
       .from("plataforma_assinatura")
       .select("escola_id, status, valor")
@@ -114,10 +163,6 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
       .from("student_guardians")
       .select("guardian_id, student_id, escola_id")
       .eq("is_financial_responsible", true),
-    admin
-      .from("enrollments")
-      .select("student_id, escola_id")
-      .eq("status", "active"),
     admin
       .from("growth_churn_events")
       .select("escola_id, event_type, event_date")
@@ -136,12 +181,33 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
   const alunosPor = contar(alunos);
   const matriculasPor = contar(matriculas);
 
+  /*
+   * Contratado do mês: mensalidade menos desconto, por escola.
+   *
+   * O `Math.max(0, …)` não é paranoia: desconto maior que a mensalidade é
+   * erro de digitação que acontece, e sem ele uma linha errada viraria
+   * receita NEGATIVA que abate o faturamento das outras — some do total sem
+   * deixar rastro. Esta é a mesma definição de receita líquida usada na tela
+   * de métricas da escola; as duas precisam bater.
+   */
+  const contratadoPor = new Map<string, number>();
+  for (const m of matriculas ?? []) {
+    const escola = m.escola_id as string | null;
+    if (!escola) continue;
+    const bruto = Number(m.monthly_amount ?? 0);
+    const desconto = Number(m.discount_amount ?? 0);
+    contratadoPor.set(
+      escola,
+      (contratadoPor.get(escola) ?? 0) + Math.max(0, bruto - desconto),
+    );
+  }
+
   // Famílias pagantes: responsável financeiro DISTINTO cujo aluno tem
   // matrícula ativa. Dois irmãos na escola contam como uma família só — é
   // isso que faz o número dizer "quantas casas pagam", que é o que interessa
   // para o dono, e não "quantas linhas tem a tabela de responsáveis".
   const alunosComMatricula = new Set(
-    (matriculasComAluno ?? []).map((m) => m.student_id as string),
+    (matriculas ?? []).map((m) => m.student_id as string),
   );
   const familiasPor = new Map<string, Set<string>>();
   for (const v of vinculos ?? []) {
@@ -198,24 +264,33 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
         assinaturaStatus:
           (assinaturaPor.get(escolaId)?.status as string | undefined) ?? null,
         usaPagamentos: Boolean(escola.usa_pagamentos),
+        contratadoNoMes: contratadoPor.get(escolaId) ?? 0,
       };
 
       const chave = chavePor.get(escolaId);
 
+      /*
+       * Sem Asaas, a escola cai para o contratado. Os campos que só existem
+       * com meio de pagamento — saldo, vencido, a receber — continuam nulos,
+       * e não zero: a escola pode ter inadimplência, o sistema é que não tem
+       * como saber. Zero aqui seria afirmar "ninguém deve nada".
+       */
       if (!base.usaPagamentos) {
         return {
           ...base,
+          fonteFinanceira: "contrato",
           saldo: null,
           recebidoNoMes: null,
           aReceberNoMes: null,
           vencidoEmAberto: null,
-          motivoSemDados: "Não usa o módulo de pagamentos",
+          motivoSemDados: "Sem o módulo de pagamentos — valor contratado",
         };
       }
 
       if (!chave) {
         return {
           ...base,
+          fonteFinanceira: "contrato",
           saldo: null,
           recebidoNoMes: null,
           aReceberNoMes: null,
@@ -281,6 +356,12 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
 
       return {
         ...base,
+        /*
+         * A leitura pode falhar mesmo com o módulo ligado — chave revogada,
+         * Asaas fora do ar. Aí a escola volta para o contratado em vez de
+         * ficar sem linha nenhuma, e o motivo aparece do lado do nome.
+         */
+        fonteFinanceira: recebeuTudo ? "asaas" : "contrato",
         saldo: saldo.ok ? saldo.saldo : null,
         // Líquido, não bruto: é o que a escola recebe de fato, depois da taxa.
         // (No recebido em dinheiro os dois são iguais — não há taxa do Asaas.)
@@ -308,6 +389,7 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
       familias: resultados.reduce((s, e) => s + e.familias, 0),
       entradasNoMes: resultados.reduce((s, e) => s + e.entradasNoMes, 0),
       saidasNoMes: resultados.reduce((s, e) => s + e.saidasNoMes, 0),
+      contratadoNoMes: resultados.reduce((s, e) => s + e.contratadoNoMes, 0),
       recebidoNoMes: comLeitura.reduce((s, e) => s + (e.recebidoNoMes ?? 0), 0),
       aReceberNoMes: comLeitura.reduce((s, e) => s + (e.aReceberNoMes ?? 0), 0),
       vencidoEmAberto: comLeitura.reduce(
@@ -315,6 +397,14 @@ export async function getKpisPlataforma(): Promise<KpisPlataforma> {
         0,
       ),
       escolasSemLeitura: resultados.length - comLeitura.length,
+      escolasComLeitura: comLeitura.length,
+      // O contratado DESTAS escolas, para comparar com o recebido delas. Usar
+      // o contratado geral daria uma inadimplência inventada, cheia de escola
+      // que nem tem cobrança no Asaas.
+      contratadoDasComLeitura: comLeitura.reduce(
+        (s, e) => s + e.contratadoNoMes,
+        0,
+      ),
     },
     // O que entra no SEU bolso: a soma das assinaturas ativas da plataforma.
     mrrPlataforma: (assinaturas ?? [])

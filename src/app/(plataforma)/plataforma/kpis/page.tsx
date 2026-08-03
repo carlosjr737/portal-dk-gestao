@@ -67,6 +67,15 @@ export default async function KpisPage() {
   const variacaoPeriodo = variacaoDaBase(baseTotal);
   const variacaoUltimo = variacaoMesAMes(baseTotal);
 
+  /*
+   * O que existe de cobrança emitida no mês, nas escolas que deu para ler.
+   * Serve de denominador honesto: recebido sobre emitido é taxa de pagamento,
+   * recebido sobre contratado seria taxa de pagamento MISTURADA com o quanto
+   * da migração já foi feita — dois problemas diferentes num número só.
+   */
+  const cobradoNoMes = totais.recebidoNoMes + totais.aReceberNoMes;
+  const semCobranca = Math.max(0, totais.contratadoDasComLeitura - cobradoNoMes);
+
   const historicoPor = new Map(
     historico.porEscola.map((h) => [h.escolaId, h.pontos]),
   );
@@ -205,28 +214,39 @@ export default async function KpisPage() {
             Movimentação financeira
           </h2>
           <p className="text-sm text-muted-foreground">
-            Lido do Asaas com a chave de cada escola — o dinheiro não passa
-            pela plataforma, só a consulta.
+            Contratado sai do nosso banco. Recebido sai do Asaas, com a chave
+            de cada escola — o dinheiro não passa pela plataforma, só a
+            consulta.
           </p>
         </div>
 
-        {totais.escolasSemLeitura > 0 ? (
-          <Alert tone="info" className="mt-3">
-            {totais.escolasSemLeitura === 1
-              ? "1 escola não entra nos totais"
-              : `${totais.escolasSemLeitura} escolas não entram nos totais`}{" "}
-            — o motivo aparece na linha de cada uma.
-          </Alert>
-        ) : null}
-
-        <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
+        {/*
+          Os dois primeiros cards respondem perguntas diferentes e ficam lado
+          a lado de propósito: contratado é o que deveria entrar, recebido é o
+          que entrou. Somar os dois não significa nada, e é por isso que não
+          existe um card de "total".
+        */}
+        <div className="mt-3 grid gap-4 lg:grid-cols-4">
+          <Indicador
+            rotulo="Contratado no mês"
+            valor={dinheiro.format(totais.contratadoNoMes)}
+            apoio={`${inteiro.format(totais.escolas)} ${totais.escolas === 1 ? "escola" : "escolas"} · mensalidades ativas, já com desconto`}
+          />
           <Indicador
             rotulo="Recebido no mês"
-            valor={dinheiro.format(totais.recebidoNoMes)}
-            apoio="líquido, já sem a taxa"
-            variacao={variacaoTotal}
+            valor={
+              totais.escolasComLeitura === 0
+                ? "—"
+                : dinheiro.format(totais.recebidoNoMes)
+            }
+            apoio={
+              totais.escolasComLeitura === 0
+                ? "nenhuma escola com pagamentos ainda"
+                : `${inteiro.format(totais.escolasComLeitura)} de ${inteiro.format(totais.escolas)} · líquido, já sem a taxa`
+            }
+            variacao={totais.escolasComLeitura === 0 ? null : variacaoTotal}
             grafico={
-              janela > 1 ? (
+              janela > 1 && totais.escolasComLeitura > 0 ? (
                 <Sparkline
                   values={historico.total.map((p) => p.recebido)}
                   label={`Recebido nos últimos ${janela} meses`}
@@ -235,20 +255,81 @@ export default async function KpisPage() {
                 />
               ) : null
             }
-            legenda={janela > 1 ? `últimos ${janela} meses` : undefined}
+            legenda={
+              /*
+               * A taxa é sobre o que ESTÁ EM COBRANÇA no mês, não sobre o
+               * contratado. Contra o contratado ela mostraria 0% enquanto a
+               * migração das cobranças não termina — e 0% se lê como "ninguém
+               * pagou", que é uma acusação falsa contra as famílias. Contra o
+               * emitido, a taxa responde o que se quer saber: de quem foi
+               * cobrado, quantos pagaram.
+               */
+              cobradoNoMes > 0
+                ? `${((totais.recebidoNoMes / cobradoNoMes) * 100).toFixed(0)}% do que está em cobrança`
+                : janela > 1
+                  ? `últimos ${janela} meses`
+                  : undefined
+            }
           />
           <Indicador
             rotulo="A receber no mês"
-            valor={dinheiro.format(totais.aReceberNoMes)}
-            apoio="ainda dentro do prazo"
+            valor={
+              totais.escolasComLeitura === 0
+                ? "—"
+                : dinheiro.format(totais.aReceberNoMes)
+            }
+            apoio={
+              totais.escolasComLeitura === 0
+                ? "depende do módulo de pagamentos"
+                : "ainda dentro do prazo"
+            }
           />
           <Indicador
             rotulo="Vencido em aberto"
-            valor={dinheiro.format(totais.vencidoEmAberto)}
-            apoio="acumulado, não só deste mês"
-            alarme={totais.vencidoEmAberto > 0}
+            valor={
+              totais.escolasComLeitura === 0
+                ? "—"
+                : dinheiro.format(totais.vencidoEmAberto)
+            }
+            apoio={
+              totais.escolasComLeitura === 0
+                ? "sem cobrança, não dá para saber"
+                : "acumulado, não só deste mês"
+            }
+            alarme={totais.escolasComLeitura > 0 && totais.vencidoEmAberto > 0}
           />
         </div>
+
+        {totais.escolasSemLeitura > 0 ? (
+          <Alert tone="info" className="mt-4">
+            {totais.escolasSemLeitura === 1
+              ? "1 escola aparece pelo valor contratado"
+              : `${totais.escolasSemLeitura} escolas aparecem pelo valor contratado`}
+            , e não pelo recebido — elas não entram no total de recebido, a
+            receber e vencido. O motivo está na linha de cada uma.
+          </Alert>
+        ) : null}
+
+        {/*
+          Sem este aviso o painel fica com R$ 271 mil contratados ao lado de
+          quase nada recebido, e a leitura natural é "as famílias pararam de
+          pagar". A causa é outra: a maior parte das mensalidades ainda não
+          virou cobrança no Asaas. Um painel que deixa esse buraco sem nome
+          faz o dono caçar inadimplência que não existe.
+        */}
+        {semCobranca > 0 && totais.contratadoDasComLeitura > 0 ? (
+          <Alert tone="warning" className="mt-3">
+            <strong className="font-medium">
+              {dinheiro.format(semCobranca)} do contratado ainda não tem
+              cobrança emitida
+            </strong>{" "}
+            — {(100 - (cobradoNoMes / totais.contratadoDasComLeitura) * 100).toFixed(0)}
+            % do total. Isso não é inadimplência: é mensalidade que ainda não
+            foi para o Asaas. Enquanto a migração não termina, o
+            &ldquo;recebido&rdquo; fala de uma fatia da escola, não dela
+            inteira.
+          </Alert>
+        ) : null}
 
         {historico.naoBuscado ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -354,9 +435,22 @@ export default async function KpisPage() {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </TableCell>
+                {/*
+                  A mesma coluna carrega dois números diferentes conforme a
+                  escola, então ela SEMPRE diz qual dos dois é — inclusive
+                  quando é o recebido. Marcar só a exceção faria quem lê
+                  supor que o resto é tudo dinheiro na conta.
+                */}
                 <TableCell className="text-right tabular-nums">
-                  <div>{valor(e.recebidoNoMes)}</div>
-                  {variacao !== null ? (
+                  <div>
+                    {e.fonteFinanceira === "asaas"
+                      ? valor(e.recebidoNoMes)
+                      : dinheiro.format(e.contratadoNoMes)}
+                  </div>
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    {e.fonteFinanceira === "asaas" ? "recebido" : "contratado"}
+                  </span>
+                  {e.fonteFinanceira === "asaas" && variacao !== null ? (
                     <Variacao valor={variacao} />
                   ) : null}
                 </TableCell>
@@ -390,10 +484,15 @@ export default async function KpisPage() {
         </TableBody>
       </Table>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        &ldquo;Recebido&rdquo; soma o pago pelo Asaas, o confirmado ainda não
-        creditado e o que a escola registrou como recebido em dinheiro. Valores
-        líquidos, já sem a taxa.
+      <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
+        <strong className="font-medium text-foreground">Contratado</strong> é a
+        soma das mensalidades ativas menos os descontos: o que as famílias se
+        comprometeram a pagar.{" "}
+        <strong className="font-medium text-foreground">Recebido</strong> soma o
+        pago pelo Asaas, o confirmado ainda não creditado e o que a escola
+        registrou como recebido em dinheiro — líquido, já sem a taxa. A
+        diferença entre os dois é inadimplência, e só aparece em escola com o
+        módulo de pagamentos ligado.
       </p>
     </div>
   );
