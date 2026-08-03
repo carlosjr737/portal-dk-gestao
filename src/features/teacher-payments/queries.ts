@@ -15,6 +15,16 @@ export type TurmaPayment = {
   valorFixo: number;
   valorVariavel: number;
   total: number;
+  /**
+   * De onde veio o valor: 'modelo' é a tabela do professor, 'excecao' é
+   * valor negociado para esta turma. A tela mostra selo no segundo caso —
+   * senão parece que a tabela está errada.
+   */
+  origem: "modelo" | "excecao" | "pendente";
+  /** Modelo migrado que ninguém conferiu ainda. */
+  revisado: boolean;
+  /** Professor sem modelo de remuneração. Entra com zero e aparece. */
+  pendente: boolean;
 };
 
 export type ProfessorPayment = {
@@ -27,53 +37,29 @@ export type TeacherPaymentData = {
   monthLabel: string;
   professores: ProfessorPayment[];
   grandTotal: number;
+  /** Turmas sem modelo. Enquanto houver, o total está incompleto. */
+  turmasPendentes: number;
+  /** Turmas cujo modelo veio da migração e ninguém conferiu. */
+  turmasNaoRevisadas: number;
 };
 
-// ---------------------------------------------------------------------------
-// Regra de pagamento (dos contratos). Bonificação conta ALUNOS ATIVOS (opção A).
-// ---------------------------------------------------------------------------
-type ContratoTipo = "escalonado" | "fixo60" | "zion";
-
-// Tipo de contrato por professor (nome de exibição, normalizado).
-const CONTRATO_POR_PROFESSOR: Record<string, ContratoTipo> = {
-  carol: "escalonado", dener: "escalonado", gladson: "escalonado",
-  livia: "escalonado", marcella: "escalonado", nagao: "escalonado",
-  rick: "escalonado", ruan: "escalonado",
-  carolzinha: "fixo60", laura: "fixo60", red: "fixo60",
-  sarah: "fixo60", guedes: "fixo60",
-  zion: "zion",
-};
-
-// Turmas com valor negociado (fora da tabela escalonada).
-const RATE_CUSTOM: Record<string, { hora: number; variavel: number }> = {
-  "c6758f4b-430b-4ec0-bbe9-f892fb920928": { hora: 140.25, variavel: 30 }, // Ruan Equipe Junior
-  "d2ef0403-8997-4b64-999a-675a8faabf4d": { hora: 140.25, variavel: 30 }, // Ruan Equipe Juvenil
-  "ff79adf5-9791-4c14-b3d6-136d6cf7d878": { hora: 165.0, variavel: 30 },  // Marcella Sáb
-  "d34a38be-eb57-448a-bdd4-9276f527c4fd": { hora: 115.5, variavel: 0 },   // Carol Sáb
-};
-
-function tarifa(tipo: ContratoTipo, n: number): { hora: number; variavel: number } {
-  if (tipo === "fixo60") return { hora: 60.5, variavel: 0 };
-  if (tipo === "zion") {
-    if (n <= 5) return { hora: 60.5, variavel: 0 };
-    if (n <= 10) return { hora: 60.5, variavel: 15 };
-    return { hora: 60.5, variavel: 30 };
-  }
-  // escalonado
-  if (n <= 3) return { hora: 60.5, variavel: 0 };
-  if (n <= 5) return { hora: 77.0, variavel: 0 };
-  if (n <= 10) return { hora: 77.0, variavel: 15 };
-  if (n <= 15) return { hora: 77.0, variavel: 30 };
-  return { hora: 93.5, variavel: 30 };
-}
-
-function normProf(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
-}
+/*
+ * A REGRA DE PAGAMENTO SAIU DAQUI.
+ *
+ * Até agosto/2026 este arquivo tinha dois mapas fixos: CONTRATO_POR_PROFESSOR,
+ * que escolhia o contrato pelo PRIMEIRO NOME normalizado, e RATE_CUSTOM, com
+ * quatro turmas de valor negociado. Três problemas, e o terceiro é o grave:
+ *
+ *   1. Mudar remuneração exigia deploy.
+ *   2. Professor novo caía em `?? "escalonado"` sem ninguém escolher.
+ *   3. Editar o nome no cadastro trocava o contrato da pessoa em silêncio —
+ *      e sempre para cima, porque o fallback era o modelo mais caro. Medido
+ *      com os dados de julho: até R$ 1.935/mês a mais.
+ *
+ * Agora vem de `compensation_model`/`compensation_tier`, com vigência, e a
+ * hierarquia (exceção da turma → modelo do professor → nada) mora numa função
+ * do banco. Fechar maio em agosto continua usando a tabela de maio.
+ */
 
 const WEEKDAY_JS: Record<string, number> = {
   domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6,
@@ -113,6 +99,71 @@ export async function getTeacherPaymentData(
 ): Promise<TeacherPaymentData> {
   // Cliente com RLS: o isolamento por escola é garantido pelas policies.
   const supabase = await createClient();
+
+  /*
+   * A data que escolhe a VIGÊNCIA do modelo: o último dia do mês que está
+   * fechando. Fechar maio em agosto usa a tabela que valia em maio, não a de
+   * hoje — é o que impede uma correção de tarifa de reescrever o que já foi
+   * pago.
+   *
+   * Último dia e não primeiro: quem corrigir uma tarifa errada no meio do mês
+   * espera que a correção valha para o mês inteiro, que é o caso comum. Como
+   * não há rateio por dia, é preciso escolher um dos dois, e este erra menos.
+   */
+  const ultimoDiaDoMes = new Date(year, month, 0);
+  const referencia = `${ultimoDiaDoMes.getFullYear()}-${String(month).padStart(2, "0")}-${String(ultimoDiaDoMes.getDate()).padStart(2, "0")}`;
+
+  const { data: remuneracoes, error: erroRemuneracao } = await supabase.rpc(
+    "remuneracao_do_mes",
+    { referencia },
+  );
+
+  if (erroRemuneracao) {
+    /*
+     * Falha visível, de propósito. A alternativa seria devolver o fechamento
+     * com tudo zerado — e um mês de pagamento zerado que "carregou sem erro" é
+     * pior que uma tela que não abre.
+     *
+     * A causa quase sempre é uma só: o script do banco ainda não rodou.
+     */
+    throw new Error(
+      "Não foi possível carregar os modelos de remuneração. " +
+        "Se o erro cita a função `remuneracao_do_mes`, rode " +
+        "`scripts/remuneracao_03_lote.sql` no banco. " +
+        `Detalhe: ${erroRemuneracao.message}`,
+    );
+  }
+
+  /** O que a função do banco devolve, por turma. */
+  type RemuneracaoResolvida = {
+    hora: number;
+    variavel: number;
+    origem: "modelo" | "excecao" | "pendente";
+    revisado: boolean;
+    pendente: boolean;
+  };
+
+  const remuneracaoPorTurma = new Map<string, RemuneracaoResolvida>(
+    (remuneracoes ?? []).map(
+      (r: {
+        class_id: string;
+        origem: string;
+        hourly_rate: number | string;
+        per_student_rate: number | string;
+        revisado: boolean;
+        pendente: boolean;
+      }) => [
+        r.class_id,
+        {
+          hora: Number(r.hourly_rate),
+          variavel: Number(r.per_student_rate),
+          origem: r.origem as "modelo" | "excecao" | "pendente",
+          revisado: r.revisado,
+          pendente: r.pendente,
+        },
+      ],
+    ),
+  );
 
   const [
     { data: classes },
@@ -180,9 +231,18 @@ export async function getTeacherPaymentData(
     );
     const n = alunos.length;
 
-    const custom = RATE_CUSTOM[classId];
-    const tipo = CONTRATO_POR_PROFESSOR[normProf(prof)] ?? "escalonado";
-    const rate = custom ?? tarifa(tipo, n);
+    /*
+     * Turma sem linha na resolução não deveria acontecer — a função devolve
+     * uma linha por turma ativa. Se acontecer, trata como pendente em vez de
+     * inventar tarifa: zero visível é melhor que valor plausível errado.
+     */
+    const rate = remuneracaoPorTurma.get(classId) ?? {
+      hora: 0,
+      variavel: 0,
+      origem: "pendente" as const,
+      revisado: false,
+      pendente: true,
+    };
 
     const vf = rate.hora * aulas;
     const vv = rate.variavel * n;
@@ -198,6 +258,9 @@ export async function getTeacherPaymentData(
       valorFixo: vf,
       valorVariavel: vv,
       total: vf + vv,
+      origem: rate.origem,
+      revisado: rate.revisado,
+      pendente: rate.pendente,
     };
     const pp = byProf.get(prof) ?? { professor: prof, turmas: [], total: 0 };
     pp.turmas.push(turma);
@@ -212,9 +275,14 @@ export async function getTeacherPaymentData(
     }))
     .sort((a, b) => a.professor.localeCompare(b.professor, "pt-BR"));
 
+  const todasAsTurmas = professores.flatMap((p) => p.turmas);
+
   return {
     monthLabel: `${MESES[month - 1]}/${year}`,
     professores,
     grandTotal: professores.reduce((s, p) => s + p.total, 0),
+    turmasPendentes: todasAsTurmas.filter((t) => t.pendente).length,
+    turmasNaoRevisadas: todasAsTurmas.filter((t) => !t.revisado && !t.pendente)
+      .length,
   };
 }
