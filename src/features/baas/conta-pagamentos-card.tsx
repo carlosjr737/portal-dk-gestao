@@ -232,7 +232,7 @@ export function ContaPagamentosCard({
       )}
 
       <div className="mt-5 border-t border-border pt-4">
-        <AsaasSelo variant="azul" />
+        <AsaasSelo fundo="claro" tamanho="md" />
       </div>
     </div>
   );

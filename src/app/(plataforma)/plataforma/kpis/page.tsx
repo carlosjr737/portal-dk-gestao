@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -74,7 +73,6 @@ export default async function KpisPage() {
    * da migração já foi feita — dois problemas diferentes num número só.
    */
   const cobradoNoMes = totais.recebidoNoMes + totais.aReceberNoMes;
-  const semCobranca = Math.max(0, totais.contratadoDasComLeitura - cobradoNoMes);
 
   /*
    * Uma casa decimal quando passa de 99%: arredondar 99,7% para "100%" fazia
@@ -93,8 +91,6 @@ export default async function KpisPage() {
   const historicoPor = new Map(
     historico.porEscola.map((h) => [h.escolaId, h.pontos]),
   );
-  const variacaoTotal = variacaoUltimoMes(historico.total);
-  const janela = historico.total.length;
 
   return (
     <div>
@@ -235,69 +231,37 @@ export default async function KpisPage() {
         </div>
 
         {/*
-          Os dois primeiros cards respondem perguntas diferentes e ficam lado
-          a lado de propósito: contratado é o que deveria entrar, recebido é o
-          que entrou. Somar os dois não significa nada, e é por isso que não
-          existe um card de "total".
+          Uma barra no lugar de quatro cards.
+
+          Contratado, recebido e a receber não são quatro indicadores lado a
+          lado: são pedaços do MESMO total. Em cards separados, R$ 271.282 e
+          R$ 904 ganhavam a mesma caixa e o mesmo corpo de fonte, e o olho
+          lia duas grandezas comparáveis — quando a segunda é 0,3% da
+          primeira. A relação, que é a informação, sobrava para um parágrafo.
+
+          Na barra a proporção É o desenho. O vão cinza não precisa de
+          legenda para ser entendido, e os dois cards de "R$ 0" somem: zero
+          vira ausência de fatia, que é o que zero significa.
         */}
-        <div className="mt-3 grid gap-4 lg:grid-cols-4">
-          <Indicador
-            rotulo="Contratado no mês"
-            valor={dinheiro.format(totais.contratadoNoMes)}
-            apoio={`${inteiro.format(totais.escolas)} ${totais.escolas === 1 ? "escola" : "escolas"} · mensalidades ativas, já com desconto`}
+        <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <FunilCobranca
+            contratado={totais.contratadoDasComLeitura}
+            recebido={totais.recebidoNoMes}
+            aReceber={totais.aReceberNoMes}
+            escolasComLeitura={totais.escolasComLeitura}
+            escolas={totais.escolas}
+            contratadoSemLeitura={
+              totais.contratadoNoMes - totais.contratadoDasComLeitura
+            }
+            escolasSemLeitura={totais.escolasSemLeitura}
+            pctSemCobranca={pctSemCobrancaTexto}
           />
-          <Indicador
-            rotulo="Recebido no mês"
-            valor={
-              totais.escolasComLeitura === 0
-                ? "—"
-                : dinheiro.format(totais.recebidoNoMes)
-            }
-            apoio={
-              totais.escolasComLeitura === 0
-                ? "nenhuma escola com pagamentos ainda"
-                : `${inteiro.format(totais.escolasComLeitura)} de ${inteiro.format(totais.escolas)} · líquido, já sem a taxa`
-            }
-            variacao={totais.escolasComLeitura === 0 ? null : variacaoTotal}
-            grafico={
-              janela > 1 && totais.escolasComLeitura > 0 ? (
-                <Sparkline
-                  values={historico.total.map((p) => p.recebido)}
-                  label={`Recebido nos últimos ${janela} meses`}
-                  className="mt-3 h-9 w-full"
-                  color="hsl(var(--success))"
-                />
-              ) : null
-            }
-            legenda={
-              /*
-               * A taxa é sobre o que ESTÁ EM COBRANÇA no mês, não sobre o
-               * contratado. Contra o contratado ela mostraria 0% enquanto a
-               * migração das cobranças não termina — e 0% se lê como "ninguém
-               * pagou", que é uma acusação falsa contra as famílias. Contra o
-               * emitido, a taxa responde o que se quer saber: de quem foi
-               * cobrado, quantos pagaram.
-               */
-              cobradoNoMes > 0
-                ? `${((totais.recebidoNoMes / cobradoNoMes) * 100).toFixed(0)}% do que está em cobrança`
-                : janela > 1
-                  ? `últimos ${janela} meses`
-                  : undefined
-            }
-          />
-          <Indicador
-            rotulo="A receber no mês"
-            valor={
-              totais.escolasComLeitura === 0
-                ? "—"
-                : dinheiro.format(totais.aReceberNoMes)
-            }
-            apoio={
-              totais.escolasComLeitura === 0
-                ? "depende do módulo de pagamentos"
-                : "ainda dentro do prazo"
-            }
-          />
+
+          {/*
+            Vencido fica FORA da barra: ele é acumulado de meses anteriores e
+            não cabe dentro do contratado deste mês. Enfiá-lo lá dentro
+            faria as fatias somarem mais que o total.
+          */}
           <Indicador
             rotulo="Vencido em aberto"
             valor={
@@ -307,42 +271,12 @@ export default async function KpisPage() {
             }
             apoio={
               totais.escolasComLeitura === 0
-                ? "sem cobrança, não dá para saber"
-                : "acumulado, não só deste mês"
+                ? "sem cobrança emitida, não dá para saber"
+                : "acumulado de meses anteriores, não só deste"
             }
             alarme={totais.escolasComLeitura > 0 && totais.vencidoEmAberto > 0}
           />
         </div>
-
-        {totais.escolasSemLeitura > 0 ? (
-          <Alert tone="info" className="mt-4">
-            {totais.escolasSemLeitura === 1
-              ? "1 escola aparece pelo valor contratado"
-              : `${totais.escolasSemLeitura} escolas aparecem pelo valor contratado`}
-            , e não pelo recebido — elas não entram no total de recebido, a
-            receber e vencido. O motivo está na linha de cada uma.
-          </Alert>
-        ) : null}
-
-        {/*
-          Sem este aviso o painel fica com R$ 271 mil contratados ao lado de
-          quase nada recebido, e a leitura natural é "as famílias pararam de
-          pagar". A causa é outra: a maior parte das mensalidades ainda não
-          virou cobrança no Asaas. Um painel que deixa esse buraco sem nome
-          faz o dono caçar inadimplência que não existe.
-        */}
-        {semCobranca > 0 && totais.contratadoDasComLeitura > 0 ? (
-          <Alert tone="warning" className="mt-3">
-            <strong className="font-medium">
-              {dinheiro.format(semCobranca)} do contratado ainda não tem
-              cobrança emitida
-            </strong>{" "}
-            — {pctSemCobrancaTexto}% do total. Isso não é inadimplência: é
-            mensalidade que ainda não foi para o Asaas. Enquanto a migração não
-            termina, o &ldquo;recebido&rdquo; fala de uma fatia da escola, não
-            dela inteira.
-          </Alert>
-        ) : null}
 
         {historico.naoBuscado ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -351,7 +285,7 @@ export default async function KpisPage() {
         ) : null}
       </section>
 
-      <Table containerClassName="mt-6" minWidth="1320px">
+      <Table containerClassName="mt-6" minWidth="1160px">
         <TableHeader>
           <TableRow>
             <TableHead>Escola</TableHead>
@@ -360,7 +294,12 @@ export default async function KpisPage() {
             <TableHead className="text-right tabular-nums">Famílias</TableHead>
             <TableHead>Base ativa</TableHead>
             <TableHead className="text-right tabular-nums">Entradas / saídas</TableHead>
-            <TableHead>Faturamento</TableHead>
+            {/*
+              A coluna "Faturamento" saiu: era uma sparkline da mesma série
+              que "No mês" já resume com a variação percentual ao lado do
+              valor. Duas leituras do mesmo dado custavam 130px de largura e
+              empurravam Vencido, Saldo e Assinatura para fora da tela.
+            */}
             <TableHead className="text-right tabular-nums">No mês</TableHead>
             <TableHead className="text-right tabular-nums">A receber</TableHead>
             <TableHead className="text-right tabular-nums">Vencido</TableHead>
@@ -370,7 +309,7 @@ export default async function KpisPage() {
         </TableHeader>
         <TableBody>
           {escolas.length === 0 ? (
-            <TableEmpty colSpan={12}>Nenhuma escola cadastrada ainda.</TableEmpty>
+            <TableEmpty colSpan={11}>Nenhuma escola cadastrada ainda.</TableEmpty>
           ) : null}
           {escolas.map((e) => {
             const pontos = historicoPor.get(e.escolaId) ?? [];
@@ -436,18 +375,6 @@ export default async function KpisPage() {
                     −{e.saidasNoMes}
                   </span>
                 </TableCell>
-                <TableCell>
-                  {pontos.length > 1 ? (
-                    <Sparkline
-                      values={pontos.map((p) => p.recebido)}
-                      label={`Faturamento de ${e.nome} nos últimos ${pontos.length} meses`}
-                      className="h-7 w-28"
-                      color="hsl(var(--success))"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
                 {/*
                   A mesma coluna carrega dois números diferentes conforme a
                   escola, então ela SEMPRE diz qual dos dois é — inclusive
@@ -497,16 +424,157 @@ export default async function KpisPage() {
         </TableBody>
       </Table>
 
-      <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
-        <strong className="font-medium text-foreground">Contratado</strong> é a
-        soma das mensalidades ativas menos os descontos: o que as famílias se
-        comprometeram a pagar.{" "}
-        <strong className="font-medium text-foreground">Recebido</strong> soma o
-        pago pelo Asaas, o confirmado ainda não creditado e o que a escola
-        registrou como recebido em dinheiro — líquido, já sem a taxa. A
-        diferença entre os dois é inadimplência, e só aparece em escola com o
-        módulo de pagamentos ligado.
+      <p className="mt-3 max-w-2xl text-xs text-muted-foreground">
+        <strong className="font-medium text-foreground">Contratado</strong>:
+        mensalidades ativas menos descontos.{" "}
+        <strong className="font-medium text-foreground">Recebido</strong>: pago
+        pelo Asaas, confirmado ainda não creditado e recebido em dinheiro —
+        líquido, já sem a taxa.
       </p>
+    </div>
+  );
+}
+
+/**
+ * O contratado do mês repartido em recebido, a receber e ainda sem cobrança.
+ *
+ * A fatia cinza é a que importa hoje: mensalidade que existe no sistema mas
+ * ainda não virou cobrança no Asaas. Ela é grande porque a migração não
+ * terminou — não porque alguém deixou de pagar. Por isso ela é NEUTRA, e não
+ * amarela: pintar de alerta um estado conhecido, que vai durar meses, gasta
+ * a cor de aviso à toa e ensina o dono a ignorá-la.
+ *
+ * A barra não substitui o texto por completo — uma linha explica o cinza.
+ * Mas é uma linha, e não três, porque a proporção já está desenhada.
+ */
+function FunilCobranca({
+  contratado,
+  recebido,
+  aReceber,
+  escolasComLeitura,
+  escolas,
+  contratadoSemLeitura,
+  escolasSemLeitura,
+  pctSemCobranca,
+}: {
+  contratado: number;
+  recebido: number;
+  aReceber: number;
+  escolasComLeitura: number;
+  escolas: number;
+  contratadoSemLeitura: number;
+  escolasSemLeitura: number;
+  pctSemCobranca: string;
+}) {
+  const semCobranca = Math.max(0, contratado - recebido - aReceber);
+  const fatia = (v: number) => (contratado > 0 ? (v / contratado) * 100 : 0);
+
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Contratado no mês
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {escolasComLeitura === escolas
+            ? `${inteiro.format(escolas)} ${escolas === 1 ? "escola" : "escolas"}`
+            : `${inteiro.format(escolasComLeitura)} de ${inteiro.format(escolas)} escolas com pagamentos`}
+        </p>
+      </div>
+
+      <p className="mt-2 text-[28px] font-bold leading-[34px] tabular-nums text-foreground">
+        {dinheiro.format(contratado)}
+      </p>
+
+      {/*
+        `minWidth` nas fatias com valor: 0,3% de uma barra de 600px dá menos
+        de dois pixels, e some. Uma fatia que existe e não aparece é pior que
+        uma fatia levemente fora de escala — o leitor concluiria que não
+        entrou nada, quando entrou.
+      */}
+      <div
+        className="mt-4 flex h-3 overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`De ${dinheiro.format(contratado)} contratados: ${dinheiro.format(recebido)} recebidos, ${dinheiro.format(aReceber)} a receber e ${dinheiro.format(semCobranca)} ainda sem cobrança emitida.`}
+      >
+        <div
+          className="bg-success"
+          style={{
+            width: `${fatia(recebido)}%`,
+            minWidth: recebido > 0 ? "4px" : undefined,
+          }}
+        />
+        <div
+          className="bg-info"
+          style={{
+            width: `${fatia(aReceber)}%`,
+            minWidth: aReceber > 0 ? "4px" : undefined,
+          }}
+        />
+      </div>
+
+      <dl className="mt-4 grid grid-cols-3 gap-3">
+        <Fatia
+          cor="bg-success"
+          rotulo="Recebido"
+          valor={dinheiro.format(recebido)}
+          apoio={`${fatia(recebido).toFixed(1).replace(".", ",")}%`}
+        />
+        <Fatia
+          cor="bg-info"
+          rotulo="A receber"
+          valor={dinheiro.format(aReceber)}
+          apoio={aReceber > 0 ? "dentro do prazo" : "nada em aberto"}
+        />
+        <Fatia
+          cor="bg-muted-foreground/30"
+          rotulo="Sem cobrança"
+          valor={dinheiro.format(semCobranca)}
+          apoio={`${pctSemCobranca}%`}
+        />
+      </dl>
+
+      {semCobranca > 0 ? (
+        <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+          &ldquo;Sem cobrança&rdquo; não é inadimplência: é mensalidade que
+          ainda não foi para o Asaas.
+        </p>
+      ) : null}
+
+      {escolasSemLeitura > 0 && contratadoSemLeitura > 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Fora da barra: {dinheiro.format(contratadoSemLeitura)} contratados em{" "}
+          {inteiro.format(escolasSemLeitura)}{" "}
+          {escolasSemLeitura === 1 ? "escola sem o módulo" : "escolas sem o módulo"}{" "}
+          de pagamentos — sem como saber quanto entrou.
+        </p>
+      ) : null}
+    </Card>
+  );
+}
+
+/** Uma fatia da barra: ponto colorido, rótulo, valor. */
+function Fatia({
+  cor,
+  rotulo,
+  valor,
+  apoio,
+}: {
+  cor: string;
+  rotulo: string;
+  valor: string;
+  apoio: string;
+}) {
+  return (
+    <div>
+      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${cor}`} aria-hidden />
+        {rotulo}
+      </dt>
+      <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+        {valor}
+      </dd>
+      <dd className="text-xs tabular-nums text-muted-foreground">{apoio}</dd>
     </div>
   );
 }

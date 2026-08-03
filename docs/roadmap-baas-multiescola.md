@@ -185,7 +185,22 @@ reprocessado.
 
 ## Fase 6 — Conformidade contínua e desligamento do Conta Azul
 
-- 6.1 **Selo Asaas** em toda tela que movimente/exiba valores (mapear todas) — trocar o placeholder pela URL oficial do CDN.
+- 6.1 **Selo Asaas** — ✅ feito. Arte oficial (`public/asaas/`, byte a byte a
+  do CDN do Asaas) no rodapé do `AppShell` e do layout da plataforma, e no card
+  da conta de pagamentos. Ficou no shell e não em cada tela: são quinze telas
+  com valores, e repetir a marcação garantiria que a décima sexta nascesse sem
+  o selo. No portal só aparece para escola com `usa_pagamentos` — quem não
+  cobra pelo sistema não tem serviço financeiro prestado.
+  - Arquivos locais e não a URL do CDN: `baas.asaas.com/selos/…` responde
+    `AccessDenied` sem o parâmetro `id`, e selo que some é violação silenciosa.
+  - O `id` identifica a conta mas **não** muda a arte (verificado por hash: um
+    id inventado devolve o mesmo arquivo). A conta aprovada é
+    `ba89535e-9857-4a97-87a4-eb41eb6076e7`.
+  - **Pendente de decisão:** o selo no contrato aluno↔escola. O documento
+    exibe valores, mas a Cláusula Terceira é genérica de propósito e não cita
+    o provedor. Alterar documento assinado é decisão jurídica — ver 6.2.
+  - **Pendente:** preencher o formulário de homologação do Asaas, que segundo
+    o suporte só deve ser enviado depois da implementação de fato.
 - 6.2 **Cláusula contratual** obrigatória no contrato DK↔escola (modelo no Playbook, pág. 11).
 - 6.3 Copy da taxa: sempre "taxa da plataforma/comissão", **nunca** "tarifa de Pix/bancária" (Art. 8º XI).
 - 6.4 Canais de suporte do Asaas visíveis ao cliente final.

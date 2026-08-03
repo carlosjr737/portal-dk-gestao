@@ -6,6 +6,7 @@ import { LogoutButton } from "@/features/auth/logout-button";
 import { roleLabels, type UserProfile } from "@/features/auth/permissions";
 import { PLATFORM_NAME } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
+import { AsaasSelo } from "@/components/brand/asaas-selo";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -89,6 +90,31 @@ export function AppShell({
         <main className="px-4 py-6 sm:px-6">
           <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
+
+        {/*
+          Selo do prestador do serviço financeiro, no shell e não em cada
+          tela.
+
+          O Playbook do Asaas exige o selo em toda tela que movimente ou exiba
+          valores — são quinze e crescendo. Repetir a marcação em quinze
+          arquivos garante que a décima sexta nasça sem ela, e a falta só
+          apareceria numa auditoria. Aqui a tela nova já nasce coberta.
+
+          Só aparece para escola que usa o módulo de pagamentos: quem não
+          cobra pelo sistema não tem serviço financeiro prestado, e exibir o
+          selo mesmo assim seria dizer que tem.
+        */}
+        {usaModuloFinanceiro ? (
+          <footer className="px-4 pb-8 sm:px-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-5">
+              <AsaasSelo fundo="claro" tamanho="md" />
+              <p className="text-xs text-muted-foreground">
+                Pagamentos processados pelo Asaas. A cobrança é da escola; a
+                taxa é da plataforma.
+              </p>
+            </div>
+          </footer>
+        ) : null}
       </div>
     </div>
   );

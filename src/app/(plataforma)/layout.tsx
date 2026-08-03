@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isPlatformOwner } from "@/features/plataforma/auth";
+import { AsaasSelo } from "@/components/brand/asaas-selo";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,22 @@ export default async function PlataformaLayout({
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+
+      {/*
+        A área da plataforma exibe saldo e faturamento das escolas — é tela
+        que exibe valores, e o selo vale aqui como vale no portal. Sem
+        condicional: quem chega nesta área é o dono da plataforma, e a
+        plataforma usa o Asaas por definição.
+      */}
+      <footer className="mx-auto max-w-6xl px-6 pb-10">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-200 pt-5">
+          <AsaasSelo fundo="claro" tamanho="md" />
+          <p className="text-xs text-slate-500">
+            Serviços financeiros prestados pelo Asaas. O dinheiro das escolas
+            não transita pela plataforma.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
