@@ -76,6 +76,20 @@ export default async function KpisPage() {
   const cobradoNoMes = totais.recebidoNoMes + totais.aReceberNoMes;
   const semCobranca = Math.max(0, totais.contratadoDasComLeitura - cobradoNoMes);
 
+  /*
+   * Uma casa decimal quando passa de 99%: arredondar 99,7% para "100%" fazia
+   * o aviso dizer que NADA foi cobrado, ao lado de um card mostrando R$ 904
+   * recebidos. Duas afirmações que se contradizem na mesma tela custam mais
+   * do que a precisão que o arredondamento economiza.
+   */
+  const pctSemCobranca =
+    totais.contratadoDasComLeitura > 0
+      ? 100 - (cobradoNoMes / totais.contratadoDasComLeitura) * 100
+      : 0;
+  const pctSemCobrancaTexto = pctSemCobranca
+    .toFixed(pctSemCobranca > 99 && pctSemCobranca < 100 ? 1 : 0)
+    .replace(".", ",");
+
   const historicoPor = new Map(
     historico.porEscola.map((h) => [h.escolaId, h.pontos]),
   );
@@ -323,11 +337,10 @@ export default async function KpisPage() {
               {dinheiro.format(semCobranca)} do contratado ainda não tem
               cobrança emitida
             </strong>{" "}
-            — {(100 - (cobradoNoMes / totais.contratadoDasComLeitura) * 100).toFixed(0)}
-            % do total. Isso não é inadimplência: é mensalidade que ainda não
-            foi para o Asaas. Enquanto a migração não termina, o
-            &ldquo;recebido&rdquo; fala de uma fatia da escola, não dela
-            inteira.
+            — {pctSemCobrancaTexto}% do total. Isso não é inadimplência: é
+            mensalidade que ainda não foi para o Asaas. Enquanto a migração não
+            termina, o &ldquo;recebido&rdquo; fala de uma fatia da escola, não
+            dela inteira.
           </Alert>
         ) : null}
 
