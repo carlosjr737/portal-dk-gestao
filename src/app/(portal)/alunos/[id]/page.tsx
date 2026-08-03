@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContractLauncher } from "@/features/contracts/contract-launcher";
 import { createClient } from "@/lib/supabase/server";
+import type { TurmaDestino } from "@/features/enrollments/transfer-enrollment-modal";
 import {
   StudentEnrollmentsSection,
   type StudentEnrollmentItem,
@@ -34,10 +35,11 @@ export default async function AlunoDetalhePage({
 }: AlunoDetalhePageProps) {
   const { id } = await params;
   const justCreated = (await searchParams)?.created === "1";
-  const [student, guardians, enrollments] = await Promise.all([
+  const [student, guardians, enrollments, turmasDestino] = await Promise.all([
     getStudent(id),
     getStudentGuardians(id),
     getStudentEnrollments(id),
+    getTurmasDestino(),
   ]);
 
   if (!student) {
@@ -138,6 +140,8 @@ export default async function AlunoDetalhePage({
         <StudentEnrollmentsSection
           enrollments={enrollments.items}
           loadError={enrollments.error}
+          alunoNome={student.full_name}
+          turmasDestino={turmasDestino}
         />
       </section>
 
@@ -235,6 +239,42 @@ async function getStudentGuardians(
       "Student guardians load error:",
       error instanceof Error ? error.message : error,
     );
+    return [];
+  }
+}
+
+/**
+ * Turmas ativas com a ocupação atual, para o modal de troca.
+ *
+ * A ocupação vai junto porque a pessoa precisa ver se cabe ANTES de escolher
+ * — descobrir que lotou só depois de confirmar faria ela desfazer.
+ */
+async function getTurmasDestino(): Promise<TurmaDestino[]> {
+  try {
+    const supabase = await createClient();
+    const [{ data: classes }, { data: enrollments }] = await Promise.all([
+      supabase
+        .from("classes")
+        .select("id, name, capacity")
+        .eq("status", "active")
+        .order("name", { ascending: true }),
+      supabase.from("enrollments").select("class_id").eq("status", "active"),
+    ]);
+
+    const ocupacao = new Map<string, number>();
+    for (const e of enrollments ?? []) {
+      const k = e.class_id as string | null;
+      if (k) ocupacao.set(k, (ocupacao.get(k) ?? 0) + 1);
+    }
+
+    return (classes ?? []).map((c) => ({
+      id: c.id as string,
+      nome: (c.name as string) ?? "Turma sem nome",
+      alunosAtivos: ocupacao.get(c.id as string) ?? 0,
+      capacidade: (c.capacity as number | null) ?? null,
+    }));
+  } catch (error) {
+    console.error("Turmas de destino:", error);
     return [];
   }
 }

@@ -6,6 +6,11 @@ import { useState } from "react";
 import { cancelEnrollment } from "@/features/enrollments/actions";
 import { CancelEnrollmentModal } from "@/features/enrollments/cancel-enrollment-modal";
 import {
+  TransferEnrollmentModal,
+  type TurmaDestino,
+} from "@/features/enrollments/transfer-enrollment-modal";
+import { transferirMatricula } from "@/features/enrollments/transfer-actions";
+import {
   formatEnrollmentStatus,
   formatFinancialGuardianName,
   formatMoney,
@@ -49,16 +54,37 @@ export type StudentEnrollmentItem = {
 type StudentEnrollmentsSectionProps = {
   enrollments: StudentEnrollmentItem[];
   loadError?: string | null;
+  /** Nome do aluno, para o modal de troca dizer de quem se trata. */
+  alunoNome?: string;
+  /** Turmas ativas com ocupação, para escolher o destino da troca. */
+  turmasDestino?: TurmaDestino[];
 };
 
 export function StudentEnrollmentsSection({
   enrollments,
   loadError,
+  alunoNome = "Aluno",
+  turmasDestino = [],
 }: StudentEnrollmentsSectionProps) {
   const router = useRouter();
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<
     string | null
   >(null);
+  const [trocandoId, setTrocandoId] = useState<string | null>(null);
+  const [avisoTroca, setAvisoTroca] = useState("");
+
+  const emTroca = enrollments.find((e) => e.id === trocandoId);
+
+  async function handleTransfer(payload: {
+    enrollmentId: string;
+    novaTurmaId: string;
+    motivo?: string;
+  }) {
+    const r = await transferirMatricula(payload);
+    if (!r.ok) throw new Error(r.message);
+    setAvisoTroca(r.message);
+    router.refresh();
+  }
 
   async function handleConfirm(payload: {
     enrollmentId: string;
@@ -89,6 +115,11 @@ export function StudentEnrollmentsSection({
       {loadError ? (
         <Alert tone="warning" className="border-b px-5">
           Não foi possível carregar as matrículas do aluno.
+        </Alert>
+      ) : null}
+      {avisoTroca ? (
+        <Alert tone="success" className="border-b px-5">
+          {avisoTroca}
         </Alert>
       ) : null}
       {/* w-auto min-w-full: com 9 colunas, largura fixa espremeria as células
@@ -159,15 +190,30 @@ export function StudentEnrollmentsSection({
                 </TableCell>
                 <TableCell>
                   {enrollment.status === "active" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      type="button"
-                      onClick={() => setSelectedEnrollmentId(enrollment.id)}
-                      className="border-destructive/40 text-destructive hover:bg-destructive/5"
-                    >
-                      Cancelar
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {/*
+                        Trocar vem antes de Cancelar de propósito: é a ação
+                        que a pessoa quer na maioria das vezes que chega aqui
+                        querendo "tirar da turma".
+                      */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setTrocandoId(enrollment.id)}
+                      >
+                        Trocar de turma
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setSelectedEnrollmentId(enrollment.id)}
+                        className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
@@ -185,6 +231,17 @@ export function StudentEnrollmentsSection({
         enrollmentId={selectedEnrollmentId}
         onClose={() => setSelectedEnrollmentId(null)}
         onConfirm={handleConfirm}
+      />
+
+      <TransferEnrollmentModal
+        open={Boolean(trocandoId)}
+        enrollmentId={trocandoId}
+        alunoNome={alunoNome}
+        turmaAtualId={emTroca?.class.id ?? null}
+        turmaAtualNome={emTroca?.class.name ?? "-"}
+        turmas={turmasDestino}
+        onClose={() => setTrocandoId(null)}
+        onConfirm={handleTransfer}
       />
     </div>
   );
