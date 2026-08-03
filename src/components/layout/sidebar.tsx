@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Banknote,
   BarChart3,
   BookUser,
   CalendarCheck,
@@ -69,6 +70,7 @@ const iconByHref: Record<string, LucideIcon> = {
   "/espetaculos": Drama,
   "/financeiro": Wallet,
   "/financeiro/faturamento-turmas": Receipt,
+  "/financeiro/recebimentos": Banknote,
   "/financeiro/professores": Wallet,
   "/financeiro/inadimplencia": Receipt,
   "/financeiro/growth-churn": TrendingUp,

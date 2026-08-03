@@ -180,6 +180,18 @@ reprocessado.
 - 4.2 Conciliação → inadimplência.
 - 4.3 Conciliação → Growth & Churn.
 - 4.4 Reflexo no status do contrato do aluno.
+- 4.5 **Editar mensalidade e a cobrança acompanhar.** Hoje mudar o valor da
+  matrícula regrava o item do contrato, mas **não mexe na assinatura já criada
+  no Asaas** — a família continua sendo cobrada pelo valor antigo, e ninguém
+  fica sabendo. Precisa de: alterar o valor na matrícula → recalcular o item e
+  o total do contrato → `PUT /subscriptions/{id}` com o novo valor → confirmar
+  que voltou certo. Vale para desconto concedido, bolsa, troca de turma com
+  preço diferente e reajuste anual.
+  - Cobrança **já emitida e ainda não paga** também precisa de decisão: atualiza
+    a existente ou cancela e emite outra? Reajuste no meio do mês sem essa
+    regra gera duas cobranças para a mesma competência.
+  - Registrar quem mudou e quando. Alteração de valor é ato financeiro; sem
+    log, a divergência de amanhã não tem dono.
 
 ---
 
@@ -202,6 +214,14 @@ reprocessado.
   - **Pendente:** preencher o formulário de homologação do Asaas, que segundo
     o suporte só deve ser enviado depois da implementação de fato.
 - 6.2 **Cláusula contratual** obrigatória no contrato DK↔escola (modelo no Playbook, pág. 11).
+- 6.6 **[BUG, corrigido em `scripts/contrato_01_desconto.sql`]** O item do
+  contrato nascia com a mensalidade CHEIA: a função
+  `ensure_guardian_financial_contract_item` gravava `monthly_amount` sem
+  subtrair `discount_amount`. A família com desconto era cobrada como se não
+  tivesse. São 301 matrículas ativas com desconto, R$ 34.832/mês — pequeno
+  hoje, com 9 itens; 301 famílias pagando a mais no dia em que as 666
+  cobranças forem geradas. Falta rodar o script e decidir sobre os itens
+  antigos (o bloco de recálculo vem comentado no fim dele).
 - 6.3 Copy da taxa: sempre "taxa da plataforma/comissão", **nunca** "tarifa de Pix/bancária" (Art. 8º XI).
 - 6.4 Canais de suporte do Asaas visíveis ao cliente final.
 - 6.5 Desligar Conta Azul no multi-escola (permanece só enquanto for single-school).

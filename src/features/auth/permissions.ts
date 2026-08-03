@@ -37,6 +37,7 @@ export const navigationItems = [
   { href: "/financeiro", label: "Financeiro" },
   { href: "/financeiro/faturamento-turmas", label: "Faturamento por turma" },
   { href: "/financeiro/professores", label: "Financeiro dos professores" },
+  { href: "/financeiro/recebimentos", label: "Recebimentos" },
   { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
   { href: "/financeiro/entradas-saidas", label: "Entradas & Saídas" },
