@@ -22,6 +22,7 @@ import {
   type OnboardingState,
 } from "@/features/baas/onboarding-actions";
 import { consultarCnpj } from "@/features/baas/cnpj-actions";
+import { useRouter } from "next/navigation";
 
 export type DadosEscola = {
   razaoSocial: string;
@@ -219,18 +220,30 @@ export function ContaPagamentosFluxo({
     [],
   );
 
+  const router = useRouter();
   const ultimaConsulta = useRef(0);
-  const consultar = useCallback(async (forcar = false) => {
-    const agora = Date.now();
-    if (!forcar && agora - ultimaConsulta.current < 30_000) return;
-    ultimaConsulta.current = agora;
-    setConsultando(true);
-    try {
-      setOnboarding(await consultarOnboarding());
-    } finally {
-      setConsultando(false);
-    }
-  }, []);
+  const consultar = useCallback(
+    async (forcar = false) => {
+      const agora = Date.now();
+      if (!forcar && agora - ultimaConsulta.current < 30_000) return;
+      ultimaConsulta.current = agora;
+      setConsultando(true);
+      try {
+        const r = await consultarOnboarding();
+        setOnboarding(r);
+        /*
+         * Conta apagada: a action removeu o registro do banco, mas as props
+         * desta tela vieram do servidor no carregamento e não sabem disso.
+         * Sem o refresh, o bloco 4 mostraria "não existe mais" e o bloco 1
+         * seguiria colapsado como "Concluído" — sem caminho para criar outra.
+         */
+        if (r.statusGeral === "REVOKED") router.refresh();
+      } finally {
+        setConsultando(false);
+      }
+    },
+    [router],
+  );
 
   /*
    * A doc do Asaas exige ~15s entre criar a conta e listar documentos; antes
@@ -274,10 +287,7 @@ export function ContaPagamentosFluxo({
 
   return (
     <div className="mt-6 space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted-foreground">
-          Para cobrar as mensalidades pelo sistema e dar baixa sozinho.
-        </p>
+      <div className="flex justify-end">
         <Badge tone={situacao.tom}>{situacao.texto}</Badge>
       </div>
 
@@ -308,21 +318,14 @@ export function ContaPagamentosFluxo({
         const concluido = b.n < atual;
         const ativo = b.n === atual;
 
-        return (
-          <Bloco
-            key={b.n}
-            numero={b.n}
-            titulo={b.titulo}
-            tempo={b.tempo}
-            estado={concluido ? "concluido" : ativo ? "atual" : "futuro"}
-            previa={b.previa}
-            aoEditar={
-              b.n === 1 && concluido && !finalizada
-                ? () => setEditando(true)
-                : undefined
-            }
-          >
-            {b.n === 1 && ativo ? (
+        /*
+           * O conteúdo sai calculado, e não como quatro expressões irmãs
+           * dentro do JSX. Como irmãs, `children` virava um ARRAY de nulls —
+           * que é truthy — e o bloco concluído desenhava uma caixa vazia de
+           * corpo. É o buraco branco que apareceu embaixo de "Concluído".
+           */
+          const conteudo =
+            b.n === 1 && ativo ? (
               <FormularioDados
                 form={form}
                 set={set}
@@ -337,19 +340,15 @@ export function ContaPagamentosFluxo({
                 tocados={tocados}
                 marcarTocado={(c) => setTocados((s) => new Set(s).add(c))}
               />
-            ) : null}
-
-            {b.n === 2 && criando ? <Criando /> : null}
-
-            {b.n === 3 && ativo ? (
+            ) : b.n === 2 && criando ? (
+              <Criando />
+            ) : b.n === 3 && ativo ? (
               <Documentos
                 onboarding={onboarding}
                 consultando={consultando}
                 aoVerificar={() => void consultar(true)}
               />
-            ) : null}
-
-            {b.n === 4 && ativo ? (
+            ) : b.n === 4 && ativo ? (
               <Resultado
                 aprovada={aprovada}
                 recusada={recusada}
@@ -359,9 +358,25 @@ export function ContaPagamentosFluxo({
                 consultando={consultando}
                 aoVerificar={() => void consultar(true)}
               />
-            ) : null}
-          </Bloco>
-        );
+            ) : null;
+
+          return (
+            <Bloco
+              key={b.n}
+              numero={b.n}
+              titulo={b.titulo}
+              tempo={b.tempo}
+              estado={concluido ? "concluido" : ativo ? "atual" : "futuro"}
+              previa={b.previa}
+              aoEditar={
+                b.n === 1 && concluido && !finalizada
+                  ? () => setEditando(true)
+                  : undefined
+              }
+            >
+              {conteudo}
+            </Bloco>
+          );
       })}
 
       {/*
@@ -821,9 +836,7 @@ function Resultado({
            aqui convidaria a criar uma segunda subconta REAL por engano. */
         <Alert tone="danger">
           {onboarding?.message ??
-            "O Asaas não reconhece mais esta conta — ela foi apagada ou a chave foi revogada."}{" "}
-          Nenhuma cobrança nova sai enquanto isso. Fale com o Asaas antes de
-          criar outra: uma conta nova é outra subconta de verdade.
+            "O Asaas não reconhece mais esta conta — ela foi apagada ou a chave foi revogada."}
         </Alert>
       ) : aprovada ? (
         <Alert tone="success">

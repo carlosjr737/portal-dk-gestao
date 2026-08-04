@@ -63,7 +63,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
   const admin = createAdminClient();
   const { data: cred } = await admin
     .from("school_payment_credentials")
-    .select("api_key")
+    .select("api_key, account_id")
     .eq("escola_id", escolaId)
     .eq("environment", ASAAS_ENV)
     .maybeSingle();
@@ -94,17 +94,66 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
    * isso que ela vira estado gravado em vez de mensagem passageira.
    */
   if (!status.ok && (status.status === 401 || status.status === 403)) {
-    await Promise.all([
-      admin
-        .from("school_payment_credentials")
-        .update({ kyc_status: "revogada", updated_at: new Date().toISOString() })
-        .eq("escola_id", escolaId)
-        .eq("environment", ASAAS_ENV),
-      admin
+    /*
+     * CONTA APAGADA NO ASAAS SAI DO BANCO TAMBÉM.
+     *
+     * A primeira versão disto só marcava `kyc_status = 'revogada'` e mantinha
+     * a linha, com o raciocínio de que oferecer "criar conta" convidaria a
+     * criar uma segunda subconta real por engano. O raciocínio vale quando a
+     * conta EXISTE — aqui o provedor acabou de dizer que não existe. Manter a
+     * linha deixava um beco sem saída: um registro morto, uma chave que não
+     * abre nada, e nenhum caminho para frente.
+     *
+     * A credencial é apagada, não marcada. Ela guarda uma api_key que não
+     * serve para nada e que o Asaas não devolve de novo — segredo morto é
+     * risco sem contrapartida. Os identificadores saem de `school` junto,
+     * senão o cadastro continua apontando para uma conta inexistente.
+     *
+     * O id vai para o log antes de sumir: se alguém precisar reclamar com o
+     * Asaas sobre a conta apagada, é por ele que se procura.
+     */
+    console.error("BaaS: conta não reconhecida pelo provedor — registro removido", {
+      escolaId,
+      ambiente: ASAAS_ENV,
+      accountId: (cred as { account_id?: string } | null)?.account_id ?? null,
+      motivo: status.error,
+    });
+
+    await admin
+      .from("school_payment_credentials")
+      .delete()
+      .eq("escola_id", escolaId)
+      .eq("environment", ASAAS_ENV);
+
+    /*
+     * `school` guarda a ÚLTIMA conta criada, sem ambiente. Limpar só faz
+     * sentido se a conta apagada é mesmo a que está registrada lá — senão a
+     * exclusão da subconta de sandbox apagaria o vínculo da de produção.
+     */
+    const { data: escola } = await admin
+      .from("school")
+      .select("asaas_account_id")
+      .eq("id", escolaId)
+      .maybeSingle();
+
+    const mesmaConta =
+      escola?.asaas_account_id ===
+      ((cred as { account_id?: string } | null)?.account_id ?? null);
+
+    if (mesmaConta) {
+      await admin
         .from("school")
-        .update({ kyc_status: "revogada", updated_at: new Date().toISOString() })
-        .eq("id", escolaId),
-    ]);
+        .update({
+          asaas_account_id: null,
+          asaas_wallet_id: null,
+          kyc_status: null,
+          // O módulo continua ligado: a escola quis cobrar pelo sistema, e
+          // desligar sozinho esconderia as telas financeiras sem ninguém pedir.
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", escolaId);
+    }
+
     revalidatePath("/configuracoes/escola");
     revalidatePath("/financeiro/conta-pagamentos");
     revalidatePath("/financeiro");
@@ -113,7 +162,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
       statusGeral: "REVOKED",
       message:
         "O Asaas não reconhece mais esta conta — ela foi apagada ou a chave foi revogada. " +
-        "Nenhuma cobrança nova sai enquanto isso.",
+        "O registro daqui foi removido; dá para criar uma conta nova.",
     };
   }
 
