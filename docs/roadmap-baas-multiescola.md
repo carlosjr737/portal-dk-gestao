@@ -210,6 +210,59 @@ reprocessado.
   - **Falta:** régua de cobrança (lembrete automático antes e depois do
     vencimento) — só faz sentido para quem tem cobrança pelo sistema, e
     aparece com cadeado e motivo para quem não tem.
+
+- 4.8 **Lançamentos futuros gerados na matrícula** (decisão do Carlos, ago/2026).
+  Ao finalizar a matrícula, o sistema gera o contrato **com os lançamentos de
+  todos os meses do período**. Cada lançamento tem valor, vencimento e status.
+
+  ```
+  matrícula fev→dez  →  11 lançamentos, um por mês
+                        previsto → pago | vencido
+  ```
+
+  | | |
+  |---|---|
+  | **Manual** | o usuário dá baixa. Passou do vencimento sem baixa → inadimplente |
+  | **Asaas** | o webhook dá baixa sozinho. Mesma regra, sem ninguém clicar |
+
+  A origem muda **quem** dá a baixa, não a regra. Inadimplente é lançamento
+  vencido e não pago, e ponto.
+
+  **ISTO SUBSTITUI O DESENHO ATUAL.** Hoje `recebimento_manual` grava só o
+  recebimento e a cobrança esperada é derivada de matrícula × competência —
+  vem de `docs/faturamento-e-recebimento.md`, item 08, que decidiu **não**
+  materializar para evitar "um cemitério de registros que ninguém preenche".
+
+  O argumento cai quando os lançamentos nascem com a matrícula: some o estado
+  "ninguém gerou ainda", que era o problema real. Foi ele que me obrigou a
+  inventar `naoAcompanhadas` na tela de inadimplência — com lançamento
+  materializado, essa categoria deixa de existir. **A spec precisa ser
+  atualizada; hoje ela e o roadmap discordam.**
+
+  **Tamanho, medido no banco (ago/2026):**
+
+  | | |
+  |---|---|
+  | matrículas ativas | 665 |
+  | média de meses por matrícula | 9,9 |
+  | lançamentos a gerar | **7.270** — irrelevante para o Postgres |
+  | matrículas **sem data de vencimento** | **656 de 665** ⚠️ |
+
+  **O bloqueio é o vencimento, não o volume.** 656 matrículas não têm
+  `first_due_date`. Sem ela não dá para gerar lançamento nem apontar atraso.
+  Antes de qualquer código: decidir se o dia vem da escola (o padrão hoje é
+  5), da matrícula, ou de ambos com a escola como fallback — e preencher as
+  656.
+
+  **Decisões abertas:**
+  - **Mudar o valor não reescreve lançamento já pago.** Reajuste vale do mês
+    seguinte em diante; mês fechado fica como estava, senão o faturamento de
+    junho deixa de bater com o que foi visto em junho. Mesma regra do 4.5.
+  - **Cancelar matrícula cancela os lançamentos futuros**, não os passados.
+  - **Troca de turma** com preço diferente ajusta os futuros. Ver 4.7 e 4.5.
+  - Bolsista 100% gera lançamento de R$ 0 ou não gera? Lançamento zerado
+    aparece como pago e some da inadimplência; não gerar deixa buraco no
+    histórico. Recomendação: gerar com valor zero e status `isento`.
 - 4.3 Conciliação → Growth & Churn.
 - 4.4 Reflexo no status do contrato do aluno.
 - 4.5 **Editar mensalidade e a cobrança acompanhar.** Hoje mudar o valor da

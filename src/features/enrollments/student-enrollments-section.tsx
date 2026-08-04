@@ -22,6 +22,7 @@ import {
   formatText,
 } from "@/features/students/formatters";
 import { Alert } from "@/components/ui/alert";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -32,6 +33,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+
+/*
+ * Verde para quem está estudando, âmbar para o que exige decisão (pausada, em
+ * avaliação), vermelho só para cancelada. Encerrada é cinza porque é fato
+ * consumado, não problema — pintá-la de vermelho faria o histórico de fim de
+ * ano parecer um monte de evasão.
+ */
+const TOM_DO_STATUS: Record<
+  EnrollmentStatus,
+  NonNullable<BadgeProps["tone"]>
+> = {
+  active: "success",
+  paused: "warning",
+  evaluation: "warning",
+  ended: "neutral",
+  cancelled: "danger",
+};
 
 export type StudentEnrollmentItem = {
   id: string;
@@ -58,6 +76,14 @@ type StudentEnrollmentsSectionProps = {
   alunoNome?: string;
   /** Turmas ativas com ocupação, para escolher o destino da troca. */
   turmasDestino?: TurmaDestino[];
+  /**
+   * Ação principal da seção — hoje, "Nova matrícula".
+   *
+   * Vem de fora em vez de ser montada aqui porque depende de dados que só a
+   * página tem (responsáveis vinculados, vencimento padrão da escola), e
+   * buscá-los aqui obrigaria esta seção a virar server component.
+   */
+  acaoCabecalho?: React.ReactNode;
 };
 
 export function StudentEnrollmentsSection({
@@ -65,6 +91,7 @@ export function StudentEnrollmentsSection({
   loadError,
   alunoNome = "Aluno",
   turmasDestino = [],
+  acaoCabecalho,
 }: StudentEnrollmentsSectionProps) {
   const router = useRouter();
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<
@@ -74,6 +101,7 @@ export function StudentEnrollmentsSection({
   const [avisoTroca, setAvisoTroca] = useState("");
 
   const emTroca = enrollments.find((e) => e.id === trocandoId);
+  const ativas = enrollments.filter((e) => e.status === "active").length;
 
   async function handleTransfer(payload: {
     enrollmentId: string;
@@ -106,11 +134,22 @@ export function StudentEnrollmentsSection({
   }
 
   return (
-    <div className="w-full min-w-0 overflow-hidden rounded-md border border-border bg-white">
-      <div className="border-b border-border p-5">
-        <h2 className="text-sm font-semibold text-foreground">
-          Matrículas do aluno
-        </h2>
+    <section
+      id="matriculas"
+      className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Matrículas do aluno
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {ativas === 0
+              ? "Nenhuma turma ativa no momento."
+              : `${ativas} ${ativas === 1 ? "turma ativa" : "turmas ativas"}`}
+          </p>
+        </div>
+        {acaoCabecalho}
       </div>
       {loadError ? (
         <Alert tone="warning" className="border-b px-5">
@@ -173,8 +212,15 @@ export function StudentEnrollmentsSection({
                 <TableCell className="text-muted-foreground">
                   {formatText(enrollment.class.teacherName)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatEnrollmentStatus(enrollment.status)}
+                <TableCell>
+                  {/*
+                    Pílula, não texto solto: é a mesma informação de "Ativo" na
+                    ficha e de "Pago" no financeiro, e ler as três telas com o
+                    mesmo verde é o que dispensa ler a palavra.
+                  */}
+                  <Badge tone={TOM_DO_STATUS[enrollment.status]}>
+                    {formatEnrollmentStatus(enrollment.status)}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDate(enrollment.start_date)}
@@ -221,7 +267,14 @@ export function StudentEnrollmentsSection({
               </TableRow>
             ))
           ) : (
-            <TableEmpty colSpan={9}>Nenhuma matrícula encontrada.</TableEmpty>
+            <TableEmpty colSpan={9}>
+              <p className="font-medium text-foreground">
+                Este aluno ainda não está em nenhuma turma.
+              </p>
+              <p className="mt-1">
+                Use &ldquo;Nova matrícula&rdquo; para vincular a primeira.
+              </p>
+            </TableEmpty>
           )}
         </TableBody>
       </Table>
@@ -243,6 +296,6 @@ export function StudentEnrollmentsSection({
         onClose={() => setTrocandoId(null)}
         onConfirm={handleTransfer}
       />
-    </div>
+    </section>
   );
 }
