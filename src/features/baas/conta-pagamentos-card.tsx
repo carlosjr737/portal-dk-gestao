@@ -8,7 +8,7 @@ import { AsaasSelo } from "@/components/brand/asaas-selo";
  *
  * Era um cartão com o fluxo inteiro dentro: formulário de criação, botão de
  * verificar e lista de documentos, tudo empilhado numa tela cujo assunto é
- * outro. O fluxo mudou para `/configuracoes/conta-pagamentos`, e aqui fica só
+ * outro. O fluxo mudou para `/financeiro/conta-pagamentos`, e aqui fica só
  * o estado e o caminho — que é o que alguém procura ao abrir "Minha escola".
  *
  * Deixar o fluxo aqui tinha um custo concreto: a tela dizia quais campos
@@ -66,7 +66,7 @@ export function ContaPagamentosCard({
         </div>
 
         <Link
-          href="/configuracoes/conta-pagamentos"
+          href="/financeiro/conta-pagamentos"
           className={buttonVariants({
             variant: criada ? "outline" : "default",
             size: "sm",

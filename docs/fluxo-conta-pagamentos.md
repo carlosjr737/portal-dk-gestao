@@ -5,7 +5,7 @@ Mockup: `docs/mockups/conta-pagamentos.html`.
 
 | | |
 |---|---|
-| Tela | `/configuracoes/escola` → nova rota `/configuracoes/conta-pagamentos` |
+| Tela | **`/financeiro/conta-pagamentos`** — uma página só |
 | Arquivos | `src/features/baas/conta-pagamentos-card.tsx` · `subconta-actions.ts` · `onboarding-actions.ts` |
 | Base | documentação Asaas, consultada em ago/2026 |
 
@@ -51,24 +51,53 @@ Um cartão só, com tudo dentro: status, lista de campos faltando, botão de cri
 
 ---
 
-## 02 • As quatro etapas
+## 02 • Uma página, quatro blocos, tudo visível
 
-Trilha horizontal no topo, sempre visível, com a etapa atual destacada.
+**Não é wizard.** Nada de trocar de página entre etapas, nada de rota nova por passo. Uma página com quatro blocos empilhados: o atual aberto, os concluídos colapsados, **os futuros visíveis dizendo o que vão pedir**.
 
 ```
-①  Dados da escola  →  ②  Criar a conta  →  ③  Documentos  →  ④  Análise
+Conta de pagamentos                                     [ Não iniciada ]
+Para cobrar as mensalidades pelo sistema e dar baixa sozinho.
+
+⏱  Leva cerca de 5 minutos.
+    Tenha em mãos o CNPJ e o RG ou CNH do responsável pela escola.
+
+┌─ ①  Dados da escola                            [Você está aqui] ─┐
+│    (formulário aberto)                                           │
+└──────────────────────────────────────────────────────────────────┘
+┌─ ②  Criar a conta                          cerca de 15 segundos ─┐
+│    Automático. Criamos a conta, configuramos os avisos e o       │
+│    Asaas valida o CNPJ na Receita.                               │
+└──────────────────────────────────────────────────────────────────┘
+┌─ ③  Enviar documentos                        cerca de 3 minutos ─┐
+│    Você vai precisar de: RG ou CNH do responsável e uma selfie.  │
+│    O envio acontece numa página do Asaas.                        │
+└──────────────────────────────────────────────────────────────────┘
+┌─ ④  Análise do Asaas                             até 1 dia útil ─┐
+│    Nós avisamos aqui quando sair. Você não faz nada nessa etapa. │
+└──────────────────────────────────────────────────────────────────┘
+
+Serviços de pagamento prestados por
+Asaas Gestão Financeira Instituição de Pagamento S.A.
 ```
 
-| Etapa | Quem age | Estado |
-|---|---|---|
-| 1 · Dados da escola | a escola | preenchimento |
-| 2 · Criar a conta | o sistema | ~15s de espera |
-| 3 · Documentos | a escola, **fora do portal** | envio |
-| 4 · Análise | o Asaas | espera, sem ação |
+**Por que fica em `/financeiro/`.** A conta existe para cobrar mensalidade. Todo o resto do dinheiro mora no Financeiro. Jogar isso em Configurações separa em dois menus um assunto só, e é onde a pessoa não procura.
 
-Etapas 2 e 4 são espera. Etapa 3 sai do portal. **Só as etapas 1 e 3 pedem alguma coisa da pessoa** — e é isso que a trilha precisa deixar óbvio, para ninguém ficar olhando para uma tela achando que travou.
+**Cada bloco futuro carrega duas informações:** quanto tempo leva e o que vai ser pedido. É isso que responde "e depois?" sem a pessoa precisar avançar para descobrir. O bloco 3 é o único que exige preparo — por isso o "tenha em mãos" também aparece no topo, antes de qualquer campo.
 
----
+**Estimativas de tempo só quando forem verdade.** `15 segundos` é a espera obrigatória da API. `até 1 dia útil` é análise humana e precisa ser confirmado com o gerente de contas antes de ir para produção — prometer 5 minutos e levar um dia é pior do que não prometer nada.
+
+**Rodapé regulatório em todas as telas do fluxo.** Texto pequeno, centralizado, com a razão social completa do Asaas. Não é opcional: a Resolução Conjunta 16 exige evidenciar a instituição prestadora em cada ponto de contato.
+
+### Estados do bloco
+
+| Estado | Aparência |
+|---|---|
+| Concluído | borda normal, marca verde com check, chip `Concluído`, ação `Editar` |
+| Atual | **borda de 2px em `--primary`**, chip `Você está aqui`, conteúdo aberto |
+| Futuro | borda normal, número em círculo vazado, rótulo em `muted-foreground`, faixa de prévia em `bg-muted/40` |
+
+Um bloco atual por vez. Concluído pode reabrir por `Editar`, mas volta a colapsar ao sair.
 
 ## 03 • Etapa 1 — dados da escola, editáveis aqui
 
@@ -104,6 +133,14 @@ Hoje o erro lista o que falta. **A tela passa a mostrar os campos e permitir pre
 - **Salvamento no envio, não a cada tecla.** Autosave reescreveria a razão social no meio de uma digitação. Abaixo do formulário, uma linha: `Estes dados também atualizam o cadastro da escola` — senão a pessoa acha que preencheu formulário descartável.
 
 - Link discreto para `/configuracoes/escola`, para quem quiser editar o cadastro inteiro em vez do recorte.
+
+- **CNPJ preenche o resto.** Digitou o CNPJ, busca na Receita e preenche razão social. A pessoa confere, não digita. Enquanto busca, os campos ficam em skeleton — nunca em branco, que parece travado.
+
+- **Máscara enquanto digita** em CNPJ, telefone e CEP. `inputMode="numeric"` nos três, para abrir teclado numérico no celular.
+
+- **Erro embaixo do campo, na hora.** CNPJ inválido aparece ao sair do campo, não depois de clicar em criar.
+
+- **Altura de controle 44px neste fluxo**, não 40px. É o único da plataforma que alguém preenche do celular segurando com uma mão.
 - `CEP` busca o resto do endereço. O Asaas identifica a cidade pelo `postalCode`, então errar o CEP contamina o cadastro inteiro.
 - **`birthDate` é obrigatório para `MEI` e `INDIVIDUAL`** (pessoa física) e o payload atual não manda. Aparece condicionalmente ao tipo escolhido.
 - `Faturamento mensal` leva a nota `estimativa, usada na análise do Asaas` — hoje o campo aparece sem explicação de para que serve.
@@ -222,3 +259,9 @@ Enquanto **não** estiver aprovada, o estado aparece também no topo do Financei
 - [ ] Recusa mostra o motivo do provedor, literal
 - [ ] Enquanto não aprovada, o estado aparece no topo do Financeiro
 - [ ] Nenhuma tela expõe os limites do período de avaliação ao cliente final
+- [ ] Uma página só — nenhuma etapa em rota separada
+- [ ] Etapas futuras visíveis, dizendo tempo e o que vão pedir
+- [ ] "Tenha em mãos" antes do primeiro campo
+- [ ] Rodapé com a razão social do Asaas em todas as telas do fluxo
+- [ ] Nenhuma estimativa de tempo sem base — `até 1 dia útil` confirmado com o gerente
+- [ ] Controles com 44px de altura; teclado numérico em CNPJ, telefone e CEP

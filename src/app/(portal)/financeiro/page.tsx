@@ -104,7 +104,7 @@ export default async function FinanceiroPage() {
         <Alert tone={conta.tom} className="mt-6">
           {conta.texto}{" "}
           <Link
-            href="/configuracoes/conta-pagamentos"
+            href="/financeiro/conta-pagamentos"
             className="font-medium underline underline-offset-2"
           >
             Ver a conta de pagamentos

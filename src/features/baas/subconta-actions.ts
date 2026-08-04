@@ -316,7 +316,7 @@ export async function criarSubcontaEscola(
   }
 
   revalidatePath("/configuracoes/escola");
-  revalidatePath("/configuracoes/conta-pagamentos");
+  revalidatePath("/financeiro/conta-pagamentos");
   return {
     ok: true,
     message: `Conta de pagamentos criada (${ASAAS_ENV}). Cadastro enviado para análise.`,

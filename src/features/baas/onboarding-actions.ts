@@ -106,7 +106,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
         .eq("id", escolaId),
     ]);
     revalidatePath("/configuracoes/escola");
-    revalidatePath("/configuracoes/conta-pagamentos");
+    revalidatePath("/financeiro/conta-pagamentos");
     revalidatePath("/financeiro");
     return {
       ok: false,
@@ -142,7 +142,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
   ]);
 
   revalidatePath("/configuracoes/escola");
-  revalidatePath("/configuracoes/conta-pagamentos");
+  revalidatePath("/financeiro/conta-pagamentos");
 
   const pendentes = docs.documentos.filter(
     (d) => d.status.toUpperCase() !== "APPROVED",
@@ -226,7 +226,7 @@ export async function enviarDocumento(
   }
 
   revalidatePath("/configuracoes/escola");
-  revalidatePath("/configuracoes/conta-pagamentos");
+  revalidatePath("/financeiro/conta-pagamentos");
   return {
     ok: true,
     message: `${arquivo.name} enviado. O Asaas vai analisar.`,

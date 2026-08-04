@@ -41,7 +41,7 @@ export default async function ContaPagamentosPage() {
   }
 
   const escolaId = await getCurrentEscolaId();
-  if (!escolaId) redirect("/configuracoes");
+  if (!escolaId) redirect("/financeiro");
 
   const admin = createAdminClient();
   const [{ data: escola }, { data: cred }] = await Promise.all([
@@ -72,13 +72,13 @@ export default async function ContaPagamentosPage() {
     <div>
       <PageHeader
         title="Conta de pagamentos"
-        description="Necessária só para a escola cobrar as mensalidades por aqui."
+        description="Para cobrar as mensalidades pelo sistema e dar baixa sozinho."
         actions={
           <Link
-            href="/configuracoes/escola"
+            href="/financeiro"
             className={buttonVariants({ variant: "outline" })}
           >
-            Minha escola
+            Financeiro
           </Link>
         }
       />
