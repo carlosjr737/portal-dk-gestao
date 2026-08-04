@@ -11,6 +11,7 @@ import {
 } from "@/features/enrollments/schemas";
 import {
   cancelEnrollmentGuardianFinancialContractItem,
+  reactivateEnrollmentGuardianFinancialContractItem,
 } from "@/features/finance/guardian-contracts/contract-items";
 import { ensureGrowthChurnEvent } from "@/features/finance/growth-churn/events";
 
@@ -255,6 +256,258 @@ export async function createEnrollment(
       ? `/alunos/${enrollment.student_id}?${redirectQuery}`
       : `/alunos/${enrollment.student_id}`,
   );
+}
+
+const pauseEnrollmentSchema = z.object({
+  enrollment_id: z.string().uuid("Matrícula inválida."),
+  reason: z.string().trim().nullable(),
+  return_date: z
+    .string()
+    .trim()
+    .nullable()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: "Informe uma data de retorno válida.",
+    }),
+});
+
+/**
+ * Trancamento: a matrícula para sem deixar de existir.
+ *
+ * A DIFERENÇA PARA O CANCELAMENTO NÃO É DE INTENSIDADE, É DE DIREÇÃO. Cancelar
+ * é saída — o aluno foi embora e o histórico registra por quê. Trancar é pausa
+ * com volta prevista, e é por isso que ele NÃO grava evento de growth & churn:
+ * contar trancamento como churn faria a evasão do mês subir por gente que não
+ * saiu, e a tela de churn é lida para decidir onde intervir. Se a pessoa não
+ * voltar, o cancelamento vem depois e a saída é registrada aí — na hora em que
+ * ela é verdade.
+ *
+ * O que para junto: `status = 'paused'` tira a matrícula de faturamento,
+ * recebimentos, inadimplência e ocupação da turma, porque todas filtram por
+ * ativa. O item do contrato é encerrado e a assinatura recalculada — a família
+ * não pode continuar sendo cobrada por aula que não vai ter.
+ */
+export async function pauseEnrollment(
+  _previousState: EnrollmentActionState,
+  formData: FormData,
+): Promise<EnrollmentActionState> {
+  const parsed = pauseEnrollmentSchema.safeParse({
+    enrollment_id: String(formData.get("enrollment_id") ?? ""),
+    reason: String(formData.get("reason") ?? "").trim() || null,
+    return_date: String(formData.get("return_date") ?? "").trim() || null,
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Revise os dados do trancamento.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: enrollment, error: loadError } = await supabase
+    .from("enrollments")
+    .select("id, student_id, class_id, status")
+    .eq("id", parsed.data.enrollment_id)
+    .maybeSingle();
+
+  if (loadError || !enrollment) {
+    console.error("Pause enrollment load error:", loadError);
+    return {
+      message:
+        loadError?.message ?? "Não foi possível localizar a matrícula.",
+    };
+  }
+
+  if (enrollment.status === "paused") {
+    return { message: "Esta matrícula já está trancada." };
+  }
+
+  if (enrollment.status !== "active") {
+    return { message: "Apenas matrículas ativas podem ser trancadas." };
+  }
+
+  const pausedAt = new Date().toISOString();
+  const { error } = await supabase
+    .from("enrollments")
+    .update({ status: "paused" })
+    .eq("id", parsed.data.enrollment_id);
+
+  if (error) {
+    console.error("Pause enrollment update error:", {
+      error,
+      enrollmentId: parsed.data.enrollment_id,
+    });
+    return { message: `Não foi possível trancar a matrícula: ${error.message}` };
+  }
+
+  const contractResult = await cancelEnrollmentGuardianFinancialContractItem({
+    enrollmentId: parsed.data.enrollment_id,
+    cancelledAt: pausedAt,
+  });
+
+  if (contractResult.status === "failed") {
+    console.error("[GUARDIAN CONTRACT] enrollment pause failed", {
+      enrollmentId: parsed.data.enrollment_id,
+      stage: contractResult.stage,
+      message: contractResult.message,
+    });
+  }
+
+  const studentId = enrollment.student_id as string | null;
+  const classId = enrollment.class_id as string | null;
+
+  /*
+   * `enrollment_updated` e não `enrollment_paused`: a constraint de
+   * `enrollment_logs.event_type` aceita cinco valores e nenhum deles é pausa.
+   * O par previous_status/new_status carrega a informação sem migração — e o
+   * motivo do trancamento fica em `reason`, que é onde alguém vai procurar.
+   */
+  const notas = [
+    parsed.data.return_date
+      ? `Previsão de retorno: ${parsed.data.return_date.split("-").reverse().join("/")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const { error: logError } = await supabase.from("enrollment_logs").insert({
+    enrollment_id: parsed.data.enrollment_id,
+    student_id: studentId,
+    class_id: classId,
+    event_type: "enrollment_updated",
+    reason: parsed.data.reason,
+    notes: notas || null,
+    previous_status: enrollment.status as string,
+    new_status: "paused",
+    created_at: pausedAt,
+  });
+
+  if (logError) {
+    console.error("Pause enrollment log insert error:", {
+      error: logError,
+      enrollmentId: parsed.data.enrollment_id,
+    });
+  }
+
+  const cobranca = await garantirCobrancaDaMatricula(parsed.data.enrollment_id);
+  if (cobranca.status === "falhou") {
+    console.error("[TRANCAMENTO] cobrança não acompanhou", {
+      enrollmentId: parsed.data.enrollment_id,
+      detalhe: cobranca.detalhe,
+    });
+  }
+
+  revalidarMatricula(studentId, classId);
+
+  return { success: true, message: "Matrícula trancada." };
+}
+
+/**
+ * O caminho de volta do trancamento.
+ *
+ * Trancar sem destrancar seria porta de mão única em dado de produção: a
+ * secretaria só descobriria que não tem volta depois de usar. A matrícula
+ * volta a ser a MESMA — não há matrícula nova, então não há entrada nova em
+ * growth & churn, o que é coerente com o trancamento não ter gerado saída.
+ */
+export async function reactivateEnrollment(
+  _previousState: EnrollmentActionState,
+  formData: FormData,
+): Promise<EnrollmentActionState> {
+  const enrollmentId = String(formData.get("enrollment_id") ?? "");
+  const parsed = z.string().uuid().safeParse(enrollmentId);
+
+  if (!parsed.success) {
+    return { message: "Matrícula inválida." };
+  }
+
+  const supabase = await createClient();
+  const { data: enrollment, error: loadError } = await supabase
+    .from("enrollments")
+    .select("id, student_id, class_id, status")
+    .eq("id", enrollmentId)
+    .maybeSingle();
+
+  if (loadError || !enrollment) {
+    console.error("Reactivate enrollment load error:", loadError);
+    return {
+      message: loadError?.message ?? "Não foi possível localizar a matrícula.",
+    };
+  }
+
+  /*
+   * Só destranca o que está trancado. Cancelada NÃO volta por aqui: ela tem
+   * motivo registrado e saída contabilizada, e reativar sem desfazer as duas
+   * coisas deixaria um aluno ativo contado como evadido para sempre.
+   */
+  if (enrollment.status !== "paused") {
+    return { message: "Apenas matrículas trancadas podem ser reativadas." };
+  }
+
+  const { error } = await supabase
+    .from("enrollments")
+    .update({ status: "active" })
+    .eq("id", enrollmentId);
+
+  if (error) {
+    console.error("Reactivate enrollment update error:", { error, enrollmentId });
+    return { message: `Não foi possível reativar a matrícula: ${error.message}` };
+  }
+
+  const contractResult =
+    await reactivateEnrollmentGuardianFinancialContractItem({ enrollmentId });
+
+  if (contractResult.status === "failed") {
+    console.error("[GUARDIAN CONTRACT] enrollment reactivation failed", {
+      enrollmentId,
+      stage: contractResult.stage,
+      message: contractResult.message,
+    });
+  }
+
+  const studentId = enrollment.student_id as string | null;
+  const classId = enrollment.class_id as string | null;
+
+  const { error: logError } = await supabase.from("enrollment_logs").insert({
+    enrollment_id: enrollmentId,
+    student_id: studentId,
+    class_id: classId,
+    event_type: "enrollment_reactivated",
+    previous_status: "paused",
+    new_status: "active",
+  });
+
+  if (logError) {
+    console.error("Reactivate enrollment log insert error:", {
+      error: logError,
+      enrollmentId,
+    });
+  }
+
+  const cobranca = await garantirCobrancaDaMatricula(enrollmentId);
+  if (cobranca.status === "falhou") {
+    console.error("[REATIVAÇÃO] cobrança não acompanhou", {
+      enrollmentId,
+      detalhe: cobranca.detalhe,
+    });
+  }
+
+  revalidarMatricula(studentId, classId);
+
+  return { success: true, message: "Matrícula reativada." };
+}
+
+/** As telas que mudam quando uma matrícula muda de estado. */
+function revalidarMatricula(studentId: string | null, classId: string | null) {
+  revalidatePath("/turmas");
+  revalidatePath("/matriculas");
+  revalidatePath("/dashboard");
+  revalidatePath("/alunos");
+  revalidatePath("/financeiro/recebimentos");
+  revalidatePath("/financeiro/inadimplencia");
+
+  if (studentId) revalidatePath(`/alunos/${studentId}`);
+  if (classId) revalidatePath(`/turmas/${classId}`);
 }
 
 export async function cancelEnrollment(

@@ -17,7 +17,11 @@ export type ResponsavelOption = {
   nome: string;
 };
 
-type Props = {
+/**
+ * Tudo que o modal precisa e que só a página tem. Vai junto num objeto porque
+ * a seção de matrículas repassa isto sem olhar dentro.
+ */
+export type NovaMatriculaDados = {
   alunoId: string;
   alunoNome: string;
   turmas: TurmaDestino[];
@@ -27,6 +31,11 @@ type Props = {
     fim: string;
     primeiroVencimento: string;
   };
+};
+
+type Props = NovaMatriculaDados & {
+  open: boolean;
+  onClose: () => void;
 };
 
 const inicial: EnrollmentActionState = {};
@@ -42,6 +51,10 @@ const inicial: EnrollmentActionState = {};
  * O que sobrou são os campos que ainda faltam decidir. A action é a MESMA —
  * duplicar a criação de matrícula em dois lugares é como as duas telas
  * começariam a divergir em regra de negócio.
+ *
+ * O modal é controlado de fora porque tem dois gatilhos: o botão do cabeçalho
+ * da seção e o atalho "Adicionar turma" de cada linha. Dois botões abrindo o
+ * mesmo modal só funciona se o estado não morar dentro dele.
  */
 export function NewEnrollmentModal({
   alunoId,
@@ -49,8 +62,9 @@ export function NewEnrollmentModal({
   turmas,
   responsaveis,
   padroes,
+  open,
+  onClose,
 }: Props) {
-  const [aberto, setAberto] = useState(false);
   const [state, formAction, pending] = useActionState(createEnrollment, inicial);
   const [turmaId, setTurmaId] = useState("");
 
@@ -58,13 +72,11 @@ export function NewEnrollmentModal({
   const lotada =
     destino?.capacidade != null && destino.alunosAtivos >= destino.capacidade;
 
+  if (!open) return null;
+
   return (
     <>
-      <Button size="sm" onClick={() => setAberto(true)} disabled={aberto}>
-        Nova matrícula
-      </Button>
-
-      {aberto ? (
+      {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
         <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
           <h2 className="text-lg font-semibold text-foreground">
@@ -187,11 +199,7 @@ export function NewEnrollmentModal({
             {state.message ? <Alert tone="danger">{state.message}</Alert> : null}
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button
-                variant="outline"
-                onClick={() => setAberto(false)}
-                disabled={pending}
-              >
+              <Button variant="outline" onClick={onClose} disabled={pending}>
                 Cancelar
               </Button>
               <Button

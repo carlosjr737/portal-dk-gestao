@@ -3,8 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { cancelEnrollment } from "@/features/enrollments/actions";
+import {
+  cancelEnrollment,
+  pauseEnrollment,
+  reactivateEnrollment,
+} from "@/features/enrollments/actions";
 import { CancelEnrollmentModal } from "@/features/enrollments/cancel-enrollment-modal";
+import {
+  NewEnrollmentModal,
+  type NovaMatriculaDados,
+} from "@/features/enrollments/new-enrollment-modal";
+import { PauseEnrollmentModal } from "@/features/enrollments/pause-enrollment-modal";
 import {
   TransferEnrollmentModal,
   type TurmaDestino,
@@ -77,13 +86,14 @@ type StudentEnrollmentsSectionProps = {
   /** Turmas ativas com ocupação, para escolher o destino da troca. */
   turmasDestino?: TurmaDestino[];
   /**
-   * Ação principal da seção — hoje, "Nova matrícula".
+   * Dados de "Nova matrícula". Vêm de fora porque dependem do que só a página
+   * tem (responsáveis vinculados, vencimento padrão da escola), e buscá-los
+   * aqui obrigaria esta seção a virar server component.
    *
-   * Vem de fora em vez de ser montada aqui porque depende de dados que só a
-   * página tem (responsáveis vinculados, vencimento padrão da escola), e
-   * buscá-los aqui obrigaria esta seção a virar server component.
+   * Ausente = a seção não oferece matricular (aluno sem responsável, por
+   * exemplo). O botão some em vez de abrir um modal que não dá para concluir.
    */
-  acaoCabecalho?: React.ReactNode;
+  novaMatricula?: NovaMatriculaDados;
 };
 
 export function StudentEnrollmentsSection({
@@ -91,16 +101,22 @@ export function StudentEnrollmentsSection({
   loadError,
   alunoNome = "Aluno",
   turmasDestino = [],
-  acaoCabecalho,
+  novaMatricula,
 }: StudentEnrollmentsSectionProps) {
   const router = useRouter();
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<
     string | null
   >(null);
   const [trocandoId, setTrocandoId] = useState<string | null>(null);
-  const [avisoTroca, setAvisoTroca] = useState("");
+  const [trancandoId, setTrancandoId] = useState<string | null>(null);
+  const [matriculando, setMatriculando] = useState(false);
+  const [aviso, setAviso] = useState<{
+    tom: "success" | "danger";
+    texto: string;
+  } | null>(null);
 
   const emTroca = enrollments.find((e) => e.id === trocandoId);
+  const emTranca = enrollments.find((e) => e.id === trancandoId);
   const ativas = enrollments.filter((e) => e.status === "active").length;
 
   async function handleTransfer(payload: {
@@ -110,7 +126,39 @@ export function StudentEnrollmentsSection({
   }) {
     const r = await transferirMatricula(payload);
     if (!r.ok) throw new Error(r.message);
-    setAvisoTroca(r.message);
+    setAviso({ tom: "success", texto: r.message });
+    router.refresh();
+  }
+
+  async function handlePause(payload: {
+    enrollmentId: string;
+    reason?: string;
+    returnDate?: string;
+  }) {
+    const formData = new FormData();
+    formData.set("enrollment_id", payload.enrollmentId);
+    formData.set("reason", payload.reason ?? "");
+    formData.set("return_date", payload.returnDate ?? "");
+
+    const r = await pauseEnrollment({}, formData);
+    if (!r.success) {
+      throw new Error(r.message ?? "Não foi possível trancar a matrícula.");
+    }
+
+    setAviso({ tom: "success", texto: r.message ?? "Matrícula trancada." });
+    router.refresh();
+  }
+
+  async function handleReactivate(enrollmentId: string) {
+    const formData = new FormData();
+    formData.set("enrollment_id", enrollmentId);
+
+    const r = await reactivateEnrollment({}, formData);
+    setAviso(
+      r.success
+        ? { tom: "success", texto: r.message ?? "Matrícula reativada." }
+        : { tom: "danger", texto: r.message ?? "Não foi possível reativar." },
+    );
     router.refresh();
   }
 
@@ -149,16 +197,20 @@ export function StudentEnrollmentsSection({
               : `${ativas} ${ativas === 1 ? "turma ativa" : "turmas ativas"}`}
           </p>
         </div>
-        {acaoCabecalho}
+        {novaMatricula ? (
+          <Button size="sm" onClick={() => setMatriculando(true)}>
+            Nova matrícula
+          </Button>
+        ) : null}
       </div>
       {loadError ? (
         <Alert tone="warning" className="border-b px-5">
           Não foi possível carregar as matrículas do aluno.
         </Alert>
       ) : null}
-      {avisoTroca ? (
-        <Alert tone="success" className="border-b px-5">
-          {avisoTroca}
+      {aviso ? (
+        <Alert tone={aviso.tom} className="border-b px-5">
+          {aviso.texto}
         </Alert>
       ) : null}
       {/* w-auto min-w-full: com 9 colunas, largura fixa espremeria as células
@@ -235,31 +287,64 @@ export function StudentEnrollmentsSection({
                   {formatMoney(enrollment.monthly_amount)}
                 </TableCell>
                 <TableCell>
+                  {/*
+                    A ORDEM É A DA PROBABILIDADE, e ela cresce em gravidade da
+                    esquerda para a direita: trocar, adicionar, trancar,
+                    cancelar. Quem chega querendo "tirar da turma" quase sempre
+                    quer a primeira; a irreversível fica por último e é a única
+                    em vermelho, para o vermelho continuar significando alguma
+                    coisa.
+                  */}
                   {enrollment.status === "active" ? (
-                    <div className="flex flex-wrap gap-2">
-                      {/*
-                        Trocar vem antes de Cancelar de propósito: é a ação
-                        que a pessoa quer na maioria das vezes que chega aqui
-                        querendo "tirar da turma".
-                      */}
+                    <div className="flex flex-wrap gap-1.5">
                       <Button
                         variant="outline"
                         size="sm"
-                        type="button"
                         onClick={() => setTrocandoId(enrollment.id)}
+                        className="h-7 px-2 text-xs"
                       >
                         Trocar de turma
+                      </Button>
+                      {novaMatricula ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMatriculando(true)}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Adicionar turma
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setTrancandoId(enrollment.id)}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Trancar
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        type="button"
                         onClick={() => setSelectedEnrollmentId(enrollment.id)}
-                        className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                        className="h-7 border-destructive/40 px-2 text-xs text-destructive hover:bg-destructive/5"
                       >
                         Cancelar
                       </Button>
                     </div>
+                  ) : enrollment.status === "paused" ? (
+                    // Trancada só oferece a volta. Cancelar a partir daqui
+                    // exigiria motivo de saída, e a matrícula já não está
+                    // gerando cobrança — não há urgência que justifique o
+                    // caminho curto.
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReactivate(enrollment.id)}
+                      className="h-7 px-2 text-xs"
+                    >
+                      Reativar
+                    </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
@@ -296,6 +381,23 @@ export function StudentEnrollmentsSection({
         onClose={() => setTrocandoId(null)}
         onConfirm={handleTransfer}
       />
+
+      <PauseEnrollmentModal
+        open={Boolean(trancandoId)}
+        enrollmentId={trancandoId}
+        alunoNome={alunoNome}
+        turmaNome={emTranca?.class.name ?? "-"}
+        onClose={() => setTrancandoId(null)}
+        onConfirm={handlePause}
+      />
+
+      {novaMatricula ? (
+        <NewEnrollmentModal
+          {...novaMatricula}
+          open={matriculando}
+          onClose={() => setMatriculando(false)}
+        />
+      ) : null}
     </section>
   );
 }

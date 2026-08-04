@@ -4,10 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ContractLauncher } from "@/features/contracts/contract-launcher";
 import { createClient } from "@/lib/supabase/server";
 import type { TurmaDestino } from "@/features/enrollments/transfer-enrollment-modal";
-import {
-  NewEnrollmentModal,
-  type ResponsavelOption,
-} from "@/features/enrollments/new-enrollment-modal";
+import type { ResponsavelOption } from "@/features/enrollments/new-enrollment-modal";
 import {
   StudentEnrollmentsSection,
   type StudentEnrollmentItem,
@@ -263,15 +260,13 @@ export default async function AlunoDetalhePage({
             loadError={enrollments.error}
             alunoNome={student.full_name}
             turmasDestino={turmasDestino}
-            acaoCabecalho={
-              <NewEnrollmentModal
-                alunoId={student.id}
-                alunoNome={student.full_name}
-                turmas={turmasDestino}
-                responsaveis={responsaveisOptions}
-                padroes={padroesDeMatricula}
-              />
-            }
+            novaMatricula={{
+              alunoId: student.id,
+              alunoNome: student.full_name,
+              turmas: turmasDestino,
+              responsaveis: responsaveisOptions,
+              padroes: padroesDeMatricula,
+            }}
           />
         </div>
 
