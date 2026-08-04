@@ -81,6 +81,42 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
     consultarStatusSubconta(apiKey),
   ]);
 
+  /*
+   * CHAVE REJEITADA = A CONTA NÃO EXISTE MAIS (ou a chave foi revogada).
+   *
+   * Isto não pode ser tratado como "deu erro na consulta", porque o efeito é
+   * a tela continuar mostrando "Aprovada" para uma subconta que foi apagada
+   * no painel do Asaas — e seguir oferecendo cobrança que nunca vai sair.
+   *
+   * E não adianta esperar webhook: o webhook é registrado DENTRO da subconta,
+   * então ele morre junto com ela. Uma conta apagada não tem como avisar da
+   * própria morte. A rejeição da chave é o único sinal que sobra, e é por
+   * isso que ela vira estado gravado em vez de mensagem passageira.
+   */
+  if (!status.ok && (status.status === 401 || status.status === 403)) {
+    await Promise.all([
+      admin
+        .from("school_payment_credentials")
+        .update({ kyc_status: "revogada", updated_at: new Date().toISOString() })
+        .eq("escola_id", escolaId)
+        .eq("environment", ASAAS_ENV),
+      admin
+        .from("school")
+        .update({ kyc_status: "revogada", updated_at: new Date().toISOString() })
+        .eq("id", escolaId),
+    ]);
+    revalidatePath("/configuracoes/escola");
+    revalidatePath("/configuracoes/conta-pagamentos");
+    revalidatePath("/financeiro");
+    return {
+      ok: false,
+      statusGeral: "REVOKED",
+      message:
+        "O Asaas não reconhece mais esta conta — ela foi apagada ou a chave foi revogada. " +
+        "Nenhuma cobrança nova sai enquanto isso.",
+    };
+  }
+
   if (!docs.ok) {
     return { ok: false, message: `Não foi possível listar os documentos: ${docs.error}` };
   }

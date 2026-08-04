@@ -47,6 +47,14 @@ async function estadoDaConta() {
     };
   }
   if (status === "aprovada") return { mostrar: false as const };
+  if (status === "revogada") {
+    return {
+      mostrar: true as const,
+      tom: "danger" as const,
+      texto:
+        "O Asaas não reconhece mais a conta de pagamentos desta escola — nenhuma cobrança nova é emitida.",
+    };
+  }
   if (status === "recusada") {
     return {
       mostrar: true as const,

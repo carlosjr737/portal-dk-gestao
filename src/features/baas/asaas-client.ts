@@ -436,7 +436,14 @@ export type StatusSubcontaResult =
       commercialInfo: string;
       bankAccountInfo: string;
     }
-  | { ok: false; error: string };
+  /*
+   * O status HTTP sobe junto porque 401 aqui NÃO é "deu erro": é a conta que
+   * não existe mais, ou a chave que foi revogada. Sem distinguir isso de uma
+   * falha de rede, a tela continuaria mostrando "Aprovada" para uma subconta
+   * apagada — e o webhook não salva, porque ele mora dentro da subconta e
+   * morre junto com ela.
+   */
+  | { ok: false; error: string; status: number };
 
 export async function consultarStatusSubconta(
   subcontaApiKey: string,
@@ -447,7 +454,7 @@ export async function consultarStatusSubconta(
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    return { ok: false, error: mensagemErro(data, res.status) };
+    return { ok: false, error: mensagemErro(data, res.status), status: res.status };
   }
 
   return {

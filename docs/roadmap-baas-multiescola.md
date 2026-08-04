@@ -192,6 +192,17 @@ reprocessado.
     regra gera duas cobranças para a mesma competência.
   - Registrar quem mudou e quando. Alteração de valor é ato financeiro; sem
     log, a divergência de amanhã não tem dono.
+- 4.6 **Conta apagada no Asaas não avisa — e não tem como avisar.** O webhook é
+  registrado DENTRO da subconta, então ele morre junto com ela: uma conta
+  apagada não consegue notificar a própria morte. E o webhook da subconta só
+  escuta `PAYMENT_*`, sem nenhum evento de conta.
+  - **Feito:** rejeição da chave (401/403) na consulta de status agora grava
+    `kyc_status = 'revogada'` e a tela para de mostrar "Aprovada" para uma
+    conta que não existe mais.
+  - **Falta:** varredura periódica. Hoje a detecção só acontece quando alguém
+    abre a tela da conta — uma escola que nunca abre fica com o estado velho.
+  - **Falta avaliar:** webhook na conta-MÃE, que sobrevive à exclusão da
+    subconta. Confirmar com o Asaas se existe evento de conta nesse nível.
 
 ---
 
@@ -222,6 +233,16 @@ reprocessado.
   hoje, com 9 itens; 301 famílias pagando a mais no dia em que as 666
   cobranças forem geradas. Falta rodar o script e decidir sobre os itens
   antigos (o bloco de recálculo vem comentado no fim dele).
+- 6.7 **Tela de Resultado — gráficos.** Página própria com a leitura visual do
+  financeiro: faturamento contratado, cobertura de cobrança, recebido e
+  inadimplência ao longo do tempo. Quais gráficos exatamente, o Carlos define
+  depois. Duas regras que já valem, herdadas do que já quebrou aqui:
+  - **Nenhum recebimento sem a linha de cobertura.** Recebido contra o
+    faturamento total faz uma escola com poucos contratos no sistema parecer
+    99% inadimplente (`docs/faturamento-e-recebimento.md`, item 03).
+  - **Contratado e recebido nunca dividem eixo nem rótulo.** São dinheiro
+    esperado e dinheiro entrado; um gráfico que soma os dois não significa
+    nada.
 - 6.3 Copy da taxa: sempre "taxa da plataforma/comissão", **nunca** "tarifa de Pix/bancária" (Art. 8º XI).
 - 6.4 Canais de suporte do Asaas visíveis ao cliente final.
 - 6.5 Desligar Conta Azul no multi-escola (permanece só enquanto for single-school).

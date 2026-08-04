@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { AsaasSelo } from "@/components/brand/asaas-selo";
 import {
   criarSubcontaEscola,
   type CriarSubcontaEscolaState,
@@ -90,8 +89,9 @@ export function ContaPagamentosFluxo({
 
   const aprovada = (kycStatus ?? "").toLowerCase() === "aprovada";
   const recusada = (kycStatus ?? "").toLowerCase() === "recusada";
+  const revogada = (kycStatus ?? "").toLowerCase() === "revogada";
 
-  const etapaAtual = !contaCriada ? 1 : aprovada || recusada ? 4 : 3;
+  const etapaAtual = !contaCriada ? 1 : aprovada || recusada || revogada ? 4 : 3;
 
   /*
    * RECONSULTA AO VOLTAR PARA A ABA.
@@ -283,6 +283,7 @@ export function ContaPagamentosFluxo({
 
       {etapaAtual >= 3 ? (
         <Documentos
+          revogada={revogada}
           onboarding={onboarding}
           consultando={consultando}
           aoVerificar={() => void consultar(true)}
@@ -291,13 +292,6 @@ export function ContaPagamentosFluxo({
         />
       ) : null}
 
-      <div className="flex items-center gap-3 border-t border-border pt-4">
-        <AsaasSelo fundo="claro" tamanho="sm" />
-        <p className="text-xs text-muted-foreground">
-          A conta é aberta e mantida pelo Asaas, instituição de pagamento
-          autorizada.
-        </p>
-      </div>
     </div>
   );
 }
@@ -383,12 +377,14 @@ function Documentos({
   aoVerificar,
   accountId,
   kycStatus,
+  revogada,
 }: {
   onboarding: OnboardingState | null;
   consultando: boolean;
   aoVerificar: () => void;
   accountId: string | null;
   kycStatus: string | null;
+  revogada: boolean;
 }) {
   const docs = onboarding?.documentos ?? [];
   const pendentes = docs.filter((d) => d.status.toUpperCase() !== "APPROVED");
@@ -400,7 +396,13 @@ function Documentos({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            {aprovada ? "④ Aprovada" : recusada ? "④ Recusada" : "③ Documentos"}
+            {revogada
+              ? "④ Conta não encontrada"
+              : aprovada
+                ? "④ Aprovada"
+                : recusada
+                  ? "④ Recusada"
+                  : "③ Documentos"}
           </h2>
           {accountId ? (
             <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -413,7 +415,20 @@ function Documentos({
         </Button>
       </div>
 
-      {aprovada ? (
+      {revogada ? (
+        /*
+         * Estado terminal e sem conserto pela tela: a conta sumiu do lado do
+         * provedor. Oferecer "criar outra" aqui seria convidar a criar uma
+         * segunda subconta real por engano — a saída é a conversa com o
+         * Asaas, e a tela diz isso em vez de dar um botão.
+         */
+        <Alert tone="danger" className="mt-4">
+          {onboarding?.message ??
+            "O Asaas não reconhece mais esta conta — ela foi apagada ou a chave foi revogada."}{" "}
+          Nenhuma cobrança nova sai enquanto isso. Fale com o Asaas antes de
+          criar outra: uma conta nova é outra subconta de verdade.
+        </Alert>
+      ) : aprovada ? (
         <Alert tone="success" className="mt-4">
           Conta aprovada. Já dá para cobrar as mensalidades pelo sistema.
         </Alert>

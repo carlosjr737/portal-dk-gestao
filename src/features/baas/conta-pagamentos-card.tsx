@@ -20,6 +20,10 @@ const ROTULO: Record<string, { texto: string; tom: "success" | "warning" | "dang
   aprovada: { texto: "Aprovada", tom: "success" },
   analise: { texto: "Em análise", tom: "warning" },
   recusada: { texto: "Recusada", tom: "danger" },
+  /* O Asaas não reconhece mais a conta: apagada no painel dele, ou chave
+     revogada. Some do provedor sem avisar — só aparece quando a chave é
+     rejeitada numa consulta. */
+  revogada: { texto: "Não existe mais", tom: "danger" },
   pendente: { texto: "Não criada", tom: "neutral" },
 };
 
