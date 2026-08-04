@@ -40,10 +40,23 @@ export type DadosEscola = {
 };
 
 /*
+ * TRÊS ETAPAS, E NÃO QUATRO.
+ *
+ * Existia uma etapa "Enviar documentos" entre criar e analisar. Ela prometia
+ * uma tarefa que não existe: para selfie e identificação o Asaas recusa o
+ * upload por API ("Esse tipo de documento não pode ser enviado via API") e,
+ * sem `onboardingUrl`, também não oferece link. Quem resolve é o suporte dele.
+ *
+ * Um bloco numerado diz "isto é com você". Como não era, a pessoa ficava
+ * procurando um botão que nunca esteve lá — e foi essa promessa que levou a
+ * duas tentativas de religar o upload (27a35ad, 5dc63e7) e a dois reverts.
+ *
+ * O pedido de documento não sumiu: virou o que ele é, uma pendência DENTRO da
+ * análise, com o link do Asaas quando houver link.
+ *
  * Tempo de cada etapa. Só entra estimativa que é verdade:
  *
  *   15 segundos   espera obrigatória da API, documentada.
- *   3 minutos     tirar foto do documento e uma selfie.
  *   1 dia útil    análise humana — ESTE precisa ser confirmado com o gerente
  *                 de contas antes de produção. Prometer cinco minutos e levar
  *                 um dia é pior do que não prometer nada.
@@ -64,17 +77,10 @@ const BLOCOS = [
   },
   {
     n: 3,
-    titulo: "Enviar documentos",
-    tempo: "cerca de 3 minutos",
-    previa:
-      "Você vai precisar de: RG ou CNH do responsável e uma selfie. O envio acontece numa página do Asaas.",
-  },
-  {
-    n: 4,
     titulo: "Análise do Asaas",
     tempo: "até 1 dia útil",
     previa:
-      "Nós avisamos aqui quando sair o resultado. Você não faz nada nessa etapa.",
+      "O Asaas confere o cadastro. Se ele precisar de algum documento, o pedido aparece aqui — e avisamos quando sair o resultado.",
   },
 ] as const;
 
@@ -183,7 +189,9 @@ export function ContaPagamentosFluxo({
   const revogada = (kycStatus ?? "").toLowerCase() === "revogada";
   const finalizada = aprovada || recusada || revogada;
 
-  const atual = !contaCriada || editando ? 1 : finalizada ? 4 : 3;
+  // Criada a conta, a etapa é sempre a 3: aprovada, recusada ou em análise são
+  // desfechos DELA, não etapas diferentes. A 2 só aparece enquanto `criando`.
+  const atual = !contaCriada || editando ? 1 : 3;
 
   /*
    * CNPJ PREENCHE O RESTO. A pessoa confere, não digita.
@@ -292,18 +300,20 @@ export function ContaPagamentosFluxo({
       </div>
 
       {/*
-        "TENHA EM MÃOS" ANTES DO PRIMEIRO CAMPO.
-        A etapa 3 é a única que exige preparo, e descobrir isso no meio do
-        caminho é o que faz a pessoa abandonar com a conta pela metade.
+        "TENHA EM MÃOS" ANTES DO PRIMEIRO CAMPO — mas só o que é verdade agora.
+        Pedir RG e selfie aqui era preparo para uma etapa que não existe: o
+        documento, quando o Asaas pede, é tratado por ele e depois. Mandar a
+        pessoa buscar documento para preencher um formulário que não os aceita
+        é atrito puro, e ainda faz parecer que o portal vai pedir a selfie.
       */}
       {!contaCriada ? (
         <div className="flex items-start gap-2.5 rounded-lg border border-border bg-card px-4 py-3">
           <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           <p className="text-sm text-muted-foreground">
             <strong className="font-medium text-foreground">
-              Leva cerca de 5 minutos.
+              Leva cerca de 2 minutos.
             </strong>{" "}
-            Tenha em mãos o CNPJ e o RG ou CNH do responsável pela escola.
+            Tenha o CNPJ da escola em mãos — é dele que o resto se preenche.
           </p>
         </div>
       ) : null}
@@ -319,10 +329,10 @@ export function ContaPagamentosFluxo({
         const ativo = b.n === atual;
 
         /*
-           * O conteúdo sai calculado, e não como quatro expressões irmãs
-           * dentro do JSX. Como irmãs, `children` virava um ARRAY de nulls —
-           * que é truthy — e o bloco concluído desenhava uma caixa vazia de
-           * corpo. É o buraco branco que apareceu embaixo de "Concluído".
+           * O conteúdo sai calculado, e não como expressões irmãs dentro do
+           * JSX. Como irmãs, `children` virava um ARRAY de nulls — que é
+           * truthy — e o bloco concluído desenhava uma caixa vazia de corpo.
+           * É o buraco branco que apareceu embaixo de "Concluído".
            */
           const conteudo =
             b.n === 1 && ativo ? (
@@ -343,13 +353,7 @@ export function ContaPagamentosFluxo({
             ) : b.n === 2 && criando ? (
               <Criando />
             ) : b.n === 3 && ativo ? (
-              <Documentos
-                onboarding={onboarding}
-                consultando={consultando}
-                aoVerificar={() => void consultar(true)}
-              />
-            ) : b.n === 4 && ativo ? (
-              <Resultado
+              <Analise
                 aprovada={aprovada}
                 recusada={recusada}
                 revogada={revogada}
@@ -720,112 +724,21 @@ function Criando() {
   );
 }
 
-function Documentos({
-  onboarding,
-  consultando,
-  aoVerificar,
-}: {
-  onboarding: OnboardingState | null;
-  consultando: boolean;
-  aoVerificar: () => void;
-}) {
-  const docs = onboarding?.documentos ?? [];
-
-  return (
-    <div>
-      {/* A explicação vem ANTES dos botões: link para fora sem aviso parece
-          golpe, ainda mais num fluxo que pede selfie. */}
-      <p className="rounded-md border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-        A selfie e o documento são enviados numa página do{" "}
-        <strong className="font-medium text-foreground">Asaas</strong>, que é a
-        instituição responsável pela conta. É exigência do Banco Central. A aba
-        abre ao lado e esta página atualiza sozinha quando você voltar.
-      </p>
-
-      <ul className="mt-4 space-y-2">
-        {docs.map((d) => {
-          const ok = d.status.toUpperCase() === "APPROVED";
-          return (
-            <li
-              key={d.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
-            >
-              <span className="flex items-center gap-2.5 text-sm text-foreground">
-                {ok ? (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success">
-                    <Check className="h-3 w-3 text-white" aria-hidden />
-                  </span>
-                ) : (
-                  <span
-                    className="h-5 w-5 rounded-full border border-input"
-                    aria-hidden
-                  />
-                )}
-                <span>
-                  {d.title}
-                  {ok ? (
-                    <span className="block text-xs text-muted-foreground">
-                      enviado
-                    </span>
-                  ) : null}
-                </span>
-              </span>
-              {!ok && d.onboardingUrl ? (
-                <a
-                  href={d.onboardingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-11 items-center gap-1.5 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  Abrir no Asaas
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
-              ) : !ok ? (
-                /*
-                 * NÃO COLOQUE UPLOAD AQUI. Já foi tentado duas vezes.
-                 *
-                 * Documento sem `onboardingUrl` NÃO quer dizer "envie por
-                 * API". Para selfie e identificação o Asaas recusa o POST
-                 * /myAccount/documents/{id} com "Esse tipo de documento não
-                 * pode ser enviado via API. Por favor, entre em contato com o
-                 * suporte." — e sem `onboardingUrl` também não há link.
-                 *
-                 * Ou seja: para esses tipos não existe caminho self-service
-                 * nenhum. O campo de arquivo só entrega uma recusa depois de a
-                 * pessoa escolher o arquivo e clicar.
-                 */
-                <span className="text-xs text-muted-foreground">
-                  enviado pelo suporte do Asaas
-                </span>
-              ) : null}
-            </li>
-          );
-        })}
-        {docs.length === 0 ? (
-          <li className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
-            {consultando
-              ? "Consultando o Asaas…"
-              : (onboarding?.message ?? "Nenhuma pendência listada.")}
-          </li>
-        ) : null}
-      </ul>
-
-      <p className="mt-3 text-sm text-muted-foreground">
-        Nada enviado ainda? A página verifica sozinha a cada volta.{" "}
-        <button
-          type="button"
-          onClick={aoVerificar}
-          disabled={consultando}
-          className="rounded font-medium text-primary hover:underline disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          {consultando ? "Verificando…" : "Verificar agora"}
-        </button>
-      </p>
-    </div>
-  );
-}
-
-function Resultado({
+/**
+ * Etapa 3 — a análise do Asaas, com as pendências dela dentro.
+ *
+ * ISTO JÁ FOI UMA ETAPA "ENVIAR DOCUMENTOS", E ERA UMA PROMESSA FALSA.
+ *
+ * Um bloco numerado diz "esta parte é com você". Para selfie e identificação
+ * não é: o Asaas recusa o upload por API ("Esse tipo de documento não pode ser
+ * enviado via API") e, sem `onboardingUrl`, também não devolve link. Não
+ * existe caminho self-service nenhum — quem resolve é o suporte dele.
+ *
+ * Então a etapa virou o desfecho que ela sempre foi. Aprovada, recusada e "em
+ * análise" são estados DESTE bloco, não etapas diferentes; e o pedido de
+ * documento aparece como pendência, com o link quando houver link.
+ */
+function Analise({
   aprovada,
   recusada,
   revogada,
@@ -842,6 +755,17 @@ function Resultado({
   consultando: boolean;
   aoVerificar: () => void;
 }) {
+  const docs = onboarding?.documentos ?? [];
+  const pendentes = docs.filter((d) => d.status.toUpperCase() !== "APPROVED");
+  /* O que a escola PODE resolver sozinha: só o que veio com link. */
+  const comLink = pendentes.filter((d) => d.onboardingUrl);
+
+  /*
+   * Conta aprovada ou inexistente não tem pendência para mostrar. Nos dois
+   * casos a lista só ocuparia espaço com informação que não muda mais nada.
+   */
+  const mostrarPendencias = !aprovada && !revogada && docs.length > 0;
+
   return (
     <div>
       {revogada ? (
@@ -863,15 +787,101 @@ function Resultado({
         </Alert>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Documentos enviados. O Asaas está analisando — você é avisado aqui
-          quando sair o resultado.{" "}
-          <strong className="font-medium text-foreground">
-            Não há nada a fazer agora.
-          </strong>
+          A conta foi criada e o Asaas está conferindo o cadastro. Você é
+          avisado aqui quando sair o resultado.
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      {mostrarPendencias ? (
+        <div className="mt-5">
+          <p className="text-sm font-medium text-foreground">
+            {pendentes.length === 0
+              ? "Documentação"
+              : comLink.length > 0
+                ? "O Asaas precisa de:"
+                : "Documentação pendente no Asaas"}
+          </p>
+
+          {/*
+            A explicação vem ANTES do botão, e só quando existe botão: link
+            para fora sem aviso parece golpe, ainda mais num fluxo que pede
+            selfie. Sem link, esta caixa descreveria uma página que nunca abre.
+          */}
+          {comLink.length > 0 ? (
+            <p className="mt-2 rounded-md border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              O envio acontece numa página do{" "}
+              <strong className="font-medium text-foreground">Asaas</strong>,
+              que é a instituição responsável pela conta. É exigência do Banco
+              Central. A aba abre ao lado e esta página atualiza sozinha quando
+              você voltar.
+            </p>
+          ) : null}
+
+          <ul className="mt-3 space-y-2">
+            {docs.map((d) => {
+              const ok = d.status.toUpperCase() === "APPROVED";
+              return (
+                <li
+                  key={d.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+                >
+                  <span className="flex items-center gap-2.5 text-sm text-foreground">
+                    {ok ? (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success">
+                        <Check className="h-3 w-3 text-white" aria-hidden />
+                      </span>
+                    ) : (
+                      <span
+                        className="h-5 w-5 rounded-full border border-input"
+                        aria-hidden
+                      />
+                    )}
+                    <span>
+                      {d.title}
+                      {ok ? (
+                        <span className="block text-xs text-muted-foreground">
+                          aprovado
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  {!ok && d.onboardingUrl ? (
+                    <a
+                      href={d.onboardingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 items-center gap-1.5 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      Abrir no Asaas
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                    </a>
+                  ) : !ok ? (
+                    /*
+                     * NÃO COLOQUE UPLOAD AQUI. Já foi tentado duas vezes.
+                     *
+                     * Documento sem `onboardingUrl` NÃO quer dizer "envie por
+                     * API". Para selfie e identificação o Asaas recusa o POST
+                     * /myAccount/documents/{id} com "Esse tipo de documento
+                     * não pode ser enviado via API. Por favor, entre em
+                     * contato com o suporte." — e sem `onboardingUrl` também
+                     * não há link.
+                     *
+                     * Ou seja: para esses tipos não existe caminho
+                     * self-service nenhum. O campo de arquivo só entrega uma
+                     * recusa depois de a pessoa escolher o arquivo e clicar.
+                     */
+                    <span className="text-xs text-muted-foreground">
+                      o Asaas trata direto com você
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         {accountId ? (
           <span className="font-mono text-xs text-muted-foreground">
             {accountId}

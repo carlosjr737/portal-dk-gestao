@@ -21,13 +21,19 @@ Verificado na documentação, não presumido.
 | Receber `apiKey` e `walletId` | ✅ — **devolvidos uma única vez**, na resposta |
 | Configurar webhook | ✅ |
 | Listar documentos pendentes (`GET /myAccount/documents`) | ✅ |
-| Enviar documento **sem** `onboardingUrl` | ✅ via `POST /myAccount/documents/{id}` |
-| Enviar documento **com** `onboardingUrl` (selfie, identificação) | ❌ **link externo obrigatório** |
+| Documento **com** `onboardingUrl` | ❌ pelo portal — **link externo obrigatório** |
+| Documento **sem** `onboardingUrl` (selfie, identificação) | ❌ **não tem caminho nenhum** — é o suporte do Asaas |
 | Acompanhar status e aprovação | ✅ |
 
-**A resposta curta:** dá para fazer tudo menos o envio da selfie e do documento de identificação. Esses dois saem por link do Asaas, com a marca do Asaas em evidência — exigência da Resolução Conjunta 16, não escolha de implementação. Tentar enviar por API um documento que tem `onboardingUrl` é rejeitado.
+**A resposta curta:** o portal cria a conta e acompanha. **Envio de documento ele não faz, em nenhum dos dois casos.**
 
-**Consequência de produto:** o fluxo tem um ponto obrigatório de saída. Ele precisa ser desenhado como uma saída anunciada e com volta, não como um link solto que a pessoa clica e some.
+**A leitura errada que já custou duas implementações.** "Documento sem `onboardingUrl`" não significa "envie por API". Para selfie e identificação a API responde:
+
+> Esse tipo de documento não pode ser enviado via API. Por favor, entre em contato com o suporte.
+
+E, sem `onboardingUrl`, também não há link. Para esses tipos **não existe caminho self-service nenhum**. Um campo de arquivo ali só entrega uma recusa depois de a pessoa escolher o arquivo e clicar. Foi tentado em `27a35ad` e `5dc63e7`, e revertido em `4ea40eb`.
+
+**Consequência de produto — e é a razão de o fluxo ter três etapas e não quatro.** Documento não é etapa da escola, porque não há o que ela faça. É pendência do Asaas, e o lugar dela é dentro da análise. Uma etapa numerada chamada "Enviar documentos" afirma "esta parte é com você"; como não era, a pessoa ficava procurando um botão que nunca existiu — e quem lia o código concluía que faltava implementar o upload.
 
 ### Restrições que precisam de decisão fora do design
 
@@ -51,16 +57,18 @@ Um cartão só, com tudo dentro: status, lista de campos faltando, botão de cri
 
 ---
 
-## 02 • Uma página, quatro blocos, tudo visível
+## 02 • Uma página, três blocos, tudo visível
 
-**Não é wizard.** Nada de trocar de página entre etapas, nada de rota nova por passo. Uma página com quatro blocos empilhados: o atual aberto, os concluídos colapsados, **os futuros visíveis dizendo o que vão pedir**.
+**Não é wizard.** Nada de trocar de página entre etapas, nada de rota nova por passo. Uma página com três blocos empilhados: o atual aberto, os concluídos colapsados, **os futuros visíveis dizendo o que vão pedir**.
+
+**Três, e não quatro.** A versão anterior tinha "Enviar documentos" como etapa própria entre criar e analisar. Não existe tarefa ali (seção 00), e etapa sem tarefa é promessa falsa. O pedido de documento vive dentro da análise.
 
 ```
 Conta de pagamentos                                     [ Não iniciada ]
 Para cobrar as mensalidades pelo sistema e dar baixa sozinho.
 
-⏱  Leva cerca de 5 minutos.
-    Tenha em mãos o CNPJ e o RG ou CNH do responsável pela escola.
+⏱  Leva cerca de 2 minutos.
+    Tenha o CNPJ da escola em mãos — é dele que o resto se preenche.
 
 ┌─ ①  Dados da escola                            [Você está aqui] ─┐
 │    (formulário aberto)                                           │
@@ -69,12 +77,9 @@ Para cobrar as mensalidades pelo sistema e dar baixa sozinho.
 │    Automático. Criamos a conta, configuramos os avisos e o       │
 │    Asaas valida o CNPJ na Receita.                               │
 └──────────────────────────────────────────────────────────────────┘
-┌─ ③  Enviar documentos                        cerca de 3 minutos ─┐
-│    Você vai precisar de: RG ou CNH do responsável e uma selfie.  │
-│    O envio acontece numa página do Asaas.                        │
-└──────────────────────────────────────────────────────────────────┘
-┌─ ④  Análise do Asaas                             até 1 dia útil ─┐
-│    Nós avisamos aqui quando sair. Você não faz nada nessa etapa. │
+┌─ ③  Análise do Asaas                             até 1 dia útil ─┐
+│    O Asaas confere o cadastro. Se ele precisar de algum          │
+│    documento, o pedido aparece aqui — e avisamos quando sair.    │
 └──────────────────────────────────────────────────────────────────┘
 
 Serviços de pagamento prestados por
@@ -83,7 +88,9 @@ Asaas Gestão Financeira Instituição de Pagamento S.A.
 
 **Por que fica em `/financeiro/`.** A conta existe para cobrar mensalidade. Todo o resto do dinheiro mora no Financeiro. Jogar isso em Configurações separa em dois menus um assunto só, e é onde a pessoa não procura.
 
-**Cada bloco futuro carrega duas informações:** quanto tempo leva e o que vai ser pedido. É isso que responde "e depois?" sem a pessoa precisar avançar para descobrir. O bloco 3 é o único que exige preparo — por isso o "tenha em mãos" também aparece no topo, antes de qualquer campo.
+**Cada bloco futuro carrega duas informações:** quanto tempo leva e o que vai ser pedido. É isso que responde "e depois?" sem a pessoa precisar avançar para descobrir.
+
+**"Tenha em mãos" só pede o que o formulário aceita.** Era CNPJ + RG/CNH + selfie, preparo para a etapa que não existia — e que ainda fazia parecer que o portal ia pedir a selfie. Agora é só o CNPJ. Documento, quando o Asaas pede, é assunto dele e é depois.
 
 **Estimativas de tempo só quando forem verdade.** `15 segundos` é a espera obrigatória da API. `até 1 dia útil` é análise humana e precisa ser confirmado com o gerente de contas antes de ir para produção — prometer 5 minutos e levar um dia é pior do que não prometer nada.
 
@@ -170,57 +177,48 @@ Três marcas de verdade, na ordem em que acontecem. A terceira é a espera obrig
 
 ---
 
-## 05 • Etapa 3 — documentos, e a saída anunciada
+## 05 • Etapa 3 — análise, pendências e os finais
 
-Aqui a pessoa sai do portal. O fluxo tem que dizer isso antes, não depois.
+Um bloco só, com três desfechos e as pendências dentro. Espera sem ação é o caso normal, e a tela precisa dizer isso com todas as letras — senão a pessoa fica procurando o que fazer.
 
 ```
-③ Documentos
+③ Em análise
 
-  O envio da selfie e do documento acontece em uma página do Asaas.
-  É exigência do Banco Central — o Asaas é a instituição responsável
-  pela conta. Você volta para cá quando terminar.
+  A conta foi criada e o Asaas está conferindo o cadastro.
+  Você é avisado aqui quando sair o resultado.
 
-  ○ Foto do documento de identificação        [ Enviar no Asaas ↗ ]
-  ○ Selfie para reconhecimento facial         [ Enviar no Asaas ↗ ]
-  ✓ Ata de eleição                            enviado em 02/08
+  O Asaas precisa de:
+  ┌──────────────────────────────────────────────────────────┐
+  │ ○ Foto do documento de identificação   [ Abrir no Asaas ↗]│  <- tem onboardingUrl
+  │ ○ Selfie                        o Asaas trata direto com você│  <- não tem
+  │ ✓ Ata de eleição                                   aprovado │
+  └──────────────────────────────────────────────────────────┘
 
-  Enviou tudo?  [ Verificar novamente ]
+  acc_000…                                 [ Verificar novamente ]
 ```
 
 **Regras:**
 
-- **A explicação vem antes dos botões.** Link para fora sem aviso parece erro ou golpe — ainda mais num fluxo que pede selfie.
-- Documento **com** `onboardingUrl` → botão externo com ícone de saída. Documento **sem** → upload dentro do portal, no mesmo lugar visual. A pessoa não precisa saber por que uns são assim e outros assado.
+- **A lista de documentos NÃO é uma etapa.** É pendência do provedor dentro da análise. Ver seção 00 para o porquê — e para as duas implementações que essa distinção já custou.
+- **Documento com `onboardingUrl`** → botão externo com ícone de saída. **Sem `onboardingUrl`** → texto dizendo que o Asaas trata direto. **Nunca um campo de arquivo**, em nenhum dos dois casos.
+- **A explicação da saída só aparece quando existe saída.** A caixa "o envio acontece numa página do Asaas" só faz sentido se algum documento tiver link; sem isso, ela descreve uma página que nunca abre.
 - `Ata de eleição` só aparece para `ASSOCIATION`.
-- **Reconsultar ao voltar:** revalidar na volta do foco da janela, com limite de uma consulta a cada 30 segundos. Hoje só verifica se clicar, e quem envia e volta vê a tela velha.
+- **Conta aprovada ou revogada não lista pendência.** Nos dois casos a lista só ocuparia espaço com informação que não muda mais nada.
+- **Reconsultar ao voltar:** revalidar na volta do foco da janela, com limite de uma consulta a cada 30 segundos. Quem sai para resolver documento e volta não pode encontrar a tela velha.
 - `Verificar novamente` continua existindo como saída manual.
-
----
-
-## 06 • Etapa 4 — análise, e os finais
-
-Espera sem ação. A tela precisa dizer isso com todas as letras, senão a pessoa fica procurando o que fazer.
-
-```
-④ Em análise
-
-  Documentos enviados em 02/08. O Asaas está analisando.
-  Você recebe um aviso aqui quando sair o resultado.
-  Não há nada a fazer agora.
-```
 
 | Resultado | Tela |
 |---|---|
+| **Em análise** | texto de espera + pendências, se houver |
 | **Aprovada** | selo `success`, e o próximo passo real: `Ativar cobrança pelo sistema →` levando à conciliação |
 | **Recusada** | selo `danger` com o motivo do Asaas **literal**, e o caminho de correção |
-| **Pendência nova** | volta para a etapa 3 com o documento novo em destaque |
+| **Revogada** | selo `danger`, sem oferta de "criar outra" — ver seção 07 |
 
 Recusa nunca aparece só como "recusada". Sem o motivo, a pessoa abre chamado — e você vira o suporte do Asaas.
 
 ---
 
-## 07 • Onde o status vive depois
+## 06 • Onde o status vive depois
 
 Criada a conta, este fluxo some e vira uma linha no `/configuracoes/escola`:
 
@@ -232,7 +230,7 @@ Enquanto **não** estiver aprovada, o estado aparece também no topo do Financei
 
 ---
 
-## 08 • Estados de erro
+## 07 • Estados de erro
 
 | Situação | O que mostrar |
 |---|---|
@@ -243,7 +241,7 @@ Enquanto **não** estiver aprovada, o estado aparece também no topo do Financei
 
 ---
 
-## 09 • Critério de pronto
+## 08 • Critério de pronto
 
 - [ ] Campos obrigatórios são editáveis na própria tela e escrevem em `school` — sem armazenamento paralelo
 - [ ] `company_type`, `faturamento` e `birthDate` persistidos: recusa do Asaas não faz ninguém redigitar
@@ -253,15 +251,17 @@ Enquanto **não** estiver aprovada, o estado aparece também no topo do Financei
 - [ ] A espera de 15s é nomeada, não escondida em spinner
 - [ ] `apiKey` gravada antes de qualquer chamada seguinte
 - [ ] Falha de gravação nunca oferece "tentar de novo"
-- [ ] A saída para o Asaas é explicada antes do botão
-- [ ] Documento com `onboardingUrl` nunca é enviado por API
+- [ ] A saída para o Asaas é explicada antes do botão, **e só existe quando há botão**
+- [ ] **Nenhum campo de arquivo em lugar nenhum do fluxo** — não há documento enviável pelo portal
+- [ ] Documento sem `onboardingUrl` mostra que o Asaas trata direto, e não um upload
 - [ ] Volta do foco reconsulta o status, com limite de 1 a cada 30s
 - [ ] Recusa mostra o motivo do provedor, literal
 - [ ] Enquanto não aprovada, o estado aparece no topo do Financeiro
 - [ ] Nenhuma tela expõe os limites do período de avaliação ao cliente final
 - [ ] Uma página só — nenhuma etapa em rota separada
+- [ ] **Três etapas.** Nenhuma etapa numerada sem tarefa da escola dentro
 - [ ] Etapas futuras visíveis, dizendo tempo e o que vão pedir
-- [ ] "Tenha em mãos" antes do primeiro campo
+- [ ] "Tenha em mãos" antes do primeiro campo, pedindo só o que o formulário aceita
 - [ ] Rodapé com a razão social do Asaas em todas as telas do fluxo
 - [ ] Nenhuma estimativa de tempo sem base — `até 1 dia útil` confirmado com o gerente
 - [ ] Controles com 44px de altura; teclado numérico em CNPJ, telefone e CEP
