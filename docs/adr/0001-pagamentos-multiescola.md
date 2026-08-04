@@ -58,10 +58,12 @@ Aluno autoriza Pix Automático (1x)
 
 ## A validar antes de codar
 
-- Config exata do **split**: exigir que o dinheiro caia **direto na sub-conta** da escola (não roteie pela conta da plataforma, nem por um instante) — é o que mantém a plataforma fora do escopo regulatório.
+- ~~Config exata do **split**~~ → **validado no sandbox em 04/08/2026, ver adendo abaixo.**
 - Processo de **KYC/onboarding do sub-merchant** de cada provedor.
 - Regras de **Pix Automático** por banco e limites.
 - Validação jurídica/contábil do arranjo (custódia, split, tributação da taxa).
+- **Saque pela subconta** — `POST /transfers` volta `authorized: false` e não há
+  endpoint de autorização. Ver adendo abaixo.
 
 > Observação: este ADR é decisão de arquitetura, não aconselhamento jurídico/regulatório. O desenho de split e KYC deve ser confirmado com o provedor e com contador/advogado.
 
@@ -81,3 +83,65 @@ Aluno autoriza Pix Automático (1x)
 | Conta | configuração da subconta, no Asaas | impede o cartão de **aparecer** na fatura |
 
 Só a segunda desliga de fato. A primeira existe para ninguém reintroduzir a opção por descuido — e é por isso que este adendo existe, em vez de a mudança viver só no commit.
+
+## Adendo (04/08/2026) — split e saque, medidos no sandbox
+
+Não é leitura de documentação: foi executado contra a API, na subconta real de
+sandbox do DK Studio. Os números abaixo são os que voltaram.
+
+### Split funciona, e o dinheiro nunca passa pela plataforma
+
+Cobrança de **R$ 200,00** emitida na subconta da escola, com
+`split: [{ walletId: <plataforma>, percentualValue: 10 }]`:
+
+| | |
+|---|---|
+| bruto da cobrança | R$ 200,00 |
+| taxa Pix do Asaas | R$ 0,99 |
+| **escola recebeu** | **R$ 179,11** |
+| **plataforma recebeu** | **R$ 19,90** |
+
+Os dois saldos subiram na mesma confirmação, cada um na sua conta. É o que o
+ADR exigia: a plataforma recebe a comissão sem custodiar o dinheiro da escola.
+
+**⚠️ O percentual incide sobre o LÍQUIDO, não sobre o bruto.**
+`199,01 × 10% = 19,90` — e não `200,00 × 10% = 20,00`. Quem modelar receita como
+"10% da mensalidade" vai errar para mais, e o erro cresce com a taxa. A taxa da
+cobrança sai antes do rateio.
+
+Consulta do que foi rateado (os dois lados enxergam a mesma linha):
+
+| Quem | Endpoint |
+|---|---|
+| plataforma, o que recebeu | `GET /v3/payments/splits/received` |
+| escola, o que pagou | `GET /v3/payments/splits/paid` |
+
+Ambos aceitam filtro por `paymentId`, `status` e intervalo de `creditDate`.
+Status observado após a confirmação: `DONE`.
+
+### Saque não fecha só com API
+
+`POST /v3/transfers` na subconta devolve **HTTP 200** e cria a transferência,
+mas com `authorized: false` e `status: PENDING`. O valor sai do saldo
+disponível e fica parado. Não se autoriza sozinha, e **não existe endpoint de
+autorização** — `/authorize`, `/confirm` e `PUT` respondem 404, o que bate com
+o índice da documentação (tem criar, listar, consultar e cancelar; não tem
+autorizar).
+
+Transferir para outra conta Asaas por `walletId`, em vez de conta bancária, dá
+exatamente o mesmo `authorized: false` — não é atalho.
+
+`POST /v3/transfers/{id}/cancel` funciona e devolve o valor ao saldo.
+
+**Consequência:** a tela de saque no portal não é construível até saber como a
+autorização acontece. O candidato é o *mecanismo de validação de saque via
+webhook*, em que o Asaas chama a nossa aplicação e espera `APPROVED`/`REFUSED`
+— não testado, porque exige registrar esse webhook na conta.
+
+**Pergunta para o gerente de contas, nesta forma:** *em subconta BaaS aprovada,
+`POST /transfers` volta `authorized: true`? Se não, como a aplicação autoriza —
+é pelo webhook de validação de saque?*
+
+Ressalva: tudo acima é **sandbox**, e a subconta usada **não é BaaS aprovada**
+(contrato não assinado). Autorização de transferência é configuração de conta e
+pode mudar na aprovação — o split, por ser cálculo, tende a valer igual.
