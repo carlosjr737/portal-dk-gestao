@@ -204,6 +204,56 @@ reprocessado.
   - **Falta avaliar:** webhook na conta-MÃE, que sobrevive à exclusão da
     subconta. Confirmar com o Asaas se existe evento de conta nesse nível.
 
+- 4.7 **Catálogo de mensalidades — escolher produto em vez de digitar valor.**
+  Na matrícula, em vez de escrever mensalidade e desconto à mão, seleciona-se
+  um produto já cadastrado (ex.: `1× semana`, `2× semana`, `2× semana com
+  desconto família`). O valor vem do produto.
+
+  **O tamanho do problema, medido no banco (ago/2026):**
+
+  | | |
+  |---|---|
+  | matrículas ativas | 665 |
+  | preços cheios DISTINTOS | **16** |
+  | valores de desconto distintos | 26 |
+  | combinações preço+desconto | 52 |
+  | motivos de desconto distintos | 4 |
+
+  Ou seja: o valor é digitado 665 vezes para existirem 16 preços de verdade.
+  Cada digitação é uma chance de errar um dígito, e o erro só aparece quando a
+  família recebe a cobrança.
+
+  **O que isso conserta, além da digitação:**
+
+  - **A pergunta "quem tem desconto?" passa a ter resposta.** Hoje há 26
+    valores de desconto diferentes para 4 motivos declarados — o "quanto" é
+    ad hoc e o "porquê" é rótulo genérico. 266 matrículas dizem
+    `Desconto familia/2a matricula (15%)` e o desconto real vai de **5,3% a
+    77,9%**. Com produto, desconto vira item de catálogo: um nome, um valor,
+    e quem usa aparece numa lista.
+  - **Reajuste anual vira uma edição, não 665.** Mudar o preço do produto
+    propaga — e aí encosta no 4.5, que é fazer a cobrança no Asaas acompanhar.
+  - **Faturamento por produto**, que hoje não existe: dá para responder
+    quanto vem de cada modalidade sem cruzar planilha.
+
+  **Decisões que ficam em aberto:**
+
+  - **O produto é da escola, não da plataforma.** Multi-escola: cada uma tem
+    a própria tabela de preços, e um catálogo global obrigaria todas ao mesmo
+    valor.
+  - **Preço muda; matrícula antiga não pode mudar junto.** A matrícula precisa
+    guardar o valor VIGENTE quando foi feita, senão um reajuste reescreve o
+    passado e o faturamento de junho deixa de bater com o que foi visto em
+    junho. O produto é a origem no momento da escolha, não uma referência viva.
+  - **Exceção continua existindo.** Bolsa integral, acordo pontual, valor
+    negociado — o campo livre não some, vira a exceção declarada em vez do
+    caminho padrão. Hoje é o contrário.
+  - **Migração das 665 existentes:** as 52 combinações preço+desconto mapeiam
+    para o catálogo. O que não encaixar vira exceção explícita, não some.
+
+  Depende de nada; pode vir antes da cobrança em produção — e vindo antes,
+  evita migrar 665 valores digitados à mão para dentro do Asaas.
+
 ---
 
 ## Fase 6 — Conformidade contínua e desligamento do Conta Azul
