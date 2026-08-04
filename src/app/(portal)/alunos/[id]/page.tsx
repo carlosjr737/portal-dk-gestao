@@ -5,10 +5,16 @@ import { ContractLauncher } from "@/features/contracts/contract-launcher";
 import { createClient } from "@/lib/supabase/server";
 import type { TurmaDestino } from "@/features/enrollments/transfer-enrollment-modal";
 import {
+  NewEnrollmentModal,
+  type ResponsavelOption,
+} from "@/features/enrollments/new-enrollment-modal";
+import {
   StudentEnrollmentsSection,
   type StudentEnrollmentItem,
 } from "@/features/enrollments/student-enrollments-section";
 import type { EnrollmentStatus } from "@/features/enrollments/schemas";
+import { getMensalidadesDoAluno } from "@/features/mensalidades/queries";
+import { MensalidadesSection } from "@/features/mensalidades/mensalidades-section";
 import {
   formatDate,
   formatDateTime,
@@ -29,28 +35,62 @@ type AlunoDetalhePageProps = {
   }>;
 };
 
+const brl = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+/*
+ * A ficha do aluno é a tela onde a secretaria resolve as três perguntas do
+ * atendimento — quem é, em que turma está, e se está pagando. Antes as duas
+ * últimas moravam em outras telas, e responder um telefonema custava três
+ * navegações.
+ *
+ * Por isso a página é longa de propósito, e a defesa contra isso é a
+ * hierarquia: um resumo que responde tudo em uma linha, um índice para pular
+ * direto ao bloco, e quatro seções fechadas em cartão. Abas resolveriam a
+ * rolagem, mas esconderiam justamente o cruzamento que se quer aqui — "está
+ * em três turmas E deve dois meses" é uma leitura só.
+ */
 export default async function AlunoDetalhePage({
   params,
   searchParams,
 }: AlunoDetalhePageProps) {
   const { id } = await params;
   const justCreated = (await searchParams)?.created === "1";
-  const [student, guardians, enrollments, turmasDestino] = await Promise.all([
+  const [
+    student,
+    guardians,
+    enrollments,
+    turmasDestino,
+    mensalidades,
+    padroesDeMatricula,
+  ] = await Promise.all([
     getStudent(id),
     getStudentGuardians(id),
     getStudentEnrollments(id),
     getTurmasDestino(),
+    getMensalidadesDoAluno(id),
+    getPadroesDeMatricula(),
   ]);
 
   if (!student) {
     notFound();
   }
 
+  const turmasAtivas = enrollments.items.filter(
+    (e) => e.status === "active",
+  ).length;
+  const responsaveisOptions: ResponsavelOption[] = guardians.map((link) => ({
+    id: link.guardian.id,
+    nome: link.guardian.full_name,
+  }));
+
   return (
     <div>
       <PageHeader
         title={student.full_name}
-        description="Detalhes cadastrais do aluno."
+        description="Cadastro, responsáveis, matrículas e mensalidades."
         actions={
           <>
             <Link
@@ -79,34 +119,108 @@ export default async function AlunoDetalhePage({
         <ContractLauncher href={`/alunos/${student.id}/contrato?auto=1`} />
       ) : null}
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-3">
-        <InfoCard label="Status">
+      {/*
+        Resumo antes de qualquer detalhe: são as quatro respostas que a pessoa
+        no telefone precisa dar sem rolar a página. Um cartão só, e não quatro
+        soltos, porque eles se leem juntos — status sem mensalidade não decide
+        nada.
+      */}
+      <Card className="mt-6 grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <Resumo label="Situação">
           <StatusBadge status={student.status} />
-        </InfoCard>
-        <InfoCard label="Nome social ou artístico">
-          {formatText(student.display_name)}
-        </InfoCard>
-        <InfoCard label="Data de nascimento">
-          {formatDate(student.birth_date)}
-        </InfoCard>
-        <InfoCard label="Documento">{formatText(student.document)}</InfoCard>
-        <InfoCard label="Telefone">{formatText(student.phone)}</InfoCard>
-        <InfoCard label="E-mail">{formatText(student.email)}</InfoCard>
-      </section>
-
-      <Card className="mt-6 p-5">
-        <h2 className="text-sm font-semibold text-foreground">Observações</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-          {formatText(student.notes)}
-        </p>
+        </Resumo>
+        <Resumo label="Turmas ativas">
+          <span className="text-lg font-semibold tabular-nums text-foreground">
+            {turmasAtivas}
+          </span>
+        </Resumo>
+        <Resumo label="Mensalidade">
+          <span className="text-lg font-semibold tabular-nums text-foreground">
+            {mensalidades.mensalidadeAtual > 0
+              ? brl.format(mensalidades.mensalidadeAtual)
+              : "—"}
+          </span>
+        </Resumo>
+        <Resumo label="Mensalidades em aberto">
+          {mensalidades.usaPagamentos ? (
+            mensalidades.emAberto > 0 ? (
+              <Badge tone="danger">
+                {mensalidades.emAberto} ·{" "}
+                {brl.format(mensalidades.valorEmAberto)}
+              </Badge>
+            ) : (
+              <Badge tone="success">Em dia</Badge>
+            )
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              Cobrança fora do sistema
+            </span>
+          )}
+        </Resumo>
       </Card>
 
-      <section className="mt-6 space-y-6">
-        <Card>
+      {/*
+        Índice, não abas: o conteúdo continua todo na página (e imprimível),
+        mas quem chegou para resolver uma coisa só pula direto.
+      */}
+      <nav
+        aria-label="Seções da ficha"
+        className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-b border-border pb-3 text-sm"
+      >
+        <AncoraSecao href="#dados">Dados cadastrais</AncoraSecao>
+        <AncoraSecao href="#responsaveis">Responsáveis</AncoraSecao>
+        <AncoraSecao href="#matriculas">Matrículas</AncoraSecao>
+        {mensalidades.usaPagamentos ? (
+          <AncoraSecao href="#financeiro">Financeiro</AncoraSecao>
+        ) : null}
+      </nav>
+
+      <div className="mt-6 space-y-6">
+        <Card id="dados" className="scroll-mt-6 overflow-hidden">
           <div className="border-b border-border p-5">
             <h2 className="text-sm font-semibold text-foreground">
-              Responsáveis vinculados
+              Dados cadastrais
             </h2>
+          </div>
+          <dl className="grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Dado label="Nome social ou artístico">
+              {formatText(student.display_name)}
+            </Dado>
+            <Dado label="Data de nascimento">
+              {formatDate(student.birth_date)}
+            </Dado>
+            <Dado label="Documento">{formatText(student.document)}</Dado>
+            <Dado label="Telefone">{formatText(student.phone)}</Dado>
+            <Dado label="E-mail">{formatText(student.email)}</Dado>
+          </dl>
+          <div className="border-t border-border p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Observações
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+              {formatText(student.notes)}
+            </p>
+          </div>
+        </Card>
+
+        <Card id="responsaveis" className="scroll-mt-6 overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Responsáveis vinculados
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {guardians.length === 0
+                  ? "Nenhum responsável vinculado."
+                  : `${guardians.length} ${guardians.length === 1 ? "vínculo" : "vínculos"}`}
+              </p>
+            </div>
+            <Link
+              href="/responsaveis"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Gerenciar responsáveis
+            </Link>
           </div>
           <div className="divide-y divide-border">
             {guardians.length > 0 ? (
@@ -130,27 +244,53 @@ export default async function AlunoDetalhePage({
                 </div>
               ))
             ) : (
-              <p className="p-5 text-sm text-muted-foreground">
-                Nenhum responsável vinculado.
-              </p>
+              <div className="p-5">
+                <p className="text-sm font-medium text-foreground">
+                  Nenhum responsável vinculado.
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A matrícula precisa de um responsável financeiro — vincule um
+                  antes de matricular.
+                </p>
+              </div>
             )}
           </div>
         </Card>
 
-        <StudentEnrollmentsSection
-          enrollments={enrollments.items}
-          loadError={enrollments.error}
-          alunoNome={student.full_name}
-          turmasDestino={turmasDestino}
-        />
-      </section>
+        <div className="scroll-mt-6">
+          <StudentEnrollmentsSection
+            enrollments={enrollments.items}
+            loadError={enrollments.error}
+            alunoNome={student.full_name}
+            turmasDestino={turmasDestino}
+            acaoCabecalho={
+              <NewEnrollmentModal
+                alunoId={student.id}
+                alunoNome={student.full_name}
+                turmas={turmasDestino}
+                responsaveis={responsaveisOptions}
+                padroes={padroesDeMatricula}
+              />
+            }
+          />
+        </div>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
-        <InfoCard label="Criado em">{formatDateTime(student.created_at)}</InfoCard>
-        <InfoCard label="Atualizado em">
-          {formatDateTime(student.updated_at)}
-        </InfoCard>
-      </section>
+        {mensalidades.usaPagamentos ? (
+          <div className="scroll-mt-6">
+            <MensalidadesSection dados={mensalidades} alunoId={student.id} />
+          </div>
+        ) : null}
+      </div>
+
+      {/*
+        Datas de auditoria em uma linha, não em dois cartões: elas não são
+        informação de atendimento, e dois cartões no fim davam a elas o mesmo
+        peso visual do bloco de mensalidades.
+      */}
+      <p className="mt-6 text-xs text-muted-foreground">
+        Criado em {formatDateTime(student.created_at)} · Atualizado em{" "}
+        {formatDateTime(student.updated_at)}
+      </p>
     </div>
   );
 }
@@ -277,6 +417,62 @@ async function getTurmasDestino(): Promise<TurmaDestino[]> {
     console.error("Turmas de destino:", error);
     return [];
   }
+}
+
+/**
+ * Datas que o modal de nova matrícula já traz preenchidas.
+ *
+ * O dia do vencimento é regra DA ESCOLA (dia 5, por exemplo), não do provedor
+ * de pagamento — mesma leitura que `/matriculas/nova` faz. Vir preenchido é o
+ * que faz a matrícula rápida caber num modal: sobram a turma, o responsável e
+ * o valor.
+ */
+async function getPadroesDeMatricula() {
+  const hoje = new Date();
+  let diaPadrao = 5;
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("finance_provider_settings")
+      .select("default_due_day")
+      .limit(1)
+      .maybeSingle();
+
+    if (typeof data?.default_due_day === "number") {
+      diaPadrao = data.default_due_day;
+    }
+  } catch (error) {
+    console.error("Vencimento padrão:", error);
+  }
+
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const diaNoMes = (ano: number, mes: number) =>
+    Math.min(diaPadrao, new Date(ano, mes + 1, 0).getDate());
+
+  let vencimento = new Date(
+    hoje.getFullYear(),
+    hoje.getMonth(),
+    diaNoMes(hoje.getFullYear(), hoje.getMonth()),
+  );
+
+  // Vencimento no passado nasceria vencido. Passa para o mês seguinte.
+  if (vencimento < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) {
+    const proximo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    vencimento = new Date(
+      proximo.getFullYear(),
+      proximo.getMonth(),
+      diaNoMes(proximo.getFullYear(), proximo.getMonth()),
+    );
+  }
+
+  return {
+    inicio: iso(hoje),
+    fim: `${hoje.getFullYear()}-12-31`,
+    primeiroVencimento: iso(vencimento),
+  };
 }
 
 async function getStudentEnrollments(
@@ -431,18 +627,51 @@ function formatRelationship(relationship: string | null) {
   return relationship ? labels[relationship] ?? relationship : "Não definido";
 }
 
-type InfoCardProps = {
+function AncoraSecao({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="font-medium text-muted-foreground transition hover:text-foreground"
+    >
+      {children}
+    </a>
+  );
+}
+
+function Resumo({
+  label,
+  children,
+}: {
   label: string;
   children: React.ReactNode;
-};
-
-function InfoCard({ label, children }: InfoCardProps) {
+}) {
   return (
-    <Card className="p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div>
+      <p className="text-[12.5px] font-medium text-muted-foreground">{label}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function Dado({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
-      </p>
-      <div className="mt-2 text-sm font-medium text-foreground">{children}</div>
-    </Card>
+      </dt>
+      <dd className="mt-1 text-sm font-medium text-foreground">{children}</dd>
+    </div>
   );
 }

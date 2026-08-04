@@ -27,6 +27,7 @@ const VAZIO: MensalidadesDoAluno = {
   mensalidadeAtual: 0,
   emAberto: 0,
   valorEmAberto: 0,
+  semVencimento: [],
   avisoProvedor: null,
 };
 
@@ -298,6 +299,7 @@ export async function getMensalidadesDoAluno(
             canal: "asaas",
             referencia: `Contrato · ${contrato.responsavelNome}`,
             paymentId: cobranca.id,
+            contratoId: contrato.contratoId,
             billingType: cobranca.billingType || null,
             invoiceUrl: cobranca.invoiceUrl,
             enrollmentId: null,
@@ -322,6 +324,7 @@ export async function getMensalidadesDoAluno(
   }
 
   let mensalidadeAtual = 0;
+  const semVencimento: string[] = [];
 
   for (const m of matriculas ?? []) {
     const enrollmentId = m.id as string;
@@ -339,11 +342,29 @@ export async function getMensalidadesDoAluno(
     // duas vezes na soma do que está em aberto.
     if (noAsaas) continue;
 
+    const turma = nomeTurma.get(m.class_id as string) ?? "Turma";
+
+    /*
+     * Sem primeiro vencimento não dá para projetar mês nenhum, e o dia NÃO é
+     * chutado a partir do padrão da escola de propósito: `/financeiro/
+     * recebimentos` também não projeta essas matrículas — ela as conta em
+     * `semVencimento`. Inventar o dia aqui faria a mesma mensalidade vencer
+     * dia 5 nesta tela e não existir na outra, e a primeira vez que os dois
+     * números divergirem a secretaria para de confiar nos dois.
+     *
+     * A matrícula entra na lista de pendências em vez de sumir calada.
+     */
     const primeiroVencimento = (m.first_due_date as string | null) ?? null;
-    if (!primeiroVencimento) continue;
+    if (!primeiroVencimento) {
+      if ((m.status as string) === "active") semVencimento.push(turma);
+      continue;
+    }
 
     const dia = Number(primeiroVencimento.slice(8, 10));
-    if (!Number.isFinite(dia) || dia < 1) continue;
+    if (!Number.isFinite(dia) || dia < 1) {
+      if ((m.status as string) === "active") semVencimento.push(turma);
+      continue;
+    }
 
     /*
      * O fim da projeção é o que vier primeiro: hoje, a data final da
@@ -365,8 +386,6 @@ export async function getMensalidadesDoAluno(
       -MESES_PROJETADOS,
     );
 
-    const turma = nomeTurma.get(m.class_id as string) ?? "Turma";
-
     for (const competencia of meses) {
       const vencimento = vencimentoNaCompetencia(competencia, dia);
       const baixa = baixaPorChave.get(`${enrollmentId}|${competencia}`);
@@ -387,6 +406,7 @@ export async function getMensalidadesDoAluno(
         canal: "manual",
         referencia: turma,
         paymentId: null,
+        contratoId,
         billingType: null,
         invoiceUrl: null,
         enrollmentId,
@@ -414,6 +434,7 @@ export async function getMensalidadesDoAluno(
     mensalidadeAtual,
     emAberto: abertas.length,
     valorEmAberto: abertas.reduce((soma, l) => soma + l.valor, 0),
+    semVencimento,
     avisoProvedor,
   };
 }

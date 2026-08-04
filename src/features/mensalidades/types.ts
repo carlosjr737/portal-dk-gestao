@@ -49,6 +49,13 @@ export type LinhaMensalidade = {
   referencia: string;
   /** Preenchido no canal Asaas — identifica a parcela no provedor. */
   paymentId: string | null;
+  /**
+   * Contrato que emitiu a parcela. Vai na linha, e não é deduzido depois pela
+   * tela, porque um aluno pode ter dois responsáveis financeiros com contratos
+   * separados — reenviar a cobrança do contrato errado mandaria à família a
+   * fatura de outra pessoa.
+   */
+  contratoId: string | null;
   billingType: string | null;
   invoiceUrl: string | null;
   /** Preenchido no canal manual — é por matrícula que a baixa é gravada. */
@@ -82,6 +89,16 @@ export type MensalidadesDoAluno = {
   mensalidadeAtual: number;
   emAberto: number;
   valorEmAberto: number;
+  /**
+   * Turmas cuja matrícula não tem `first_due_date`.
+   *
+   * SEM ISTO A TELA MENTE. Sem primeiro vencimento não há dia em que a
+   * mensalidade vence, então não há mês para projetar — e a tabela ficaria
+   * vazia como se o aluno não devesse nada. Hoje isso é quase toda a base
+   * (656 das 665 matrículas ativas em 04/08/2026), então o vazio é a regra e
+   * não a exceção: a tela precisa dizer POR QUE está vazia e o que cadastrar.
+   */
+  semVencimento: string[];
   /** Falha na leitura do provedor — a tela avisa em vez de mostrar vazio. */
   avisoProvedor: string | null;
 };

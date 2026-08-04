@@ -102,13 +102,12 @@ export function MensalidadesSection({
     vencimento: string;
     billingType: string;
   }) {
-    const linha = editando;
-    const contrato = dados.contratos.find((c) => c.temAssinatura);
-    if (!linha || !contrato) throw new Error("Contrato não encontrado.");
+    const contratoId = editando?.contratoId;
+    if (!contratoId) throw new Error("Contrato não encontrado.");
 
     const formData = new FormData();
     formData.set("payment_id", payload.paymentId);
-    formData.set("contrato_id", contrato.contratoId);
+    formData.set("contrato_id", contratoId);
     formData.set("valor", String(payload.valor));
     formData.set("vencimento", payload.vencimento);
     formData.set("billing_type", payload.billingType);
@@ -163,6 +162,32 @@ export function MensalidadesSection({
       <div className="space-y-3 p-5 pb-0 empty:hidden">
         {dados.avisoProvedor ? (
           <Alert tone="warning">{dados.avisoProvedor}</Alert>
+        ) : null}
+
+        {/*
+          O vazio precisa dizer POR QUE está vazio. Sem primeiro vencimento não
+          existe dia em que a mensalidade vence, e sem isso não há mês para
+          projetar — a tabela ficaria em branco como se não houvesse nada a
+          cobrar, que é a leitura oposta da verdadeira.
+        */}
+        {dados.semVencimento.length > 0 ? (
+          <Alert tone="warning">
+            <p className="font-medium">
+              Sem 1º vencimento em{" "}
+              {dados.semVencimento.length === 1
+                ? dados.semVencimento[0]
+                : `${dados.semVencimento.length} matrículas`}
+              .
+            </p>
+            <p className="mt-1">
+              {dados.semVencimento.length > 1
+                ? `${dados.semVencimento.join(", ")}. `
+                : ""}
+              Enquanto o dia do vencimento não estiver cadastrado, o sistema não
+              tem como saber em que mês a mensalidade vence — e ela não aparece
+              nem aqui nem na conciliação de recebimentos.
+            </p>
+          </Alert>
         ) : null}
 
         {aviso ? <Alert tone={aviso.tom}>{aviso.texto}</Alert> : null}
@@ -231,10 +256,6 @@ export function MensalidadesSection({
                 <TableCell>
                   <AcoesDaLinha
                     linha={linha}
-                    contratoId={
-                      dados.contratos.find((c) => c.temAssinatura)?.contratoId ??
-                      null
-                    }
                     onBaixar={() => setBaixando(linha)}
                     onEditar={() => setEditando(linha)}
                     onDesfazer={() => desfazerBaixa(linha)}
@@ -248,9 +269,11 @@ export function MensalidadesSection({
                 Nenhuma mensalidade registrada.
               </p>
               <p className="mt-1">
-                {dados.contratos.length > 0
-                  ? "Gere a cobrança do contrato para o sistema passar a acompanhar os meses."
-                  : "As mensalidades aparecem aqui depois que o aluno tem matrícula ativa com valor e primeiro vencimento."}
+                {dados.semVencimento.length > 0
+                  ? "Cadastre o 1º vencimento da matrícula para os meses aparecerem aqui."
+                  : dados.contratos.length > 0
+                    ? "Gere a cobrança do contrato para o sistema passar a acompanhar os meses."
+                    : "As mensalidades aparecem aqui depois que o aluno tem matrícula ativa com valor e primeiro vencimento."}
               </p>
             </TableEmpty>
           )}
@@ -274,13 +297,11 @@ export function MensalidadesSection({
 
 function AcoesDaLinha({
   linha,
-  contratoId,
   onBaixar,
   onEditar,
   onDesfazer,
 }: {
   linha: LinhaMensalidade;
-  contratoId: string | null;
   onBaixar: () => void;
   onEditar: () => void;
   onDesfazer: () => void;
@@ -290,9 +311,9 @@ function AcoesDaLinha({
 
     return (
       <div className="flex flex-wrap items-center gap-2">
-        {!quitada && contratoId ? (
+        {!quitada && linha.contratoId ? (
           <FaturaBotao
-            contratoId={contratoId}
+            contratoId={linha.contratoId}
             paymentId={linha.paymentId ?? undefined}
             rotulo="Reenviar"
           />
