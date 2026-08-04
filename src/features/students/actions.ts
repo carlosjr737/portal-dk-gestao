@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { studentFormSchema } from "@/features/students/schemas";
+import { RELACAO_PROPRIO_ALUNO } from "@/features/enrollments/self-guardian";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type StudentActionState = {
   errors?: Record<string, string[]>;
@@ -217,6 +219,61 @@ async function findDuplicateGuardian(
   return { id: ((data?.[0]?.id as string | undefined) ?? null), error: false };
 }
 
+/**
+ * Reescreve o cadastro do responsável quando ele É o próprio aluno.
+ *
+ * O vínculo "Próprio aluno" cria uma linha em `guardians` COPIANDO nome,
+ * documento, telefone e e-mail do aluno (ver `tornarAlunoProprioResponsavel`).
+ * Cópia envelhece: corrigir o CPF na ficha do aluno não voltava lá, e o
+ * cadastro do responsável seguia com o valor antigo.
+ *
+ * Foi assim que um RG sobreviveu a uma correção de CPF e só apareceu meses
+ * depois, na hora de gerar a cobrança, com o Asaas recusando "O CPF/CNPJ
+ * informado é inválido" — longe, no tempo e na tela, de onde dava para
+ * entender o que tinha acontecido.
+ *
+ * São a mesma pessoa: enquanto forem duas linhas, editar uma tem que
+ * reescrever a outra.
+ *
+ * Não devolve erro de propósito. A edição do aluno é o ato principal e já
+ * aconteceu; falhar aqui só faria a tela dizer que nada foi salvo, o que é
+ * mentira. Fica no log, e a divergência volta a ser corrigível na próxima
+ * edição.
+ */
+async function espelharNoResponsavelProprioAluno(
+  supabase: SupabaseClient,
+  studentId: string,
+  dados: { full_name: string; document: string | null; phone: string | null; email: string | null },
+) {
+  const { data: vinculos, error: erroVinculo } = await supabase
+    .from("student_guardians")
+    .select("guardian_id")
+    .eq("student_id", studentId)
+    .eq("relationship", RELACAO_PROPRIO_ALUNO);
+
+  if (erroVinculo || !vinculos?.length) return;
+
+  const { error } = await supabase
+    .from("guardians")
+    .update({
+      full_name: dados.full_name,
+      document: dados.document,
+      phone: dados.phone,
+      email: dados.email,
+    })
+    .in(
+      "id",
+      vinculos.map((v) => v.guardian_id as string),
+    );
+
+  if (error) {
+    console.error("[ALUNO] espelho do responsável 'Próprio aluno' não acompanhou", {
+      studentId,
+      error: error.message,
+    });
+  }
+}
+
 export async function updateStudent(
   studentId: string,
   _previousState: StudentActionState,
@@ -243,7 +300,16 @@ export async function updateStudent(
     };
   }
 
+  await espelharNoResponsavelProprioAluno(supabase, studentId, {
+    full_name: parsed.data.full_name,
+    document: parsed.data.document,
+    phone: parsed.data.phone,
+    email: parsed.data.email,
+  });
+
   revalidatePath("/alunos");
   revalidatePath(`/alunos/${studentId}`);
+  revalidatePath("/responsaveis");
+  revalidatePath("/matriculas");
   redirect(`/alunos/${studentId}`);
 }

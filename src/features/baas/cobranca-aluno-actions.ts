@@ -13,6 +13,7 @@ import {
   type FormaPagamento,
 } from "@/features/baas/asaas-client";
 import { ASAAS_ENV } from "@/features/baas/config";
+import { motivoDocumentoInvalido } from "@/lib/documento";
 
 export type CobrancaAlunoState = {
   ok?: boolean;
@@ -115,10 +116,19 @@ export async function criarCobrancaAluno(
     .maybeSingle();
 
   if (!guardian) return { ok: false, message: "Responsável financeiro não encontrado." };
-  if (!String(guardian.document ?? "").trim()) {
+
+  /*
+   * Documento conferido AQUI, e não no provedor.
+   *
+   * Sem isto, um RG no lugar do CPF só aparecia como "O CPF/CNPJ informado é
+   * inválido" vindo do Asaas — sem dizer de quem era o documento, nem onde
+   * arrumar, e meses depois do cadastro. Ver `src/lib/documento.ts`.
+   */
+  const motivo = motivoDocumentoInvalido(guardian.document);
+  if (motivo) {
     return {
       ok: false,
-      message: `${guardian.full_name} está sem CPF/CNPJ. O provedor exige para emitir cobrança.`,
+      message: `${guardian.full_name} ${motivo}. Corrija em Responsáveis antes de gerar a cobrança.`,
     };
   }
 

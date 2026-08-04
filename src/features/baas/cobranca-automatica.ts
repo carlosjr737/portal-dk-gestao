@@ -8,6 +8,7 @@ import {
   criarClienteAsaas,
 } from "@/features/baas/asaas-client";
 import { ASAAS_ENV } from "@/features/baas/config";
+import { motivoDocumentoInvalido } from "@/lib/documento";
 
 export type ResultadoCobranca = {
   status: "criada" | "atualizada" | "encerrada" | "ignorada" | "falhou";
@@ -143,11 +144,12 @@ export async function garantirCobrancaDoContrato(
       .maybeSingle();
 
     if (!guardian) return { status: "falhou", detalhe: "responsável não encontrado" };
-    if (!String(guardian.document ?? "").trim()) {
-      return {
-        status: "falhou",
-        detalhe: `${guardian.full_name} está sem CPF/CNPJ`,
-      };
+
+    // Mesma checagem do caminho manual: erra aqui, e o provedor só devolveria
+    // "O CPF/CNPJ informado é inválido", sem dizer de quem.
+    const motivo = motivoDocumentoInvalido(guardian.document);
+    if (motivo) {
+      return { status: "falhou", detalhe: `${guardian.full_name} ${motivo}` };
     }
 
     const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");

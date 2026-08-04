@@ -3,16 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
+import { RELACAO_PROPRIO_ALUNO } from "@/features/enrollments/self-guardian";
 
 export type SelfGuardianResult =
   | { ok: true; guardianId: string; nome: string; criado: boolean }
   | { ok: false; message: string };
-
-/**
- * Rótulo do vínculo quando o próprio aluno banca a mensalidade.
- * Não é exportado: arquivo "use server" só pode exportar funções async.
- */
-const RELACAO_PROPRIO_ALUNO = "Próprio aluno";
 
 /**
  * Aluno maior de idade que paga a própria mensalidade.
@@ -79,6 +74,16 @@ export async function tornarAlunoProprioResponsavel(
     if (existente) guardianId = existente.id as string;
   }
 
+  /*
+   * A linha criada aqui é um ESPELHO do aluno, não um cadastro independente:
+   * nome, documento, telefone e e-mail saem dele. Espelho precisa de quem o
+   * mantenha — quem faz isso é `espelharNoResponsavelProprioAluno`, em
+   * `features/students/actions.ts`, a cada edição do aluno.
+   *
+   * Sem essa contraparte a cópia envelhece em silêncio: já aconteceu de um RG
+   * gravado aqui sobreviver à correção do CPF na ficha do aluno e só aparecer
+   * meses depois, como recusa do Asaas na hora de gerar a cobrança.
+   */
   if (!guardianId) {
     const { data: guardian, error: guardianError } = await supabase
       .from("guardians")
