@@ -19,7 +19,7 @@ Se a plataforma recebe tudo numa conta única e repassa, ela vira, na prática, 
    - **Fluxo 2 — Plataforma → escola (assinatura fixa):** a escola é cliente do SaaS e paga uma **assinatura recorrente própria**, cobrada na conta da plataforma, **independente do split**.
    - Modelo de receita = **híbrido**: `% por transação (Fluxo 1)` + `assinatura fixa por escola (Fluxo 2)`.
 
-3. **Método principal: Pix Automático** (débito recorrente autorizado uma vez pelo pagador), com **Boleto / Pix-cobrança como fallback** e **cartão recorrente** como opção secundária.
+3. **Método principal: Pix Automático** (débito recorrente autorizado uma vez pelo pagador), com **Boleto / Pix-cobrança como fallback**. **Cartão de crédito está fora** — ver adendo abaixo.
 
 4. **Conta Azul é eliminado no multi-escola.** O papel de cobrança/emissão/recebimento passa a ser do provedor de pagamento (sub-conta + split). O Conta Azul permanece apenas enquanto o sistema for single-school; não faz split de plataforma e não escala para o modelo SaaS.
 
@@ -64,3 +64,20 @@ Aluno autoriza Pix Automático (1x)
 - Validação jurídica/contábil do arranjo (custódia, split, tributação da taxa).
 
 > Observação: este ADR é decisão de arquitetura, não aconselhamento jurídico/regulatório. O desenho de split e KYC deve ser confirmado com o provedor e com contador/advogado.
+
+## Adendo (ago/2026) — cartão de crédito sai do leque
+
+**Decisão:** a mensalidade do aluno e a assinatura da escola não aceitam cartão de crédito.
+
+**Motivo — fluxo de caixa, não taxa.** O repasse do cartão só acontece depois da liquidação da bandeira, e parcelado vem mês a mês. A escola dá a aula em agosto e recebe em setembro ou depois, enquanto o professor é pago em agosto do mesmo jeito. É um descasamento criado pela forma de pagamento, e nenhuma régua de inadimplência o enxerga.
+
+**O que isso exige saber sobre o Asaas.** Não existe `billingType` que signifique "tudo menos cartão": o enum é `UNDEFINED | PIX | BOLETO | CREDIT_CARD`, sem combinação. E `UNDEFINED` — que é o que a mensalidade usa, para o responsável escolher — oferece na fatura **o que estiver habilitado na conta**.
+
+**Consequência prática, em duas metades:**
+
+| Metade | Onde | O que faz |
+|---|---|---|
+| Código | `FormaPagamento`, formulários, constraint | impede o portal de **pedir** cartão |
+| Conta | configuração da subconta, no Asaas | impede o cartão de **aparecer** na fatura |
+
+Só a segunda desliga de fato. A primeira existe para ninguém reintroduzir a opção por descuido — e é por isso que este adendo existe, em vez de a mudança viver só no commit.

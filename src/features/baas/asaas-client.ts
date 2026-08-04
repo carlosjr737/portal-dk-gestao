@@ -5,12 +5,28 @@ import { ASAAS_API_BASE, getAsaasApiKey } from "@/features/baas/config";
 /**
  * Forma de pagamento de uma cobrança.
  *
- * `UNDEFINED` não é ausência de escolha: é a cobrança sair com TODAS as formas
- * disponíveis, e quem paga escolher na fatura. É o padrão para a mensalidade
- * do aluno — a escola oferece, o responsável decide. As demais servem para
- * quando a escola quiser impor uma forma específica.
+ * `UNDEFINED` não é ausência de escolha: é a cobrança sair com todas as formas
+ * **habilitadas na conta**, e quem paga escolher na fatura. É o padrão para a
+ * mensalidade do aluno — a escola oferece, o responsável decide. As demais
+ * servem para quando a escola quiser impor uma forma específica.
+ *
+ * CARTÃO DE CRÉDITO NÃO ESTÁ AQUI, E É DE PROPÓSITO.
+ *
+ * O Asaas repassa cartão só depois da liquidação da bandeira, e parcelado vem
+ * mês a mês: a escola presta o serviço em agosto e recebe em setembro ou mais
+ * tarde. Para quem paga professor todo mês, isso é um buraco de caixa criado
+ * pela forma de pagamento, não pela inadimplência.
+ *
+ * TIRAR DAQUI NÃO BASTA. O enum do Asaas não tem um valor "tudo menos cartão"
+ * (`UNDEFINED | PIX | BOLETO | CREDIT_CARD`, sem combinação), e `UNDEFINED`
+ * oferece o que estiver habilitado NA CONTA. Enquanto o cartão estiver ligado
+ * na subconta, ele aparece na fatura mesmo sem o portal jamais pedir. O
+ * desligamento é configuração de conta, no Asaas.
+ *
+ * Este tipo é a metade que impede o portal de pedir cartão de novo por
+ * descuido — a outra metade mora na conta.
  */
-export type FormaPagamento = "UNDEFINED" | "PIX" | "BOLETO" | "CREDIT_CARD";
+export type FormaPagamento = "UNDEFINED" | "PIX" | "BOLETO";
 
 export type AsaasSubcontaInput = {
   name: string;

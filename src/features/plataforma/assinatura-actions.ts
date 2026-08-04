@@ -6,6 +6,7 @@ import { isPlatformOwner } from "@/features/plataforma/auth";
 import {
   criarAssinaturaAsaas,
   criarClienteAsaas,
+  type FormaPagamento,
 } from "@/features/baas/asaas-client";
 
 export type AssinaturaState = {
@@ -39,7 +40,18 @@ export async function criarAssinaturaEscola(
 
   const escolaId = String(formData.get("escola_id") ?? "");
   const planoId = String(formData.get("plano_id") ?? "");
-  const billingType = String(formData.get("billing_type") ?? "PIX");
+  /*
+   * Forma conferida contra a lista, e não convertida no grito.
+   *
+   * Antes o valor do formulário ia para o provedor com um `as` — um POST
+   * montado à mão com `CREDIT_CARD` passaria direto, justamente a forma que
+   * saiu daqui por causa do caixa. Valor desconhecido cai em Pix.
+   */
+  const FORMAS: readonly FormaPagamento[] = ["PIX", "BOLETO"];
+  const enviado = String(formData.get("billing_type") ?? "");
+  const billingType: FormaPagamento = FORMAS.includes(enviado as FormaPagamento)
+    ? (enviado as FormaPagamento)
+    : "PIX";
 
   if (!escolaId || !planoId) {
     return { ok: false, message: "Selecione a escola e o plano." };
@@ -114,7 +126,7 @@ export async function criarAssinaturaEscola(
     value: Number(plano.valor),
     nextDueDate: proximoVencimento,
     cycle: periodicidade === "anual" ? "YEARLY" : "MONTHLY",
-    billingType: billingType as "PIX" | "BOLETO" | "CREDIT_CARD",
+    billingType,
     description: `Assinatura ${plano.nome} — sistema de gestão`,
     externalReference: escolaId,
   });

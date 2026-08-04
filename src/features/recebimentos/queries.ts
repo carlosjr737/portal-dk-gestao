@@ -319,6 +319,11 @@ function definirContexto(
   return "misto";
 }
 
+/*
+ * `CREDIT_CARD` continua aqui mesmo tendo saído das formas que o portal pede.
+ * Este mapa é de LEITURA: some o rótulo e uma cobrança antiga passa a ser
+ * descrita como "pago", perdendo a informação de como foi paga.
+ */
 const FORMAS: Record<string, string> = {
   PIX: "Pix",
   BOLETO: "Boleto",

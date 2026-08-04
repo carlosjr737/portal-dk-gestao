@@ -78,9 +78,13 @@ export function AssinaturaForm({
           defaultValue="PIX"
           className="mt-1 h-9 w-40 border-slate-300 px-2 focus:border-slate-900"
         >
+          {/*
+            Sem cartão: a assinatura da escola é receita da plataforma, e
+            cartão só liquida depois da bandeira. O mesmo motivo que tirou o
+            cartão da mensalidade do aluno vale aqui — ver `FormaPagamento`.
+          */}
           <option value="PIX">Pix</option>
           <option value="BOLETO">Boleto</option>
-          <option value="CREDIT_CARD">Cartão</option>
         </Select>
       </label>
 

@@ -170,7 +170,13 @@ reprocessado.
 - 3.2 **Split** da % da plataforma — validar que o dinheiro nunca transita pela conta da DK (Art. 4º §4º e Art. 8º XIV da Res. 16).
 - 3.3 **Pix Automático** como método principal.
 - 3.4 Fallback obrigatório: boleto / Pix-cobrança (nem todo banco suporta Pix Automático).
-- 3.5 Cartão recorrente (opcional, secundário).
+- 3.5 ~~Cartão recorrente (opcional, secundário).~~ **Cancelado (ago/2026)** — repasse
+  só após a liquidação da bandeira descasa o caixa da escola do pagamento do
+  professor. Ver adendo no [ADR 0001](adr/0001-pagamentos-multiescola.md).
+  - **Falta:** desabilitar cartão na configuração da subconta no Asaas. O
+    código já não pede cartão, mas `UNDEFINED` oferece o que a CONTA tiver
+    habilitado — enquanto isso não for feito, o cartão continua aparecendo
+    na fatura para o responsável.
 
 ---
 

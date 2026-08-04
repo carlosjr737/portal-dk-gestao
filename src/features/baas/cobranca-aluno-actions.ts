@@ -46,14 +46,14 @@ export async function criarCobrancaAluno(
   if (!contratoId) return { ok: false, message: "Contrato não informado." };
 
   // Só aceita forma conhecida; valor inesperado cai no padrão em vez de ir
-  // cru para o provedor. O padrão é UNDEFINED: a cobrança sai com todas as
-  // formas e o responsável escolhe na fatura.
-  const FORMAS: readonly FormaPagamento[] = [
-    "UNDEFINED",
-    "PIX",
-    "BOLETO",
-    "CREDIT_CARD",
-  ];
+  // cru para o provedor. O padrão é UNDEFINED: a cobrança sai com as formas
+  // habilitadas na conta e o responsável escolhe na fatura.
+  //
+  // CREDIT_CARD saiu da lista: repasse só depois da liquidação da bandeira
+  // fura o caixa da escola. Ver `FormaPagamento` — e note que tirar daqui não
+  // desliga o cartão sozinho, porque UNDEFINED oferece o que a CONTA tiver
+  // habilitado.
+  const FORMAS: readonly FormaPagamento[] = ["UNDEFINED", "PIX", "BOLETO"];
   const enviado = String(formData.get("billing_type") ?? "");
   const billingType: FormaPagamento = FORMAS.includes(enviado as FormaPagamento)
     ? (enviado as FormaPagamento)
