@@ -388,45 +388,6 @@ export async function listarDocumentosSubconta(
   };
 }
 
-export type EnvioDocumentoResult =
-  | { ok: true; status: string }
-  | { ok: false; error: string };
-
-/**
- * Envia um documento do KYC da subconta.
- *
- * O `onboardingUrl` do documento é quem manda: quando ele existe, o envio tem
- * que ser pelo link e a API RECUSA o upload; quando não existe, é aqui. Por
- * isso `documentId` e `type` vêm da listagem, nunca escolhidos por nós.
- *
- * Não definimos `Content-Type`: o fetch precisa gerar o boundary do
- * multipart sozinho, e fixá-lo à mão faz o Asaas receber um corpo ilegível.
- */
-export async function enviarDocumentoSubconta(
-  subcontaApiKey: string,
-  documentId: string,
-  type: string,
-  arquivo: File,
-): Promise<EnvioDocumentoResult> {
-  const body = new FormData();
-  body.append("documentFile", arquivo);
-  body.append("type", type);
-
-  const res = await fetch(`${ASAAS_API_BASE}/myAccount/documents/${documentId}`, {
-    method: "POST",
-    headers: { access_token: subcontaApiKey },
-    body,
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    return { ok: false, error: mensagemErro(data, res.status) };
-  }
-
-  return { ok: true, status: (data?.status as string) ?? "PENDING" };
-}
-
 export type StatusSubcontaResult =
   | {
       ok: true;
