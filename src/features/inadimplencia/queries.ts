@@ -4,26 +4,31 @@ import { createClient } from "@/lib/supabase/server";
 import { competenciaDe } from "@/features/faturamento/queries";
 
 /**
- * Inadimplência com Asaas e sem Asaas, na mesma conta.
+ * Inadimplência: vencido e sem baixa.
  *
- * COM ASAAS o webhook avisa que venceu e ninguém pagou. SEM ASAAS não existe
- * quem avise: o sinal é a AUSÊNCIA de baixa na conciliação depois do
- * vencimento. São dois mecanismos, e por isso cada devedor carrega de onde
- * veio — "atrasado no Asaas" e "sem baixa registrada" pedem ações
- * diferentes, e misturar os dois numa lista só faz a pessoa cobrar quem já
- * pagou.
+ * A REGRA É UMA SÓ, E NÃO DEPENDE DE PROVEDOR.
+ * A matrícula tem data de vencimento. Chegou a data e ninguém disse que
+ * pagou, é inadimplente. A origem muda QUEM diz:
  *
- * A ARMADILHA QUE ESTA CONSULTA EXISTE PARA EVITAR
- * O DK tem 1 matrícula no Asaas e 664 fora. Se "não pagou" fosse deduzido de
- * "não tem baixa", as 664 apareceriam vermelhas no dia 6 — não porque alguém
- * deixou de pagar, mas porque ninguém marcou. Uma tela que acusa 664 famílias
- * por engano é pior que uma tela vazia: ela some com a credibilidade das
- * outras.
+ *   asaas       o webhook diz sozinho
+ *   sem_baixa   uma pessoa diz, na conciliação
  *
- * Por isso a regra: matrícula sem cobrança acompanhada NÃO é inadimplente. É
- * `naoAcompanhadas`, que aparece com esse nome. Ela só entra na conta de
- * inadimplência a partir do momento em que a competência começou a ser
- * conciliada — aí a ausência de marca passa a significar alguma coisa.
+ * Uma versão anterior desta consulta tinha uma terceira categoria — matrícula
+ * "não acompanhada", que ficava fora da conta — para evitar acusar 663
+ * famílias de calote no dia seguinte ao vencimento. A leitura estava errada:
+ * o silêncio não é ausência de informação, é a informação. O combinado com a
+ * família é pagar no dia; não haver baixa depois do dia significa que não
+ * consta pagamento, e é exatamente isso que a escola precisa ver para ir
+ * atrás. Esconder atrás de "não acompanhada" transformava a lista num número
+ * bonito e inútil.
+ *
+ * A ORIGEM CONTINUA IMPORTANDO, mas como rótulo e não como filtro:
+ * `sem_baixa` pode ser gente que pagou e ninguém marcou, então a ação é
+ * conferir antes de cobrar. Isso é diferente de não mostrar.
+ *
+ * O QUE DE FATO NÃO DÁ PARA JULGAR
+ * Matrícula sem data de vencimento. Não é escolha de política — sem data não
+ * existe "passou do prazo". Elas saem separadas, com esse nome, e são poucas.
  */
 
 export type OrigemDivida = "asaas" | "sem_baixa";
@@ -45,22 +50,19 @@ export type InadimplenciaDoMes = {
   devedores: Devedor[];
   valorEmAtraso: number;
 
-  /** Matrículas ativas da escola. */
   matriculasAtivas: number;
-  /** Com cobrança acompanhada: assinatura no Asaas ou baixa já marcada. */
-  acompanhadas: number;
-  /**
-   * Sem ninguém acompanhando. NÃO são inadimplentes — são invisíveis, e a
-   * tela precisa dizer isso com outro nome.
-   */
-  naoAcompanhadas: number;
-  valorNaoAcompanhado: number;
+  /** Já pagas: baixa manual ou confirmação do Asaas. */
+  pagas: number;
+  /** Ainda dentro do prazo neste mês. */
+  aVencer: number;
+  valorAVencer: number;
 
   /**
-   * A competência já tem pelo menos uma baixa. Antes disso, ausência de marca
-   * não significa nada e a lista de "sem baixa" fica escondida.
+   * Sem data de vencimento — não dá para dizer se atrasou. Não é categoria de
+   * política, é falta de dado.
    */
-  conciliacaoIniciada: boolean;
+  semVencimento: number;
+  valorSemVencimento: number;
 
   /** `true` enquanto `recebimento_01_modelo.sql` não tiver rodado. */
   modeloPendente: boolean;
@@ -69,11 +71,9 @@ export type InadimplenciaDoMes = {
 /** Vencimento da competência, a partir do dia da primeira cobrança da matrícula. */
 function vencimentoNaCompetencia(
   competencia: string,
-  primeiroVencimento: string | null,
+  primeiroVencimento: string,
 ): string {
-  const dia = primeiroVencimento
-    ? Number(primeiroVencimento.slice(8, 10))
-    : 5; /* padrão da escola quando a matrícula não tem data */
+  const dia = Number(primeiroVencimento.slice(8, 10));
   const [ano, mes] = competencia.split("-").map(Number);
   const ultimoDia = new Date(ano, mes, 0).getDate();
   const diaValido = Math.min(dia, ultimoDia);
@@ -112,7 +112,7 @@ export async function getInadimplenciaDoMes(
       .select("enrollment_id, guardian_contract_id"),
     supabase
       .from("aluno_assinatura")
-      .select("guardian_contract_id, origem, status, proximo_vencimento, valor"),
+      .select("guardian_contract_id, origem, status"),
   ]);
 
   const modeloPendente = Boolean(recebimentosRes.error || assinaturasRes.error);
@@ -131,45 +131,47 @@ export async function getInadimplenciaDoMes(
   );
 
   /*
-   * A assinatura é do RESPONSÁVEL — uma cobrança por família — e a matrícula é
-   * do aluno. As duas tabelas se encontram aqui e não no PostgREST: não há FK
-   * entre item de contrato e assinatura, e pedir o embed derruba a consulta.
+   * A assinatura é do RESPONSÁVEL — uma cobrança por família — e a matrícula
+   * é do aluno. As duas se encontram aqui e não no PostgREST: não há FK entre
+   * item de contrato e assinatura, e pedir o embed derruba a consulta inteira.
    */
-  type Assinatura = { status: string; vencimento: string | null };
-  const assinaturaPorContrato = new Map<string, Assinatura>();
+  const contratosNoAsaas = new Set<string>();
+  const contratosPagosNoAsaas = new Set<string>();
   for (const a of assinaturasRes.data ?? []) {
     const contrato = a.guardian_contract_id as string | null;
     if (!contrato) continue;
     if ((a.origem as string | null) !== "asaas") continue;
-    if ((a.status as string | null) === "cancelada") continue;
-    assinaturaPorContrato.set(contrato, {
-      status: (a.status as string | null) ?? "pendente",
-      vencimento: (a.proximo_vencimento as string | null) ?? null,
-    });
+    const st = (a.status as string | null) ?? "pendente";
+    if (st === "cancelada") continue;
+    contratosNoAsaas.add(contrato);
+    // O webhook marca `paga` quando o dinheiro entra.
+    if (st === "paga" || st === "recebida") contratosPagosNoAsaas.add(contrato);
   }
 
-  const assinaturaPorMatricula = new Map<string, Assinatura>();
+  const noAsaas = new Set<string>();
+  const pagoNoAsaas = new Set<string>();
   for (const item of itensRes.data ?? []) {
     const enrollmentId = item.enrollment_id as string | null;
     const contrato = item.guardian_contract_id as string | null;
     if (!enrollmentId || !contrato) continue;
-    const a = assinaturaPorContrato.get(contrato);
-    if (a) assinaturaPorMatricula.set(enrollmentId, a);
+    if (contratosNoAsaas.has(contrato)) noAsaas.add(enrollmentId);
+    if (contratosPagosNoAsaas.has(contrato)) pagoNoAsaas.add(enrollmentId);
   }
 
-  const jaBaixadas = new Set(
+  const baixadas = new Set(
     (recebimentosRes.data ?? []).map((r) => r.enrollment_id as string),
   );
-  const conciliacaoIniciada = jaBaixadas.size > 0;
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   const devedores: Devedor[] = [];
   let valorEmAtraso = 0;
-  let acompanhadas = 0;
-  let naoAcompanhadas = 0;
-  let valorNaoAcompanhado = 0;
+  let pagas = 0;
+  let aVencer = 0;
+  let valorAVencer = 0;
+  let semVencimento = 0;
+  let valorSemVencimento = 0;
 
   for (const m of matriculasRes.data ?? []) {
     const enrollmentId = m.id as string;
@@ -177,50 +179,31 @@ export async function getInadimplenciaDoMes(
       0,
       Number(m.monthly_amount ?? 0) - Number(m.discount_amount ?? 0),
     );
-    const vencimento = vencimentoNaCompetencia(
-      competencia,
-      (m.first_due_date as string | null) ?? null,
-    );
-    const venceu = new Date(`${vencimento}T00:00:00`) < hoje;
-    const diasDeAtraso = venceu
-      ? Math.floor(
-          (hoje.getTime() - new Date(`${vencimento}T00:00:00`).getTime()) /
-            86_400_000,
-        )
-      : 0;
 
-    const assinatura = assinaturaPorMatricula.get(enrollmentId);
-    const baixada = jaBaixadas.has(enrollmentId);
-
-    /*
-     * Acompanhada = alguém sabe se esta mensalidade entrou. Ou o Asaas, ou
-     * uma pessoa que já marcou a baixa. O resto é território sem informação,
-     * e território sem informação não vira acusação.
-     */
-    const acompanhada = Boolean(assinatura) || baixada || conciliacaoIniciada;
-    if (!acompanhada) {
-      naoAcompanhadas += 1;
-      valorNaoAcompanhado += valor;
+    const primeiro = (m.first_due_date as string | null) ?? null;
+    if (!primeiro) {
+      semVencimento += 1;
+      valorSemVencimento += valor;
       continue;
     }
-    acompanhadas += 1;
 
-    if (baixada) continue; // pagou (ou foi marcada como paga)
-    if (!venceu) continue; // ainda dentro do prazo
+    // Pagou: alguém disse que sim, seja o webhook ou uma pessoa.
+    if (baixadas.has(enrollmentId) || pagoNoAsaas.has(enrollmentId)) {
+      pagas += 1;
+      continue;
+    }
+
+    const vencimento = vencimentoNaCompetencia(competencia, primeiro);
+    const dataVenc = new Date(`${vencimento}T00:00:00`);
+    if (dataVenc >= hoje) {
+      aVencer += 1;
+      valorAVencer += valor;
+      continue;
+    }
 
     const guardian = responsaveis.get(
       (m.financial_guardian_id as string | null) ?? "",
     );
-
-    /*
-     * A ORIGEM DIZ O QUE FAZER.
-     *
-     * `asaas`     o provedor confirma que venceu sem pagar — dá para reenviar
-     *             a cobrança pela própria tela.
-     * `sem_baixa` ninguém marcou. Pode ser que não pagou, pode ser que pagou
-     *             e a baixa não foi feita. A ação é conferir, não cobrar.
-     */
-    const origem: OrigemDivida = assinatura ? "asaas" : "sem_baixa";
 
     devedores.push({
       enrollmentId,
@@ -230,8 +213,10 @@ export async function getInadimplenciaDoMes(
       telefone: guardian?.telefone ?? null,
       valor,
       vencimento,
-      diasDeAtraso,
-      origem,
+      diasDeAtraso: Math.floor(
+        (hoje.getTime() - dataVenc.getTime()) / 86_400_000,
+      ),
+      origem: noAsaas.has(enrollmentId) ? "asaas" : "sem_baixa",
     });
     valorEmAtraso += valor;
   }
@@ -243,10 +228,11 @@ export async function getInadimplenciaDoMes(
     devedores,
     valorEmAtraso,
     matriculasAtivas: matriculasRes.data?.length ?? 0,
-    acompanhadas,
-    naoAcompanhadas,
-    valorNaoAcompanhado,
-    conciliacaoIniciada,
+    pagas,
+    aVencer,
+    valorAVencer,
+    semVencimento,
+    valorSemVencimento,
     modeloPendente,
   };
 }

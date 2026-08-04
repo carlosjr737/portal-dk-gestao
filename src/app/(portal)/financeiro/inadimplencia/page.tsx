@@ -57,35 +57,24 @@ export default async function InadimplenciaPage() {
       ) : null}
 
       {/*
-        MATRÍCULA SEM COBRANÇA ACOMPANHADA NÃO É INADIMPLENTE.
-
-        No DK são 664 fora do Asaas. Se "não pagou" fosse deduzido de "não tem
-        baixa", elas apareceriam vermelhas no dia 6 — não porque alguém deixou
-        de pagar, mas porque ninguém marcou. Uma tela que acusa 664 famílias
-        por engano some com a credibilidade das outras linhas.
-
-        Por isso elas aparecem aqui, com nome próprio e antes da lista.
+        Matrícula sem data de vencimento não entra na conta — e isso não é
+        política, é aritmética: sem data não existe "passou do prazo". São
+        poucas e aparecem com esse nome, para não serem confundidas com quem
+        está em dia.
       */}
-      {i.naoAcompanhadas > 0 ? (
-        <Alert tone="info" className="mt-6">
+      {i.semVencimento > 0 ? (
+        <Alert tone="warning" className="mt-6">
           <strong className="font-medium">
-            {inteiro.format(i.naoAcompanhadas)} de{" "}
-            {inteiro.format(i.matriculasAtivas)} matrículas não têm cobrança
-            acompanhada
+            {inteiro.format(i.semVencimento)}{" "}
+            {i.semVencimento === 1 ? "matrícula está" : "matrículas estão"} sem
+            data de vencimento
           </strong>{" "}
-          ({brl.format(i.valorNaoAcompanhado)}). Elas não entram na conta de
-          inadimplência — o sistema não sabe se pagaram. Para saber, use a{" "}
-          <Link
-            href="/financeiro/recebimentos"
-            className="font-medium underline underline-offset-2"
-          >
-            conciliação
-          </Link>
-          .
+          ({brl.format(i.valorSemVencimento)}). Sem a data não dá para dizer se
+          atrasou — elas ficam fora desta lista até alguém preencher.
         </Alert>
       ) : null}
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Indicador
           rotulo="Em atraso"
           valor={brl.format(i.valorEmAtraso)}
@@ -101,6 +90,11 @@ export default async function InadimplenciaPage() {
           rotulo="Sem baixa registrada"
           valor={String(semBaixa.length)}
           detalhe="pode ter pago sem alguém marcar"
+        />
+        <Indicador
+          rotulo="A vencer"
+          valor={brl.format(i.valorAVencer)}
+          detalhe={`${i.aVencer} ainda no prazo · ${i.pagas} ${i.pagas === 1 ? "paga" : "pagas"}`}
         />
       </div>
 
@@ -119,9 +113,9 @@ export default async function InadimplenciaPage() {
         <TableBody>
           {i.devedores.length === 0 ? (
             <TableEmpty colSpan={7}>
-              {i.acompanhadas === 0
-                ? "Nenhuma cobrança acompanhada ainda neste mês."
-                : "Ninguém em atraso entre as cobranças acompanhadas."}
+              {i.aVencer > 0
+                ? "Ninguém em atraso — as mensalidades deste mês ainda não venceram."
+                : "Ninguém em atraso neste mês."}
             </TableEmpty>
           ) : null}
           {i.devedores.map((d) => (

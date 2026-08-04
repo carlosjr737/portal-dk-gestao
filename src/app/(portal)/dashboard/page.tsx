@@ -183,18 +183,21 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          {/* A cobertura, sempre. Sem ela o valor acima não é interpretável. */}
+          {/*
+            A linha de baixo é o CAMINHO, não uma ressalva. Quem olha um valor
+            em atraso quer saber o que fazer com ele, e a resposta quase sempre
+            é dar baixa no que já foi pago.
+          */}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
             <span className="text-xs text-muted-foreground">
-              <strong className="font-medium text-foreground">
-                {inad.acompanhadas}
-              </strong>{" "}
-              de {inad.matriculasAtivas} matrículas com cobrança acompanhada
+              <strong className="font-medium text-foreground">{inad.pagas}</strong>{" "}
+              {inad.pagas === 1 ? "paga" : "pagas"} ·{" "}
+              <strong className="font-medium text-foreground">{inad.aVencer}</strong>{" "}
+              a vencer · de {inad.matriculasAtivas} matrículas
             </span>
-            {inad.naoAcompanhadas > 0 ? (
-              <Badge tone="neutral">
-                {inad.naoAcompanhadas} sem acompanhamento ·{" "}
-                {brl.format(inad.valorNaoAcompanhado)}
+            {inad.semVencimento > 0 ? (
+              <Badge tone="warning">
+                {inad.semVencimento} sem data de vencimento
               </Badge>
             ) : null}
             {inad.devedores.some((d) => d.origem === "sem_baixa") ? (
@@ -202,7 +205,7 @@ export default async function DashboardPage() {
                 href="/financeiro/recebimentos"
                 className="rounded text-xs font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                Fazer a baixa manual
+                Dar baixa nos que já pagaram
               </Link>
             ) : null}
           </div>

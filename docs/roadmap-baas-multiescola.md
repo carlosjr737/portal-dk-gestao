@@ -191,16 +191,19 @@ reprocessado.
     ser gente que pagou e não foi baixada**; a ação é conferir, não cobrar.
     Misturar os dois numa lista só faz a escola cobrar quem já pagou.
 
-  **A regra que impede o falso alarme.** Matrícula sem cobrança acompanhada
-  NÃO é inadimplente — é `naoAcompanhadas`, e aparece com esse nome. No DK são
-  664 matrículas fora do Asaas: se "não pagou" fosse deduzido de "não tem
-  baixa", todas apareceriam vermelhas no dia 6, sem ninguém ter deixado de
-  pagar. Uma tela que acusa 664 famílias por engano some com a credibilidade
-  das outras linhas.
+  **A regra é uma só: vencido e sem baixa é inadimplente.** A matrícula tem
+  data de vencimento; chegou a data e ninguém disse que pagou, é inadimplente.
 
-  A ausência de baixa só passa a significar algo depois que a competência
-  começou a ser conciliada. É a mesma regra da linha de cobertura em
-  `docs/faturamento-e-recebimento.md` (item 03), aplicada à inadimplência.
+  Uma primeira versão desta tela tinha uma terceira categoria — matrícula
+  "não acompanhada", fora da conta — para não acusar 663 famílias de calote no
+  dia seguinte ao vencimento. **A leitura estava errada, e o Carlos corrigiu:**
+  o silêncio não é ausência de informação, é a informação. O combinado é pagar
+  no dia; não haver baixa depois do dia significa que não consta pagamento, e é
+  isso que a escola precisa ver para ir atrás. Esconder atrás de "não
+  acompanhada" transformava a lista num número bonito e inútil.
+
+  O único caso que de fato não dá para julgar é matrícula **sem data de
+  vencimento** — não é política, é aritmética. São 20, e aparecem separadas.
 
   **No dashboard**, o card traz o valor em atraso com a cobertura junto — não
   numa nota de rodapé. R$ 0 em atraso parece ótimo e pode significar que
