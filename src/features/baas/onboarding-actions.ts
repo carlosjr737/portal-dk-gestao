@@ -10,6 +10,7 @@ import {
 import {
   consultarStatusSubconta,
   listarDocumentosSubconta,
+  enviarDocumentoSubconta,
   type DocumentoPendente,
 } from "@/features/baas/asaas-client";
 import { ASAAS_ENV } from "@/features/baas/config";
@@ -40,8 +41,11 @@ function paraKycStatus(general: string): string {
 /**
  * Busca os documentos pendentes e o status da subconta, usando a chave DELA.
  *
- * O envio de documento com `onboardingUrl` acontece obrigatoriamente por esse
- * link (a API recusa upload nesses casos) — por isso a tela só expõe o link.
+ * Quem manda no caminho do envio é o `onboardingUrl` do próprio documento:
+ * quando existe, o envio é obrigatoriamente pelo link e a API recusa upload;
+ * quando não existe, é por API — e aí quem envia é `enviarDocumento`, logo
+ * abaixo. Subconta white label não tem painel, então esse segundo caso é o
+ * único caminho que a escola tem.
  */
 export async function consultarOnboarding(): Promise<OnboardingState> {
   const user = await getAuthenticatedUser();
@@ -122,5 +126,71 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
         : pendentes.length === 0
           ? "Cadastro em análise, sem pendências suas."
           : `${pendentes.length} item(ns) de documentação a enviar.`,
+  };
+}
+
+export type EnvioDocumentoState = {
+  ok?: boolean;
+  message?: string;
+};
+
+/**
+ * Envia um documento do KYC da subconta.
+ *
+ * `documentId` e `type` vêm da listagem do Asaas, não de escolha nossa: o id
+ * identifica qual pendência está sendo respondida e o type é o enum que ele
+ * mesmo devolveu. Inventar qualquer um dos dois derruba o envio.
+ */
+export async function enviarDocumento(
+  _prev: EnvioDocumentoState,
+  formData: FormData,
+): Promise<EnvioDocumentoState> {
+  const user = await getAuthenticatedUser();
+  const profile = user ? await getProfileByUserId(user.id) : null;
+  if (!profile || profile.role !== "admin") {
+    return { ok: false, message: "Apenas admin pode enviar documentos." };
+  }
+
+  const escolaId = await getCurrentEscolaId();
+  if (!escolaId) {
+    return { ok: false, message: "Seu usuário não está vinculado a uma escola." };
+  }
+
+  const documentId = String(formData.get("document_id") ?? "");
+  const type = String(formData.get("type") ?? "");
+  const arquivo = formData.get("documento");
+
+  if (!documentId || !type) {
+    return { ok: false, message: "Documento não identificado." };
+  }
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { ok: false, message: "Escolha um arquivo." };
+  }
+
+  const admin = createAdminClient();
+  const { data: cred } = await admin
+    .from("school_payment_credentials")
+    .select("api_key")
+    .eq("escola_id", escolaId)
+    .eq("environment", ASAAS_ENV)
+    .maybeSingle();
+
+  const apiKey = (cred?.api_key as string | undefined) ?? null;
+  if (!apiKey) {
+    return {
+      ok: false,
+      message: "Esta escola ainda não tem conta de pagamentos criada.",
+    };
+  }
+
+  const envio = await enviarDocumentoSubconta(apiKey, documentId, type, arquivo);
+  if (!envio.ok) {
+    return { ok: false, message: `Não foi possível enviar: ${envio.error}` };
+  }
+
+  revalidatePath("/configuracoes/escola");
+  return {
+    ok: true,
+    message: `${arquivo.name} enviado. O Asaas vai analisar.`,
   };
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import {
   criarSubcontaEscola,
   type CriarSubcontaEscolaState,
 } from "@/features/baas/subconta-actions";
 import {
   consultarOnboarding,
+  enviarDocumento,
+  type EnvioDocumentoState,
   type OnboardingState,
 } from "@/features/baas/onboarding-actions";
 import { AsaasSelo } from "@/components/brand/asaas-selo";
@@ -40,11 +42,14 @@ export function ContaPagamentosCard({
   const status = STATUS_LABEL[kycStatus ?? "pendente"] ?? STATUS_LABEL.pendente;
   const jaCriada = Boolean(accountId);
 
-  function verificarCadastro() {
+  // `useCallback` porque isto vai como prop para cada linha de documento e é
+  // dependência de efeito lá dentro — recriar a cada render reconsultaria o
+  // Asaas em loop.
+  const verificarCadastro = useCallback(() => {
     startConsulta(async () => {
       setOnboarding(await consultarOnboarding());
     });
-  }
+  }, []);
 
   return (
     <div>
@@ -169,6 +174,13 @@ export function ContaPagamentosCard({
                       <p className="text-sm font-medium text-foreground">{d.title}</p>
                       <p className="text-xs text-muted-foreground">{d.status}</p>
                     </div>
+                    {/*
+                      O `onboardingUrl` decide o caminho, não uma escolha
+                      nossa: com ele, a API recusa upload e o envio é pelo
+                      link; sem ele, é por API. Subconta white label não tem
+                      painel, então o segundo caso é o único que a escola tem
+                      — e era justamente o que a tela mandava para o suporte.
+                    */}
                     {d.onboardingUrl ? (
                       <a
                         href={d.onboardingUrl}
@@ -178,10 +190,14 @@ export function ContaPagamentosCard({
                       >
                         Enviar documentos
                       </a>
+                    ) : d.status.toUpperCase() === "APPROVED" ? (
+                      <span className="text-xs text-success-text">Aprovado</span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Envio pelo suporte
-                      </span>
+                      <EnvioDeDocumento
+                        documentId={d.id}
+                        type={d.type}
+                        onEnviado={verificarCadastro}
+                      />
                     )}
                   </li>
                 ))}
@@ -235,5 +251,65 @@ export function ContaPagamentosCard({
         <AsaasSelo fundo="claro" tamanho="md" />
       </div>
     </div>
+  );
+}
+
+/**
+ * Upload de um documento pendente do KYC.
+ *
+ * Um formulário por documento porque cada um tem seu id e seu type — o Asaas
+ * não aceita um envio genérico, ele responde a uma pendência específica.
+ */
+function EnvioDeDocumento({
+  documentId,
+  type,
+  onEnviado,
+}: {
+  documentId: string;
+  type: string;
+  onEnviado: () => void;
+}) {
+  const [state, formAction, pending] = useActionState<
+    EnvioDocumentoState,
+    FormData
+  >(enviarDocumento, {});
+  const [arquivo, setArquivo] = useState<string | null>(null);
+
+  // Depois de enviar, relê a lista: o status sai de NOT_SENT e o item some
+  // das pendências sem a pessoa precisar clicar em "Verificar" de novo.
+  useEffect(() => {
+    if (state.ok) onEnviado();
+  }, [state.ok, onEnviado]);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="document_id" value={documentId} />
+      <input type="hidden" name="type" value={type} />
+
+      <label className="cursor-pointer rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted">
+        {arquivo ?? "Escolher arquivo"}
+        <input
+          type="file"
+          name="documento"
+          accept="image/*,application/pdf"
+          className="sr-only"
+          onChange={(event) =>
+            setArquivo(event.target.files?.[0]?.name ?? null)
+          }
+        />
+      </label>
+
+      <Button type="submit" size="sm" disabled={pending || !arquivo}>
+        {pending ? "Enviando…" : "Enviar"}
+      </Button>
+
+      {state.message ? (
+        <span
+          className={`w-full text-xs ${state.ok ? "text-success-text" : "text-danger-text"}`}
+        >
+          {state.message}
+        </span>
+      ) : null}
+    </form>
   );
 }
