@@ -209,8 +209,32 @@ export async function criarSubcontaEscola(
         { onConflict: "escola_id,environment" },
       );
 
+    /*
+     * FALHA AQUI NÃO PODE VIRAR SUCESSO NA TELA.
+     *
+     * A chave da subconta só existe nesta resposta: o Asaas não a devolve de
+     * novo. Perder o insert significa uma subconta REAL criada no provedor
+     * que o sistema não consegue mais usar, e recuperar exige liberar o
+     * gerenciamento de chaves na conta-pai por duas horas.
+     *
+     * Antes isto era só um console.error e a tela dizia "Conta criada". Foi
+     * exatamente o que aconteceu na primeira subconta de produção do DK.
+     */
     if (credError) {
-      console.error("BaaS: falha ao guardar credencial da subconta", credError);
+      console.error("BaaS: falha ao guardar credencial da subconta", {
+        escolaId,
+        accountId: result.id,
+        ambiente: ASAAS_ENV,
+        error: credError.message,
+      });
+      return {
+        ok: false,
+        message:
+          `A conta ${result.id} foi criada no provedor, mas a chave de acesso ` +
+          `não pôde ser guardada — e o Asaas não a devolve de novo. NÃO crie ` +
+          `outra conta: isso geraria uma segunda subconta real. É preciso ` +
+          `gerar uma chave nova para esta conta na conta-pai do Asaas.`,
+      };
     }
   }
 
