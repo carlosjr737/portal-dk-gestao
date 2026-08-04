@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getAuthenticatedUser,
   getCurrentEscolaId,
@@ -33,6 +34,26 @@ export default async function EscolaPage() {
         .maybeSingle()
     : { data: null };
 
+  /*
+   * A conta exibida é a DO AMBIENTE ATUAL, não a última criada.
+   *
+   * É isso que faz a troca de dev para prod ser só uma variável de ambiente:
+   * em produção não existe credencial ainda, o card volta a mostrar o
+   * formulário, e a conta de sandbox continua guardada para quando o ambiente
+   * voltar. `school.asaas_account_id` guarda a última criada e serviria para
+   * qualquer ambiente — era ele que prendia a escola na primeira conta.
+   *
+   * A tabela de credenciais não tem policy: só o backend lê, daí o admin.
+   */
+  const { data: conta } = escolaId
+    ? await createAdminClient()
+        .from("school_payment_credentials")
+        .select("account_id, wallet_id, kyc_status")
+        .eq("escola_id", escolaId)
+        .eq("environment", ASAAS_ENV)
+        .maybeSingle()
+    : { data: null };
+
   return (
     <div>
       <PageHeader
@@ -52,9 +73,15 @@ export default async function EscolaPage() {
 
           <Card className="mt-6 p-5">
             <ContaPagamentosCard
-              kycStatus={(school.kyc_status as string | null) ?? null}
-              accountId={(school.asaas_account_id as string | null) ?? null}
-              walletId={(school.asaas_wallet_id as string | null) ?? null}
+              // `kyc_status` da credencial pode não existir enquanto
+              // baas_04_conta_por_ambiente.sql não rodar; cai no da escola.
+              kycStatus={
+                ((conta?.kyc_status as string | null) ??
+                  (school.kyc_status as string | null)) ??
+                null
+              }
+              accountId={(conta?.account_id as string | null) ?? null}
+              walletId={(conta?.wallet_id as string | null) ?? null}
               ambiente={ASAAS_ENV}
             />
           </Card>

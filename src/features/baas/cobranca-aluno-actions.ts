@@ -12,7 +12,7 @@ import {
   criarClienteAsaas,
   type FormaPagamento,
 } from "@/features/baas/asaas-client";
-import { conferirAmbienteDaCredencial } from "@/features/baas/config";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export type CobrancaAlunoState = {
   ok?: boolean;
@@ -70,6 +70,7 @@ export async function criarCobrancaAluno(
       .from("school_payment_credentials")
       .select("api_key, environment")
       .eq("escola_id", escolaId)
+      .eq("environment", ASAAS_ENV)
       .maybeSingle(),
     admin
       .from("aluno_assinatura")
@@ -87,16 +88,12 @@ export async function criarCobrancaAluno(
     return { ok: false, message: "Este contrato já tem cobrança recorrente ativa." };
   }
 
-  // Antes de chamar o Asaas: a chave guardada vale no ambiente em que o
-  // sistema está? Chave de sandbox contra a URL de produção é recusada lá, e
-  // o erro chegava aqui como texto cru do provedor.
-  const ambiente = conferirAmbienteDaCredencial(
-    cred?.environment as string | undefined,
-  );
-  if (!ambiente.ok) {
-    return { ok: false, message: ambiente.message };
-  }
-
+  /*
+   * A credencial já vem filtrada pelo ambiente atual, então chave de sandbox
+   * contra a URL de produção deixou de ser possível — não existe a linha
+   * errada para carregar. Sem conta NESTE ambiente, cai na mensagem abaixo, e
+   * o formulário de criar conta está de fato disponível lá.
+   */
   const apiKey = (cred?.api_key as string | undefined) ?? null;
   if (!apiKey) {
     return {

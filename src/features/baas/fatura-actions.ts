@@ -10,6 +10,7 @@ import {
   listarCobrancasAssinatura,
   obterPixCopiaECola,
 } from "@/features/baas/asaas-client";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export type FaturaState = {
   ok?: boolean;
@@ -61,6 +62,7 @@ export async function obterFatura(contratoId: string): Promise<FaturaState> {
     .from("school_payment_credentials")
     .select("api_key")
     .eq("escola_id", escolaId)
+    .eq("environment", ASAAS_ENV)
     .maybeSingle();
 
   const apiKey = (cred?.api_key as string | undefined) ?? null;

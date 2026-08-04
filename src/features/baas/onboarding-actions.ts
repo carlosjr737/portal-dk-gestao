@@ -12,6 +12,7 @@ import {
   listarDocumentosSubconta,
   type DocumentoPendente,
 } from "@/features/baas/asaas-client";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export type OnboardingState = {
   ok?: boolean;
@@ -60,6 +61,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
     .from("school_payment_credentials")
     .select("api_key")
     .eq("escola_id", escolaId)
+    .eq("environment", ASAAS_ENV)
     .maybeSingle();
 
   const apiKey = (cred?.api_key as string | undefined) ?? null;
@@ -82,15 +84,22 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
     return { ok: false, message: `Não foi possível consultar o status: ${status.error}` };
   }
 
-  // Espelha o status do provedor no cadastro, para a UI não depender de
-  // consultar a API toda vez.
-  await admin
-    .from("school")
-    .update({
-      kyc_status: paraKycStatus(status.general),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", escolaId);
+  // Espelha o status do provedor, para a UI não depender de consultar a API
+  // toda vez. Vai nos dois lugares: na credencial, porque a aprovação é DESTA
+  // conta e a de sandbox não vale para produção; e em `school`, porque o
+  // painel da plataforma lista as escolas por lá.
+  const kyc = paraKycStatus(status.general);
+  await Promise.all([
+    admin
+      .from("school_payment_credentials")
+      .update({ kyc_status: kyc, updated_at: new Date().toISOString() })
+      .eq("escola_id", escolaId)
+      .eq("environment", ASAAS_ENV),
+    admin
+      .from("school")
+      .update({ kyc_status: kyc, updated_at: new Date().toISOString() })
+      .eq("id", escolaId),
+  ]);
 
   revalidatePath("/configuracoes/escola");
 

@@ -7,7 +7,7 @@ import {
   criarAssinaturaAsaas,
   criarClienteAsaas,
 } from "@/features/baas/asaas-client";
-import { conferirAmbienteDaCredencial } from "@/features/baas/config";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export type ResultadoCobranca = {
   status: "criada" | "atualizada" | "encerrada" | "ignorada" | "falhou";
@@ -60,6 +60,7 @@ export async function garantirCobrancaDoContrato(
           .from("school_payment_credentials")
           .select("api_key, environment")
           .eq("escola_id", escolaId)
+          .eq("environment", ASAAS_ENV)
           .maybeSingle(),
         admin
           .from("aluno_assinatura")
@@ -73,19 +74,14 @@ export async function garantirCobrancaDoContrato(
       return { status: "ignorada", detalhe: "escola não usa o módulo de pagamento" };
     }
 
-    // Mesma trava do caminho manual. Aqui ela importa ainda mais: este fluxo
-    // roda sozinho ao salvar matrícula, e sem a checagem cada salvamento
-    // dispararia uma chamada que o Asaas já vai recusar.
-    const ambiente = conferirAmbienteDaCredencial(
-      cred?.environment as string | undefined,
-    );
-    if (!ambiente.ok) {
-      return { status: "falhou", detalhe: ambiente.message };
-    }
-
+    // Credencial já filtrada pelo ambiente atual: a linha do outro ambiente
+    // nem é carregada. Sem conta aqui, não há o que cobrar.
     const apiKey = (cred?.api_key as string | undefined) ?? null;
     if (!apiKey) {
-      return { status: "falhou", detalhe: "escola sem conta de pagamentos" };
+      return {
+        status: "falhou",
+        detalhe: `escola sem conta de pagamentos em ${ASAAS_ENV}`,
+      };
     }
 
     const valor = Number(contrato.total_amount ?? 0);

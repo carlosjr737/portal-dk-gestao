@@ -76,10 +76,28 @@ export async function criarSubcontaEscola(
     return { ok: false, message: "Escola não encontrada." };
   }
 
-  if (escola.asaas_account_id) {
+  /*
+   * A trava é por AMBIENTE, não por escola.
+   *
+   * `school.asaas_account_id` guarda a última conta criada e é único por
+   * escola — usá-lo aqui prendia a escola no primeiro ambiente em que ela
+   * criou conta. Quem já tem subconta de sandbox precisa poder criar a de
+   * produção sem perder a de teste.
+   */
+  const admin = createAdminClient();
+  const { data: credAtual } = await admin
+    .from("school_payment_credentials")
+    .select("account_id")
+    .eq("escola_id", escolaId)
+    .eq("environment", ASAAS_ENV)
+    .maybeSingle();
+
+  if (credAtual?.account_id) {
     return {
       ok: false,
-      message: "Esta escola já tem uma conta de pagamentos criada.",
+      message: `Esta escola já tem uma conta de pagamentos em ${
+        ASAAS_ENV === "production" ? "produção" : "sandbox"
+      }.`,
     };
   }
 
@@ -119,8 +137,8 @@ export async function criarSubcontaEscola(
     return { ok: false, message: `Recusado pelo provedor: ${result.error}` };
   }
 
-  // Identificadores no cadastro da escola (visíveis ao admin)…
-  const admin = createAdminClient();
+  // Identificadores no cadastro da escola (visíveis ao admin). Guardam a
+  // ÚLTIMA conta criada — a fonte por ambiente é school_payment_credentials.
   const { error: schoolError } = await admin
     .from("school")
     .update({
@@ -184,9 +202,11 @@ export async function criarSubcontaEscola(
           api_key: result.apiKey,
           account_id: result.id,
           wallet_id: result.walletId,
+          kyc_status: "analise",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "escola_id" },
+        // Por ambiente: criar a conta de produção não sobrescreve a de sandbox.
+        { onConflict: "escola_id,environment" },
       );
 
     if (credError) {
