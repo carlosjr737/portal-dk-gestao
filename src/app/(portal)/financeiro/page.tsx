@@ -4,6 +4,9 @@ import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getFaturamentoDoMes } from "@/features/faturamento/queries";
+import { getCurrentEscolaId } from "@/features/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ASAAS_ENV } from "@/features/baas/config";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +17,56 @@ const dinheiro = new Intl.NumberFormat("pt-BR", {
 });
 const inteiro = new Intl.NumberFormat("pt-BR");
 
+/**
+ * Estado da conta de pagamentos, resumido para o topo desta tela.
+ *
+ * Só aparece quando há algo a dizer: conta aprovada não vira aviso, senão o
+ * alerta ficaria permanente e a pessoa aprenderia a não ler os alertas desta
+ * tela — inclusive os que importam.
+ */
+async function estadoDaConta() {
+  const escolaId = await getCurrentEscolaId();
+  if (!escolaId) return { mostrar: false as const };
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("school_payment_credentials")
+    .select("account_id, kyc_status")
+    .eq("escola_id", escolaId)
+    .eq("environment", ASAAS_ENV)
+    .maybeSingle();
+
+  const status = (data?.kyc_status as string | null) ?? null;
+
+  if (!data?.account_id) {
+    return {
+      mostrar: true as const,
+      tom: "info" as const,
+      texto:
+        "Esta escola ainda não tem conta de pagamentos — a cobrança automática não sai sem ela.",
+    };
+  }
+  if (status === "aprovada") return { mostrar: false as const };
+  if (status === "recusada") {
+    return {
+      mostrar: true as const,
+      tom: "danger" as const,
+      texto: "O Asaas recusou o cadastro da conta de pagamentos.",
+    };
+  }
+  return {
+    mostrar: true as const,
+    tom: "warning" as const,
+    texto:
+      "Conta de pagamentos em análise no Asaas. Até sair o resultado, a cobrança automática não é emitida.",
+  };
+}
+
 export default async function FinanceiroPage() {
-  const f = await getFaturamentoDoMes();
+  const [f, conta] = await Promise.all([
+    getFaturamentoDoMes(),
+    estadoDaConta(),
+  ]);
 
   const mes = new Date(`${f.competencia}T12:00:00`).toLocaleDateString("pt-BR", {
     month: "long",
@@ -34,6 +85,24 @@ export default async function FinanceiroPage() {
         title="Financeiro"
         description={`Faturamento e recebimento de ${mes}.`}
       />
+
+      {/*
+        Conta não aprovada aparece AQUI, não só em Configurações.
+        É ela que bloqueia a cobrança automática — e esconder isso num
+        submenu faz a pessoa procurar bug onde não tem, olhando para um
+        recebimento que nunca sai porque a conta ainda está em análise.
+      */}
+      {conta.mostrar ? (
+        <Alert tone={conta.tom} className="mt-6">
+          {conta.texto}{" "}
+          <Link
+            href="/configuracoes/conta-pagamentos"
+            className="font-medium underline underline-offset-2"
+          >
+            Ver a conta de pagamentos
+          </Link>
+        </Alert>
+      ) : null}
 
       {f.modeloPendente ? (
         <Alert tone="warning" className="mt-6">

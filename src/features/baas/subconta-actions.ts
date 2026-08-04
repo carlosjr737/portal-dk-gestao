@@ -54,7 +54,9 @@ export async function criarSubcontaEscola(
     return { ok: false, message: "Seu usuário não está vinculado a uma escola." };
   }
 
-  const faturamento = Number(formData.get("faturamento") ?? 0);
+  const faturamento = Number(
+    String(formData.get("faturamento") ?? "").replace(",", "."),
+  );
   const tipoEmpresa = String(formData.get("company_type") ?? "");
   if (!["MEI", "LIMITED", "INDIVIDUAL", "ASSOCIATION"].includes(tipoEmpresa)) {
     return { ok: false, message: "Selecione o tipo de empresa." };
@@ -63,11 +65,81 @@ export async function criarSubcontaEscola(
     return { ok: false, message: "Informe o faturamento mensal estimado." };
   }
 
+  /*
+   * `birthDate` é do titular pessoa física — o Asaas exige em MEI e
+   * INDIVIDUAL. Antes nem era lido, e a recusa vinha do provedor sem nada na
+   * tela explicando o porquê.
+   */
+  const pessoaFisica = tipoEmpresa === "MEI" || tipoEmpresa === "INDIVIDUAL";
+  const nascimento = String(formData.get("data_nascimento") ?? "").trim();
+  if (pessoaFisica && !nascimento) {
+    return {
+      ok: false,
+      message: "Informe a data de nascimento do titular (exigida para MEI e Individual).",
+    };
+  }
+
   const supabase = await createClient();
+
+  /*
+   * O CADASTRO É GRAVADO ANTES DE FALAR COM O PROVEDOR.
+   *
+   * Nesta ordem, recusa do Asaas não custa o formulário: os dados ficam, a
+   * pessoa corrige um campo e tenta de novo. Quem abandona no meio deixa o
+   * cadastro mais completo do que estava.
+   *
+   * Na ordem inversa — que era a de antes — toda recusa apagava o trabalho, e
+   * como estes campos só aparecem neste fluxo, ninguém percebia que tinham
+   * sumido até tentar outra vez.
+   *
+   * Não é formulário paralelo: é uma vista recortada de `school`, mostrando
+   * só o que o Asaas exige. O payload é montado a partir dela na hora do
+   * envio, nunca guardado à parte.
+   */
+  const texto = (campo: string) => {
+    const v = String(formData.get(campo) ?? "").trim();
+    return v.length > 0 ? v : null;
+  };
+
+  const cadastro: Record<string, unknown> = {
+    company_type: tipoEmpresa,
+    faturamento_estimado: faturamento,
+    data_nascimento_responsavel: pessoaFisica && nascimento ? nascimento : null,
+    updated_at: new Date().toISOString(),
+  };
+  for (const campo of [
+    "razao_social",
+    "cnpj",
+    "email",
+    "telefone",
+    "cep",
+    "logradouro",
+    "numero",
+    "complemento",
+    "bairro",
+  ]) {
+    // Campo em branco não apaga o que já existe: o formulário é um recorte, e
+    // quem não mexeu num campo não está pedindo para limpá-lo.
+    const valor = texto(campo);
+    if (valor !== null) cadastro[campo] = valor;
+  }
+
+  const { error: erroCadastro } = await supabase
+    .from("school")
+    .update(cadastro)
+    .eq("id", escolaId);
+
+  if (erroCadastro) {
+    return {
+      ok: false,
+      message: `Não foi possível salvar o cadastro: ${erroCadastro.message}`,
+    };
+  }
+
   const { data: escola } = await supabase
     .from("school")
     .select(
-      "nome, razao_social, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, asaas_account_id",
+      "nome, razao_social, cnpj, email, telefone, cep, logradouro, numero, complemento, bairro, asaas_account_id, company_type, faturamento_estimado, data_nascimento_responsavel",
     )
     .eq("id", escolaId)
     .maybeSingle();
@@ -128,6 +200,11 @@ export async function criarSubcontaEscola(
     province: escola.bairro as string,
     postalCode: soDigitos(escola.cep),
     companyType: tipoEmpresa as "MEI" | "LIMITED" | "INDIVIDUAL" | "ASSOCIATION",
+    // Só vai quando o titular é pessoa física; mandar em LTDA é campo a mais
+    // sem dono no cadastro do provedor.
+    birthDate: pessoaFisica
+      ? ((escola.data_nascimento_responsavel as string | null) ?? undefined)
+      : undefined,
   });
 
   if (!result.ok) {
@@ -239,6 +316,7 @@ export async function criarSubcontaEscola(
   }
 
   revalidatePath("/configuracoes/escola");
+  revalidatePath("/configuracoes/conta-pagamentos");
   return {
     ok: true,
     message: `Conta de pagamentos criada (${ASAAS_ENV}). Cadastro enviado para análise.`,

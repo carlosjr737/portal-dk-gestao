@@ -23,6 +23,12 @@ export type AsaasSubcontaInput = {
   province: string;
   postalCode: string;
   companyType: "MEI" | "LIMITED" | "INDIVIDUAL" | "ASSOCIATION";
+  /**
+   * Nascimento do titular, `YYYY-MM-DD`. O Asaas exige em MEI e INDIVIDUAL,
+   * onde quem responde pela conta é pessoa física. Faltava no payload: a
+   * recusa vinha do provedor sem que nada na tela explicasse o porquê.
+   */
+  birthDate?: string;
   phone?: string;
   site?: string;
   complement?: string;

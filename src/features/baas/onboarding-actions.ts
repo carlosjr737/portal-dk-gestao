@@ -106,6 +106,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
   ]);
 
   revalidatePath("/configuracoes/escola");
+  revalidatePath("/configuracoes/conta-pagamentos");
 
   const pendentes = docs.documentos.filter(
     (d) => d.status.toUpperCase() !== "APPROVED",
@@ -189,6 +190,7 @@ export async function enviarDocumento(
   }
 
   revalidatePath("/configuracoes/escola");
+  revalidatePath("/configuracoes/conta-pagamentos");
   return {
     ok: true,
     message: `${arquivo.name} enviado. O Asaas vai analisar.`,
