@@ -248,11 +248,25 @@ reprocessado.
   | lançamentos a gerar | **7.270** — irrelevante para o Postgres |
   | matrículas **sem data de vencimento** | **656 de 665** ⚠️ |
 
-  **O bloqueio é o vencimento, não o volume.** 656 matrículas não têm
-  `first_due_date`. Sem ela não dá para gerar lançamento nem apontar atraso.
-  Antes de qualquer código: decidir se o dia vem da escola (o padrão hoje é
-  5), da matrícula, ou de ambos com a escola como fallback — e preencher as
-  656.
+  **O bloqueio era o vencimento, não o volume — e está resolvido.** 656
+  matrículas não tinham `first_due_date`. O Carlos exportou o "Visão Contas a
+  Receber" do Conta Azul e o dado veio de lá:
+  `scripts/vencimento_01_importar.sql` preenche **636** delas, casando por CPF
+  do responsável financeiro.
+
+  **E o dado desmentiu o palpite.** A ideia era assumir "todo mundo dia 5". A
+  planilha mostra 585 no dia 5 e **51 em outros dias** (10, 15, 8, 20, 4, 22).
+  Assumir teria criado 51 cobranças na data errada — cada uma uma família
+  recebendo boleto fora do combinado.
+
+  Sobram **20**, que precisam de decisão caso a caso e não de palpite: 6 com
+  responsável sem CPF no banco, 14 com CPF que não aparece na planilha (2
+  delas com valor líquido zero, provavelmente bolsa integral). Somam
+  R$ 5.724,00.
+
+  O dia do vencimento, daqui para frente, ainda precisa de origem definida
+  para matrícula NOVA: da escola (padrão 5), da matrícula, ou dos dois com a
+  escola como fallback.
 
   **Decisões abertas:**
   - **Mudar o valor não reescreve lançamento já pago.** Reajuste vale do mês
