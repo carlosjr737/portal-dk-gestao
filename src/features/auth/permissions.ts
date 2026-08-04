@@ -38,6 +38,7 @@ export const navigationItems = [
   { href: "/financeiro/faturamento-turmas", label: "Faturamento por turma" },
   { href: "/financeiro/professores", label: "Financeiro dos professores" },
   { href: "/financeiro/recebimentos", label: "Recebimentos" },
+  { href: "/financeiro/conta", label: "Conta da escola" },
   { href: "/financeiro/conta-pagamentos", label: "Conta de pagamentos" },
   { href: "/financeiro/inadimplencia", label: "Inadimplência" },
   { href: "/financeiro/growth-churn", label: "Growth & Churn" },
@@ -97,7 +98,12 @@ const ocultosNoMenu: Record<UserRole, string[]> = {
  * turma, pagamento de professores, Growth & Churn e entradas/saídas se apoiam
  * em matrícula e lançamento manual, não em cobrança.
  */
-const exigemModuloFinanceiro = ["/financeiro/inadimplencia"];
+const exigemModuloFinanceiro = [
+  "/financeiro/inadimplencia",
+  // A conta da escola mostra saldo e extrato da conta de pagamentos. Sem o
+  // módulo, ela não existe — e uma tela de saldo vazia é pior do que ausência.
+  "/financeiro/conta",
+];
 
 export function exigeModuloFinanceiro(pathname: string): boolean {
   return exigemModuloFinanceiro.some((prefix) => matchesPrefix(pathname, prefix));
