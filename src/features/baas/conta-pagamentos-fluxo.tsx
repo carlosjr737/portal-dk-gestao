@@ -19,6 +19,8 @@ import {
 } from "@/features/baas/subconta-actions";
 import {
   consultarOnboarding,
+  enviarDocumento,
+  type EnvioDocumentoState,
   type OnboardingState,
 } from "@/features/baas/onboarding-actions";
 import { consultarCnpj } from "@/features/baas/cnpj-actions";
@@ -781,9 +783,14 @@ function Documentos({
                   <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 </a>
               ) : !ok ? (
-                <span className="text-xs text-muted-foreground">
-                  envio pelo portal — em breve
-                </span>
+                /* Sem onboardingUrl o envio é POR API — e é o único caminho
+                   que a escola tem: subconta white label não tem painel do
+                   Asaas para onde mandá-la. */
+                <EnvioDeDocumento
+                  documentId={d.id}
+                  type={d.type}
+                  aoEnviar={aoVerificar}
+                />
               ) : null}
             </li>
           );
@@ -952,5 +959,68 @@ function Campo({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Upload de um documento pendente do KYC.
+ *
+ * Um formulário por documento: o Asaas não aceita envio genérico, ele responde
+ * a uma pendência específica. Por isso `documentId` e `type` vão como vieram
+ * da listagem dele, nunca escolhidos aqui.
+ */
+function EnvioDeDocumento({
+  documentId,
+  type,
+  aoEnviar,
+}: {
+  documentId: string;
+  type: string;
+  aoEnviar: () => void;
+}) {
+  const [state, formAction, enviando] = useActionState<
+    EnvioDocumentoState,
+    FormData
+  >(enviarDocumento, {});
+  const [arquivo, setArquivo] = useState<string | null>(null);
+
+  // Enviou, relê a lista: o status sai de NOT_SENT sozinho, sem a pessoa
+  // precisar clicar em "Verificar novamente".
+  useEffect(() => {
+    if (state.ok) aoEnviar();
+  }, [state.ok, aoEnviar]);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="document_id" value={documentId} />
+      <input type="hidden" name="type" value={type} />
+
+      <label className="inline-flex h-11 cursor-pointer items-center rounded-md border border-input px-4 text-sm font-medium text-foreground transition hover:bg-muted focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+        <span className="max-w-[180px] truncate">
+          {arquivo ?? "Escolher arquivo"}
+        </span>
+        <input
+          type="file"
+          name="documento"
+          accept="image/*,application/pdf"
+          className="sr-only"
+          onChange={(event) =>
+            setArquivo(event.target.files?.[0]?.name ?? null)
+          }
+        />
+      </label>
+
+      <Button type="submit" className="h-11" disabled={enviando || !arquivo}>
+        {enviando ? "Enviando…" : "Enviar"}
+      </Button>
+
+      {state.message ? (
+        <span
+          className={`w-full text-xs ${state.ok ? "text-success-text" : "text-danger-text"}`}
+        >
+          {state.message}
+        </span>
+      ) : null}
+    </form>
   );
 }

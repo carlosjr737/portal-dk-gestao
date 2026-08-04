@@ -21,6 +21,25 @@ export type CriarSubcontaEscolaState = {
   faltando?: string[];
 };
 
+/**
+ * Lê um valor em dinheiro escrito em pt-BR.
+ *
+ * O campo é mascarado com `toLocaleString("pt-BR", {style:"currency"})`, que
+ * produz `R$ 300.000,00` — com cifrão, ponto de milhar e ESPAÇO NÃO-QUEBRÁVEL.
+ * O parser anterior fazia só `replace(",", ".")`, o que devolvia
+ * `R$ 300.000.00` e, daí, `NaN`. O formulário mostrava o valor preenchido e a
+ * tela respondia "informe o faturamento": o campo estava certo, quem lia
+ * estava errado.
+ *
+ * Aqui: joga fora tudo que não é dígito ou separador, tira o ponto de milhar
+ * e converte a vírgula decimal. Aceita também número cru, sem máscara.
+ */
+function paraNumero(valor: string): number {
+  const limpo = valor.replace(/[^\d,.-]/g, "");
+  if (!limpo) return NaN;
+  return Number(limpo.replace(/\./g, "").replace(",", "."));
+}
+
 const OBRIGATORIOS: Array<{ campo: string; label: string }> = [
   { campo: "razao_social", label: "Razão social" },
   { campo: "cnpj", label: "CNPJ" },
@@ -54,9 +73,7 @@ export async function criarSubcontaEscola(
     return { ok: false, message: "Seu usuário não está vinculado a uma escola." };
   }
 
-  const faturamento = Number(
-    String(formData.get("faturamento") ?? "").replace(",", "."),
-  );
+  const faturamento = paraNumero(String(formData.get("faturamento") ?? ""));
   const tipoEmpresa = String(formData.get("company_type") ?? "");
   if (!["MEI", "LIMITED", "INDIVIDUAL", "ASSOCIATION"].includes(tipoEmpresa)) {
     return { ok: false, message: "Selecione o tipo de empresa." };
