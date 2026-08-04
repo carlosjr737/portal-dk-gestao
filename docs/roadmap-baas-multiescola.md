@@ -183,7 +183,33 @@ reprocessado.
 ## Fase 4 — Webhooks e conciliação
 
 - 4.1 Endpoint de webhook do Asaas (pago / atrasado / estornado / falha).
-- 4.2 Conciliação → inadimplência.
+- 4.2 **Inadimplência com Asaas e sem Asaas** — ✅ feito. São dois mecanismos
+  na mesma tela, e cada devedor carrega de onde veio:
+  - `Atrasado no Asaas` — o webhook confirmou que venceu sem pagar. Dá para
+    reenviar a cobrança.
+  - `Sem baixa` — ninguém marcou na conciliação depois do vencimento. **Pode
+    ser gente que pagou e não foi baixada**; a ação é conferir, não cobrar.
+    Misturar os dois numa lista só faz a escola cobrar quem já pagou.
+
+  **A regra que impede o falso alarme.** Matrícula sem cobrança acompanhada
+  NÃO é inadimplente — é `naoAcompanhadas`, e aparece com esse nome. No DK são
+  664 matrículas fora do Asaas: se "não pagou" fosse deduzido de "não tem
+  baixa", todas apareceriam vermelhas no dia 6, sem ninguém ter deixado de
+  pagar. Uma tela que acusa 664 famílias por engano some com a credibilidade
+  das outras linhas.
+
+  A ausência de baixa só passa a significar algo depois que a competência
+  começou a ser conciliada. É a mesma regra da linha de cobertura em
+  `docs/faturamento-e-recebimento.md` (item 03), aplicada à inadimplência.
+
+  **No dashboard**, o card traz o valor em atraso com a cobertura junto — não
+  numa nota de rodapé. R$ 0 em atraso parece ótimo e pode significar que
+  ninguém está acompanhando; um valor alto parece desastre e pode ser só falta
+  de baixa. A linha de cobertura é o que separa as duas leituras.
+
+  - **Falta:** régua de cobrança (lembrete automático antes e depois do
+    vencimento) — só faz sentido para quem tem cobrança pelo sistema, e
+    aparece com cadeado e motivo para quem não tem.
 - 4.3 Conciliação → Growth & Churn.
 - 4.4 Reflexo no status do contrato do aluno.
 - 4.5 **Editar mensalidade e a cobrança acompanhar.** Hoje mudar o valor da

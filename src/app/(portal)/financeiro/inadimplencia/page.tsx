@@ -1,14 +1,19 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { getInadimplencia } from "@/features/baas/inadimplencia-queries";
-import { FaturaBotao } from "@/features/baas/fatura-modal";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getInadimplenciaDoMes } from "@/features/inadimplencia/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -16,112 +21,171 @@ const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
+const inteiro = new Intl.NumberFormat("pt-BR");
 
 function dataBR(iso: string) {
   return iso ? iso.split("-").reverse().join("/") : "—";
 }
 
-/** Quanto mais antigo o atraso, mais forte o alerta. */
-function tomDoAtraso(dias: number) {
-  if (dias >= 30) return "bg-rose-100 text-rose-800";
-  if (dias >= 15) return "bg-amber-100 text-amber-800";
-  return "bg-slate-100 text-slate-700";
-}
-
 export default async function InadimplenciaPage() {
-  const { devedores, totalEmAtraso, totalAVencer, quantidadeEmDia } =
-    await getInadimplencia();
+  const i = await getInadimplenciaDoMes();
+
+  const mes = new Date(`${i.competencia}T12:00:00`).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const noAsaas = i.devedores.filter((d) => d.origem === "asaas");
+  const semBaixa = i.devedores.filter((d) => d.origem === "sem_baixa");
 
   return (
     <div>
       <PageHeader
         title="Inadimplência"
-        description="Quem está com mensalidade vencida. A cobrança pode ser reenviada aqui mesmo."
+        description={`Mensalidades vencidas de ${mes}.`}
       />
+
+      {i.modeloPendente ? (
+        <Alert tone="warning" className="mt-6">
+          O modelo de recebimento ainda não existe no banco. Só a inadimplência
+          do Asaas aparece até rodar{" "}
+          <code className="font-mono text-xs">
+            scripts/recebimento_01_modelo.sql
+          </code>
+          .
+        </Alert>
+      ) : null}
+
+      {/*
+        MATRÍCULA SEM COBRANÇA ACOMPANHADA NÃO É INADIMPLENTE.
+
+        No DK são 664 fora do Asaas. Se "não pagou" fosse deduzido de "não tem
+        baixa", elas apareceriam vermelhas no dia 6 — não porque alguém deixou
+        de pagar, mas porque ninguém marcou. Uma tela que acusa 664 famílias
+        por engano some com a credibilidade das outras linhas.
+
+        Por isso elas aparecem aqui, com nome próprio e antes da lista.
+      */}
+      {i.naoAcompanhadas > 0 ? (
+        <Alert tone="info" className="mt-6">
+          <strong className="font-medium">
+            {inteiro.format(i.naoAcompanhadas)} de{" "}
+            {inteiro.format(i.matriculasAtivas)} matrículas não têm cobrança
+            acompanhada
+          </strong>{" "}
+          ({brl.format(i.valorNaoAcompanhado)}). Elas não entram na conta de
+          inadimplência — o sistema não sabe se pagaram. Para saber, use a{" "}
+          <Link
+            href="/financeiro/recebimentos"
+            className="font-medium underline underline-offset-2"
+          >
+            conciliação
+          </Link>
+          .
+        </Alert>
+      ) : null}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Indicador
           rotulo="Em atraso"
-          valor={brl.format(totalEmAtraso)}
-          detalhe={`${devedores.length} ${devedores.length === 1 ? "responsável" : "responsáveis"}`}
-          destaque={devedores.length > 0}
+          valor={brl.format(i.valorEmAtraso)}
+          detalhe={`${i.devedores.length} ${i.devedores.length === 1 ? "matrícula" : "matrículas"}`}
+          alarme={i.devedores.length > 0}
         />
         <Indicador
-          rotulo="Em dia"
-          valor={String(quantidadeEmDia)}
-          detalhe="cobranças pagas"
+          rotulo="Atrasado no Asaas"
+          valor={String(noAsaas.length)}
+          detalhe="o provedor confirmou o vencimento"
         />
         <Indicador
-          rotulo="A vencer"
-          valor={brl.format(totalAVencer)}
-          detalhe="ainda no prazo"
+          rotulo="Sem baixa registrada"
+          valor={String(semBaixa.length)}
+          detalhe="pode ter pago sem alguém marcar"
         />
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-md border border-border bg-white">
-        {devedores.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <p className="text-base font-medium text-foreground">
-              Ninguém em atraso.
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Todas as mensalidades estão pagas ou dentro do prazo.
-            </p>
-          </div>
-        ) : (
-          <Table containerClassName="rounded-none border-0" minWidth="820px">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Aluno(s)</TableHead>
-                <TableHead>Atraso</TableHead>
-                <TableHead>Venceu em</TableHead>
-                <TableHead className="text-right tabular-nums">Valor</TableHead>
-                <TableHead>Cobrar</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {devedores.map((d) => (
-                <TableRow key={d.contratoId} className="align-top">
-                  <TableCell>
-                    <p className="font-medium text-foreground">{d.responsavel}</p>
-                    {d.telefone ? (
-                      <p className="text-xs text-muted-foreground">{d.telefone}</p>
-                    ) : (
-                      <p className="text-xs text-amber-700">sem telefone</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {d.alunos.join(", ") || "—"}
-                    {d.turmas.length > 0 ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground/80">
-                        {d.turmas.length}{" "}
-                        {d.turmas.length === 1 ? "turma" : "turmas"}
-                      </p>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${tomDoAtraso(d.diasDeAtraso)}`}
-                    >
-                      {d.diasDeAtraso} {d.diasDeAtraso === 1 ? "dia" : "dias"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {dataBR(d.vencimento)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums text-foreground">
-                    {brl.format(d.valor)}
-                  </TableCell>
-                  <TableCell>
-                    <FaturaBotao contratoId={d.contratoId} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      <Table containerClassName="mt-6" minWidth="900px">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Aluno</TableHead>
+            <TableHead>Turma</TableHead>
+            <TableHead>Responsável</TableHead>
+            <TableHead>Origem</TableHead>
+            <TableHead className="text-right tabular-nums">Atraso</TableHead>
+            <TableHead>Venceu em</TableHead>
+            <TableHead className="text-right tabular-nums">Valor</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {i.devedores.length === 0 ? (
+            <TableEmpty colSpan={7}>
+              {i.acompanhadas === 0
+                ? "Nenhuma cobrança acompanhada ainda neste mês."
+                : "Ninguém em atraso entre as cobranças acompanhadas."}
+            </TableEmpty>
+          ) : null}
+          {i.devedores.map((d) => (
+            <TableRow key={d.enrollmentId}>
+              <TableCell className="font-medium text-foreground">
+                {d.aluno}
+              </TableCell>
+              <TableCell className="text-muted-foreground">{d.turma}</TableCell>
+              <TableCell>
+                <p className="text-foreground">{d.responsavel}</p>
+                {d.telefone ? (
+                  <p className="text-xs text-muted-foreground">{d.telefone}</p>
+                ) : null}
+              </TableCell>
+              <TableCell>
+                {/*
+                  A origem diz o que fazer. "Atrasado no Asaas" é cobrança que
+                  venceu sem pagar. "Sem baixa" pode ser gente que pagou e
+                  ninguém marcou — cobrar essa pessoa é o erro caro.
+                */}
+                {d.origem === "asaas" ? (
+                  <Badge tone="danger">Atrasado no Asaas</Badge>
+                ) : (
+                  <Badge tone="warning">Sem baixa</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                <span
+                  className={
+                    d.diasDeAtraso >= 30
+                      ? "font-medium text-danger-text"
+                      : d.diasDeAtraso >= 15
+                        ? "font-medium text-warning-text"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {d.diasDeAtraso} {d.diasDeAtraso === 1 ? "dia" : "dias"}
+                </span>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {dataBR(d.vencimento)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-foreground">
+                {brl.format(d.valor)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      {semBaixa.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Link
+            href="/financeiro/recebimentos"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Ir para a conciliação
+          </Link>
+          <p className="text-sm text-muted-foreground">
+            {inteiro.format(semBaixa.length)} destas some da lista assim que a
+            baixa for marcada.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -130,30 +194,24 @@ function Indicador({
   rotulo,
   valor,
   detalhe,
-  destaque,
+  alarme,
 }: {
   rotulo: string;
   valor: string;
   detalhe: string;
-  destaque?: boolean;
+  alarme?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-md border bg-white p-4 ${
-        destaque ? "border-rose-200" : "border-border"
-      }`}
-    >
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+    <Card className="p-5">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {rotulo}
       </p>
       <p
-        className={`mt-1 text-[28px] leading-[34px] font-bold tabular-nums ${
-          destaque ? "text-rose-700" : "text-foreground"
-        }`}
+        className={`mt-2 text-2xl font-bold tabular-nums ${alarme ? "text-danger-text" : "text-foreground"}`}
       >
         {valor}
       </p>
-      <p className="text-xs text-muted-foreground">{detalhe}</p>
-    </div>
+      <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p>
+    </Card>
   );
 }

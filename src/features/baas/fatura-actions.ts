@@ -33,8 +33,16 @@ const EM_ABERTO = ["PENDING", "OVERDUE", "AWAITING_RISK_ANALYSIS"];
  * A escola entrega por conta própria: as notificações do provedor são
  * cobradas por envio, então desligamos e devolvemos aqui o link e o
  * copia-e-cola para a secretaria mandar.
+ *
+ * `paymentId` restringe a UMA cobrança. Sem ele vale a regra antiga — a mais
+ * antiga em aberto, que é a que a família precisa pagar agora. Com ele, o
+ * pedido veio de uma linha específica da tabela de mensalidades, e mandar
+ * outra cobrança que não a clicada seria mentir sobre o que foi enviado.
  */
-export async function obterFatura(contratoId: string): Promise<FaturaState> {
+export async function obterFatura(
+  contratoId: string,
+  paymentId?: string,
+): Promise<FaturaState> {
   const user = await getAuthenticatedUser();
   const profile = user ? await getProfileByUserId(user.id) : null;
   if (!profile || !["admin", "equipe"].includes(profile.role)) {
@@ -75,12 +83,19 @@ export async function obterFatura(contratoId: string): Promise<FaturaState> {
   if (!r.ok) return { ok: false, message: `Não foi possível buscar: ${r.error}` };
 
   // A mais antiga em aberto é a que a família precisa pagar agora.
-  const aberta = r.cobrancas
-    .filter((c) => EM_ABERTO.includes(c.status))
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const aberta = paymentId
+    ? r.cobrancas.find((c) => c.id === paymentId)
+    : r.cobrancas
+        .filter((c) => EM_ABERTO.includes(c.status))
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
   if (!aberta) {
-    return { ok: false, message: "Nenhuma cobrança em aberto no momento." };
+    return {
+      ok: false,
+      message: paymentId
+        ? "Esta cobrança não está mais na assinatura."
+        : "Nenhuma cobrança em aberto no momento.",
+    };
   }
   if (!aberta.invoiceUrl) {
     return { ok: false, message: "O provedor não devolveu link para esta cobrança." };

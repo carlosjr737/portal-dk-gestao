@@ -11,13 +11,22 @@ import { Button } from "@/components/ui/button";
  * desligadas e a secretaria manda o link — normalmente por WhatsApp, que é
  * onde a família de fato lê.
  */
-export function FaturaBotao({ contratoId }: { contratoId: string }) {
+export function FaturaBotao({
+  contratoId,
+  paymentId,
+  rotulo = "Enviar cobrança",
+}: {
+  contratoId: string;
+  /** Cobrança específica. Sem ele, vale a mais antiga em aberto. */
+  paymentId?: string;
+  rotulo?: string;
+}) {
   const [fatura, setFatura] = useState<FaturaState | null>(null);
   const [buscando, start] = useTransition();
   const [copiado, setCopiado] = useState<string | null>(null);
 
   function buscar() {
-    start(async () => setFatura(await obterFatura(contratoId)));
+    start(async () => setFatura(await obterFatura(contratoId, paymentId)));
   }
 
   function copiar(texto: string, marca: string) {
@@ -34,7 +43,7 @@ export function FaturaBotao({ contratoId }: { contratoId: string }) {
         disabled={buscando}
         className="text-xs font-medium text-primary underline underline-offset-2 disabled:opacity-60"
       >
-        {buscando ? "Buscando…" : "Enviar cobrança"}
+        {buscando ? "Buscando…" : rotulo}
       </button>
     );
   }

@@ -310,6 +310,16 @@ export type CobrancaEmAberto = {
   value: number;
   dueDate: string;
   billingType: string;
+  /**
+   * Data em que o dinheiro entrou de fato. `null` enquanto está em aberto.
+   *
+   * O provedor devolve três datas parecidas e elas NÃO são a mesma coisa:
+   * `paymentDate` é quando a cobrança foi quitada, `confirmedDate` é quando a
+   * confirmação chegou e `clientPaymentDate` é o que o pagador declarou. Para
+   * a secretaria, o que importa é a primeira que existir — o resto é detalhe
+   * de liquidação.
+   */
+  paymentDate: string | null;
   /** Página onde o responsável paga (Pix, boleto ou cartão). */
   invoiceUrl: string | null;
   /** Boleto em PDF, quando a forma permite. */
@@ -340,10 +350,43 @@ export async function listarCobrancasAssinatura(
       value: Number(p.value ?? 0),
       dueDate: (p.dueDate as string) ?? "",
       billingType: (p.billingType as string) ?? "",
+      paymentDate:
+        (p.paymentDate as string | null) ??
+        (p.confirmedDate as string | null) ??
+        (p.clientPaymentDate as string | null) ??
+        null,
       invoiceUrl: (p.invoiceUrl as string | null) ?? null,
       bankSlipUrl: (p.bankSlipUrl as string | null) ?? null,
     })),
   };
+}
+
+/**
+ * Ajuste pontual de UMA cobrança já emitida — valor ou vencimento.
+ *
+ * Diferente de `atualizarAssinaturaAsaas`, que muda o combinado de todos os
+ * meses. Aqui é o caso concreto da secretaria: "esse mês a família pagou
+ * metade" ou "prorroga esse boleto para o dia 15". O mês seguinte volta ao
+ * valor da assinatura, e é isso que se quer — senão um desconto de um mês
+ * viraria desconto permanente sem ninguém decidir isso.
+ *
+ * `billingType` vai junto porque o endpoint de atualização o exige; mandamos
+ * de volta o que a cobrança já tem, para não trocar a forma de pagamento sem
+ * querer.
+ */
+export async function atualizarCobrancaAsaas(
+  paymentId: string,
+  patch: { value: number; dueDate: string; billingType: string },
+  chave: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${ASAAS_API_BASE}/payments/${paymentId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", access_token: chave },
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true };
 }
 
 /** Pix copia-e-cola de uma cobrança, para quem prefere pagar sem abrir página. */

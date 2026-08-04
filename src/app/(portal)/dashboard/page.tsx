@@ -16,6 +16,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getClassPerformanceStatus } from "@/lib/class-performance";
 import { getMonthlyActiveBase } from "@/features/school-metrics/monthly-base";
+import { getInadimplenciaDoMes } from "@/features/inadimplencia/queries";
+import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -71,7 +73,10 @@ const brl = new Intl.NumberFormat("pt-BR", {
 });
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const [data, inad] = await Promise.all([
+    getDashboardData(),
+    getInadimplenciaDoMes(),
+  ]);
   const totalInBuckets = data.buckets.reduce((sum, b) => sum + b.count, 0);
   const abaixoDaMeta = data.buckets
     .filter((b) => b.key === "cti" || b.key === "recovery")
@@ -138,6 +143,70 @@ export default async function DashboardPage() {
               : undefined
           }
         />
+      </section>
+
+      {/*
+        02 — Inadimplência, com a cobertura junto e não depois.
+
+        O número sozinho engana nos dois sentidos. R$ 0 em atraso parece ótimo
+        e pode significar que ninguém está acompanhando; um valor alto parece
+        desastre e pode ser só falta de baixa manual. A linha de cobertura é o
+        que separa as duas leituras, e por isso ela é parte do card, não uma
+        nota de rodapé.
+      */}
+      <section className="mt-3">
+        <Card className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Inadimplência do mês
+              </p>
+              <p
+                className={`mt-2 text-2xl font-bold tabular-nums ${
+                  inad.valorEmAtraso > 0 ? "text-danger-text" : "text-foreground"
+                }`}
+              >
+                {brl.format(inad.valorEmAtraso)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {inad.devedores.length === 0
+                  ? "ninguém em atraso entre as cobranças acompanhadas"
+                  : `${inad.devedores.length} ${inad.devedores.length === 1 ? "matrícula vencida" : "matrículas vencidas"}`}
+              </p>
+            </div>
+
+            <Link
+              href="/financeiro/inadimplencia"
+              className="rounded text-sm font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              Ver inadimplência
+            </Link>
+          </div>
+
+          {/* A cobertura, sempre. Sem ela o valor acima não é interpretável. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
+            <span className="text-xs text-muted-foreground">
+              <strong className="font-medium text-foreground">
+                {inad.acompanhadas}
+              </strong>{" "}
+              de {inad.matriculasAtivas} matrículas com cobrança acompanhada
+            </span>
+            {inad.naoAcompanhadas > 0 ? (
+              <Badge tone="neutral">
+                {inad.naoAcompanhadas} sem acompanhamento ·{" "}
+                {brl.format(inad.valorNaoAcompanhado)}
+              </Badge>
+            ) : null}
+            {inad.devedores.some((d) => d.origem === "sem_baixa") ? (
+              <Link
+                href="/financeiro/recebimentos"
+                className="rounded text-xs font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                Fazer a baixa manual
+              </Link>
+            ) : null}
+          </div>
+        </Card>
       </section>
 
       {/* 03 — Operação: a barra é a tela inteira em uma linha */}
