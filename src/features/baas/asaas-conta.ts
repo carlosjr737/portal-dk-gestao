@@ -575,3 +575,64 @@ export async function obterCobranca(
     estornada: Array.isArray(p.refunds) && p.refunds.length > 0,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Clientes (quem pode ser cobrado)                                     */
+/* ------------------------------------------------------------------ */
+
+export type ClienteBusca = {
+  id: string;
+  nome: string;
+  /** Mascarado na exibição; serve para distinguir homônimos. */
+  cpfCnpj: string;
+};
+
+/**
+ * Procura clientes pelo nome, NA BASE DO PROVEDOR.
+ *
+ * A primeira versão desta tela listava só responsáveis com mensalidade ativa
+ * no portal — sete nomes num select. Mas quem pode ser cobrado é qualquer
+ * cliente da conta, e a base de verdade é a do provedor. Buscar aqui também
+ * evita a lista crescer até virar um select de seiscentas linhas.
+ */
+export async function buscarClientes(
+  chaveApi: string,
+  termo: string,
+): Promise<ClienteBusca[]> {
+  const params = new URLSearchParams({ limit: "20", offset: "0" });
+  const t = termo.trim();
+  if (t) params.set("name", t);
+
+  const r = await ler<{ data?: unknown[] }>(`/customers?${params}`, chaveApi);
+  if (!r.ok) return [];
+
+  return ((r.data.data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+    id: String(c.id ?? ""),
+    nome: String(c.name ?? ""),
+    cpfCnpj: String(c.cpfCnpj ?? ""),
+  }));
+}
+
+/**
+ * Acha um cliente pelo documento, para não duplicar a pessoa.
+ *
+ * Cadastrar de novo quem já existe cria duas fichas com o mesmo CPF na conta,
+ * e a partir daí o histórico da pessoa fica partido em duas — sem forma de
+ * juntar depois.
+ */
+export async function clientePorDocumento(
+  chaveApi: string,
+  cpfCnpj: string,
+): Promise<string | null> {
+  const digitos = cpfCnpj.replace(/\D/g, "");
+  if (!digitos) return null;
+
+  const r = await ler<{ data?: unknown[] }>(
+    `/customers?cpfCnpj=${digitos}&limit=1`,
+    chaveApi,
+  );
+  if (!r.ok) return null;
+
+  const primeiro = ((r.data.data ?? []) as Array<Record<string, unknown>>)[0];
+  return primeiro ? String(primeiro.id ?? "") : null;
+}

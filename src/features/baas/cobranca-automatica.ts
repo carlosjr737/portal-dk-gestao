@@ -4,7 +4,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   atualizarAssinaturaAsaas,
   cancelarAssinaturaAsaas,
-  criarAssinaturaAsaas,
   criarClienteAsaas,
 } from "@/features/baas/asaas-client";
 import { ASAAS_ENV } from "@/features/baas/config";
@@ -136,14 +135,25 @@ export async function garantirCobrancaDoContrato(
       };
     }
 
-    // --- não existe: cria ------------------------------------------------
+    /* --- não existe assinatura: NÃO cria mais ---------------------------
+     *
+     * A mensalidade deixou de ser assinatura no provedor. Assinatura gera a
+     * próxima cobrança sozinha, com antecedência — no dia 05/08 já existia a
+     * fatura de 05/09 — e com o valor congelado no que o contrato valia
+     * quando ela foi criada. Reajuste não alcançava a cobrança já emitida.
+     *
+     * Agora quem emite é o lote do dia 1 (`faturamento-mensal.ts`), lendo o
+     * contrato no momento da emissão. O que falta a este contrato é só o
+     * CLIENTE no provedor — sem ele o lote não tem para quem emitir.
+     */
     const { data: guardian } = await admin
       .from("guardians")
       .select("id, full_name, document, email, phone")
       .eq("id", contrato.guardian_id as string)
       .maybeSingle();
 
-    if (!guardian) return { status: "falhou", detalhe: "responsável não encontrado" };
+    if (!guardian)
+      return { status: "falhou", detalhe: "responsável não encontrado" };
 
     // Mesma checagem do caminho manual: erra aqui, e o provedor só devolveria
     // "O CPF/CNPJ informado é inválido", sem dizer de quem.
@@ -168,59 +178,42 @@ export async function garantirCobrancaDoContrato(
     );
     if (!cliente.ok) return { status: "falhou", detalhe: cliente.error };
 
-    // Vencimento do contrato se ainda for futuro; senão, mês que vem —
-    // cobrança não nasce vencida.
-    const hoje = new Date().toISOString().slice(0, 10);
-    let primeiroVencimento = (contrato.first_due_date as string | null) ?? "";
-    if (!primeiroVencimento || primeiroVencimento <= hoje) {
-      const d = new Date();
-      d.setMonth(d.getMonth() + 1);
-      primeiroVencimento = d.toISOString().slice(0, 10);
-    }
-
-    const nova = await criarAssinaturaAsaas(
-      {
-        customer: cliente.id,
-        value: valor,
-        nextDueDate: primeiroVencimento,
-        cycle: "MONTHLY",
-        // Responsável escolhe como pagar (Pix, boleto ou cartão).
-        // BOLETO entrega boleto E Pix na mesma fatura, sem cartão — ver
-        // `FormaPagamento`. UNDEFINED aqui deixaria o cartão voltar.
-        billingType: "BOLETO",
-        description: "Mensalidade",
-        externalReference: guardianContractId,
-        endDate,
-      },
-      apiKey,
-    );
-    if (!nova.ok) return { status: "falhou", detalhe: nova.error };
-
+    /*
+     * A linha em `aluno_assinatura` nasce SEM `asaas_subscription_id`.
+     *
+     * Ela deixa de representar uma assinatura e passa a ser o vínculo entre o
+     * contrato e o cliente no provedor — é por ela que o lote descobre para
+     * quem emitir. E é a ausência do id que diz ao lote "este contrato é meu":
+     * contrato COM assinatura viva continua sendo cobrado por ela, e o lote
+     * passa longe.
+     */
     const { error } = await admin.from("aluno_assinatura").insert({
       escola_id: escolaId,
       guardian_contract_id: guardianContractId,
       guardian_id: guardian.id,
       asaas_customer_id: cliente.id,
-      asaas_subscription_id: nova.id,
+      asaas_subscription_id: null,
       status: "pendente",
       valor,
-      proximo_vencimento: primeiroVencimento,
+      proximo_vencimento: (contrato.first_due_date as string | null) ?? null,
       forma_pagamento: "BOLETO",
     });
 
     if (error) {
-      // Existe no provedor mas não aqui: registra com o id para não sumir.
-      console.error("[COBRANCA AUTO] criada no provedor mas não registrada", {
+      console.error("[COBRANCA AUTO] cliente criado mas vínculo não registrado", {
         guardianContractId,
-        subscriptionId: nova.id,
+        customerId: cliente.id,
         error: error.message,
       });
-      return { status: "falhou", detalhe: `criada (${nova.id}) mas não registrada` };
+      return {
+        status: "falhou",
+        detalhe: `cliente ${cliente.id} criado mas não registrado`,
+      };
     }
 
     return {
       status: "criada",
-      detalhe: `R$ ${valor} até ${endDate ?? "sem prazo"}`,
+      detalhe: "responsável pronto para o faturamento do dia 1",
     };
   } catch (e) {
     // Cobrança não pode derrubar a matrícula.

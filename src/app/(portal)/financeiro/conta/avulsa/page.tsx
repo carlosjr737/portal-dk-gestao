@@ -11,10 +11,7 @@ import {
 } from "@/features/auth/session";
 import { ASAAS_ENV } from "@/features/baas/config";
 import { consultarTaxas, obterCobranca } from "@/features/baas/asaas-conta";
-import {
-  AvulsaForm,
-  type ResponsavelOpcao,
-} from "@/features/baas/avulsa-form";
+import { AvulsaForm } from "@/features/baas/avulsa-form";
 
 export const dynamic = "force-dynamic";
 
@@ -77,44 +74,28 @@ export default async function AvulsaPage({
     );
   }
 
-  /*
-   * Só entram responsáveis QUE JÁ EXISTEM NO PROVEDOR.
-   *
-   * Uma cobrança avulsa precisa de um cliente lá dentro, e criar um novo aqui
-   * duplicaria a pessoa — a mesma família passaria a aparecer duas vezes na
-   * lista do provedor, com históricos que nunca mais se juntam. Quem ainda não
-   * tem cadastro entra pela mensalidade, uma vez.
-   */
-  const { data: vinculos } = await admin
-    .from("aluno_assinatura")
-    .select("guardian_id, guardians(full_name)")
-    .eq("escola_id", escolaId)
-    .not("asaas_customer_id", "is", null);
-
-  const porId = new Map<string, string>();
-  for (const v of vinculos ?? []) {
-    const g = (v as { guardians?: { full_name?: string } | null }).guardians;
-    const id = (v as { guardian_id?: string }).guardian_id;
-    if (id && g?.full_name) porId.set(id, g.full_name);
-  }
-  const responsaveis: ResponsavelOpcao[] = [...porId.entries()]
-    .map(([id, nome]) => ({ id, nome }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-
   // Vindo de "Refazer cobrança": o formulário chega preenchido.
   const original = params?.refazer
     ? await obterCobranca(chave, params.refazer)
     : null;
 
-  const guardianDaOriginal = original
+  /*
+   * O "refazer" sugere o NOME de quem pagava, não um id.
+   *
+   * O campo virou busca, e a busca é por nome — devolver um id aqui obrigaria
+   * a tela a resolver o nome de novo só para mostrar. Vindo o nome, ele já
+   * chega digitado no campo e a lista aparece filtrada.
+   */
+  const nomeSugerido = original
     ? ((
         await admin
           .from("aluno_assinatura")
-          .select("guardian_id")
+          .select("guardians(full_name)")
           .eq("asaas_customer_id", original.customerId)
           .limit(1)
           .maybeSingle()
-      ).data?.guardian_id as string | undefined) ?? ""
+      ).data as { guardians?: { full_name?: string } | null } | null)?.guardians
+        ?.full_name ?? ""
     : "";
 
   const taxas = await consultarTaxas(chave);
@@ -153,10 +134,9 @@ export default async function AvulsaPage({
       ) : null}
 
       <AvulsaForm
-        responsaveis={responsaveis}
         taxa={taxas.boleto ?? taxas.pix}
         inicial={{
-          guardianId: guardianDaOriginal,
+          nomeSugerido,
           valor: original
             ? original.valor.toLocaleString("pt-BR", {
                 style: "currency",
