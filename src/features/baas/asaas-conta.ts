@@ -216,3 +216,96 @@ export async function criarQrCodeEstatico(
     },
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Cobranças                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Uma cobrança emitida pela escola.
+ *
+ * `netValue` é o que sobra depois da taxa — é ele que a escola recebe, e é ele
+ * que deve aparecer como resultado. O bruto serve de referência, não de
+ * promessa.
+ *
+ * `creditDate` é quando o dinheiro fica disponível, e num cartão isso é o mês
+ * seguinte. É a diferença entre "confirmada" e "recebida", e é o motivo de os
+ * dois estados nunca poderem ser somados.
+ */
+export type Cobranca = {
+  id: string;
+  customerId: string;
+  status: string;
+  formaPagamento: string;
+  valor: number;
+  valorLiquido: number;
+  vencimento: string;
+  descricao: string;
+  /** Quando o dinheiro cai na conta. Nulo enquanto não houver previsão. */
+  creditoEm: string | null;
+  estornada: boolean;
+};
+
+export type CobrancasResult =
+  | { ok: true; cobrancas: Cobranca[] }
+  | { ok: false; error: string };
+
+export async function listarCobrancas(
+  chave: string,
+  opcoes: { limite?: number } = {},
+): Promise<CobrancasResult> {
+  const params = new URLSearchParams({
+    limit: String(Math.min(opcoes.limite ?? 20, 100)),
+    offset: "0",
+  });
+
+  const r = await ler<{ data?: unknown[] }>(`/payments?${params}`, chave);
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const lista = (r.data.data ?? []) as Array<Record<string, unknown>>;
+  return {
+    ok: true,
+    cobrancas: lista.map((p) => ({
+      id: String(p.id ?? ""),
+      customerId: String(p.customer ?? ""),
+      status: String(p.status ?? ""),
+      formaPagamento: String(p.billingType ?? ""),
+      valor: Number(p.value ?? 0),
+      valorLiquido: Number(p.netValue ?? 0),
+      vencimento: String(p.dueDate ?? ""),
+      descricao: String(p.description ?? ""),
+      creditoEm: (p.creditDate as string | null) ?? null,
+      estornada: Array.isArray(p.refunds) && p.refunds.length > 0,
+    })),
+  };
+}
+
+export type EstornoResult =
+  | { ok: true; status: string }
+  | { ok: false; error: string };
+
+/**
+ * Estorna uma cobrança — devolve o dinheiro a quem pagou.
+ *
+ * Vale para cobrança recebida ou confirmada. No cartão, o valor é debitado do
+ * saldo da conta e o cancelamento aparece na fatura de quem pagou em até dez
+ * dias úteis.
+ *
+ * ATENÇÃO — a taxa NÃO volta. O provedor não devolve taxa de compensação nem
+ * de notificação, então estornar R$ 452,00 custa à escola os R$ 9,48 da taxa.
+ * A tela precisa dizer isso antes, não depois.
+ */
+export async function estornarCobranca(
+  chave: string,
+  paymentId: string,
+  motivo?: string,
+): Promise<EstornoResult> {
+  const res = await fetch(`${ASAAS_API_BASE}/payments/${paymentId}/refund`, {
+    method: "POST",
+    headers: headers(chave),
+    body: JSON.stringify(motivo ? { description: motivo } : {}),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true, status: String((data as Record<string, unknown>)?.status ?? "REFUNDED") };
+}

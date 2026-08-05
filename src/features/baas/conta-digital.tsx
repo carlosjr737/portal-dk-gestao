@@ -4,7 +4,13 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import type { ContaDigital, LinhaExtrato } from "@/features/baas/conta-queries";
+import { EstornoBotao } from "@/features/baas/estorno-botao";
+import type {
+  CobrancaNaTela,
+  ContaDigital,
+  LinhaExtrato,
+  SituacaoCobrancas,
+} from "@/features/baas/conta-queries";
 
 /**
  * Conta digital da escola — quanto tenho, de onde veio, como cobro.
@@ -68,13 +74,240 @@ export function ContaDigitalView({ conta }: { conta: ContaDigital }) {
       ) : null}
 
       <SaldoCard conta={conta} dinheiro={dinheiro} />
-      {conta.resumo ? <FaixaResumo conta={conta} dinheiro={dinheiro} /> : null}
+      {conta.situacao ? (
+        <SituacaoDasCobrancas situacao={conta.situacao} dinheiro={dinheiro} />
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Extrato linhas={conta.extrato} dinheiro={dinheiro} />
+        <div className="space-y-4">
+          <Cobrancas cobrancas={conta.cobrancas} dinheiro={dinheiro} />
+          <Extrato linhas={conta.extrato} dinheiro={dinheiro} />
+        </div>
         <DadosDaConta conta={conta} dinheiro={dinheiro} />
       </div>
     </div>
+  );
+}
+
+/**
+ * As quatro situações, lado a lado.
+ *
+ * RECEBIDA E CONFIRMADA SÃO CARDS SEPARADOS, e isso é a razão de existir
+ * desta faixa. A versão anterior somava as duas sob "Recebido no mês" — e
+ * passava a afirmar que a escola tinha recebido dinheiro de cartão que só cai
+ * no mês seguinte. Somar os dois números é dizer uma coisa falsa sobre o
+ * caixa, que é justamente o que a escola veio conferir aqui.
+ *
+ * Cada card leva o bruto grande e o líquido embaixo: o bruto é o combinado
+ * com a família, o líquido é o que sobra depois da taxa.
+ */
+function SituacaoDasCobrancas({
+  situacao,
+  dinheiro,
+}: {
+  situacao: SituacaoCobrancas;
+  dinheiro: (v: number) => string;
+}) {
+  const faixas = [
+    {
+      rotulo: "Recebidas",
+      ajuda: "Já está na conta",
+      dados: situacao.recebidas,
+      barra: "bg-success",
+      texto: "text-success-text",
+    },
+    {
+      rotulo: "Confirmadas",
+      ajuda: "Pago, ainda não caiu",
+      dados: situacao.confirmadas,
+      barra: "bg-info",
+      texto: "text-info-text",
+    },
+    {
+      rotulo: "Aguardando pagamento",
+      ajuda: "Ainda no prazo",
+      dados: situacao.aguardando,
+      barra: "bg-warning",
+      texto: "text-warning-text",
+    },
+    {
+      rotulo: "Vencidas",
+      ajuda: "Passou do vencimento",
+      dados: situacao.vencidas,
+      barra: "bg-danger",
+      texto: "text-danger-text",
+    },
+  ];
+
+  const mes = new Date(`${situacao.competencia}-02T00:00:00`).toLocaleDateString(
+    "pt-BR",
+    { month: "long" },
+  );
+
+  return (
+    <section>
+      <h2 className="text-sm font-semibold text-foreground">
+        Situação das cobranças
+      </h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Com vencimento em {mes}.
+      </p>
+
+      <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {faixas.map((f) => (
+          <Card key={f.rotulo} className="flex flex-col gap-3 p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {f.rotulo}
+              </p>
+              <p className={`mt-1.5 text-lg font-semibold tabular-nums ${f.texto}`}>
+                {dinheiro(f.dados.valor)}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                {dinheiro(f.dados.valorLiquido)} líquido
+              </p>
+            </div>
+
+            {/* Barra em cor cheia: é fatia de estado, não rótulo. */}
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full ${f.barra}`}
+                style={{ width: f.dados.quantidade > 0 ? "100%" : "0%" }}
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {f.dados.quantidade}{" "}
+              {f.dados.quantidade === 1 ? "cobrança" : "cobranças"}
+              <span className="block text-[11px]">{f.ajuda}</span>
+            </p>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Status do provedor traduzido, com o tom que ele merece na tela. */
+const STATUS: Record<string, { rotulo: string; tom: "success" | "info" | "warning" | "danger" | "neutral" }> = {
+  RECEIVED: { rotulo: "Recebida", tom: "success" },
+  RECEIVED_IN_CASH: { rotulo: "Recebida em dinheiro", tom: "success" },
+  CONFIRMED: { rotulo: "Confirmada", tom: "info" },
+  PENDING: { rotulo: "Aguardando", tom: "warning" },
+  OVERDUE: { rotulo: "Vencida", tom: "danger" },
+  REFUNDED: { rotulo: "Estornada", tom: "neutral" },
+  REFUND_REQUESTED: { rotulo: "Estorno em andamento", tom: "neutral" },
+  CHARGEBACK_REQUESTED: { rotulo: "Chargeback", tom: "danger" },
+  DELETED: { rotulo: "Removida", tom: "neutral" },
+};
+
+const FORMA: Record<string, string> = {
+  PIX: "Pix",
+  BOLETO: "Boleto",
+  CREDIT_CARD: "Cartão de crédito",
+  UNDEFINED: "A escolher",
+};
+
+/**
+ * Cobranças emitidas, com o estorno.
+ *
+ * Fica antes das movimentações de propósito: é aqui que existe uma AÇÃO. Uma
+ * cobrança de cartão confirmada ainda não gerou lançamento nenhum no extrato
+ * — o dinheiro só cai no mês seguinte —, então quem quisesse desfazê-la não
+ * teria onde clicar se a tela mostrasse apenas o movimento do dinheiro.
+ */
+function Cobrancas({
+  cobrancas,
+  dinheiro,
+}: {
+  cobrancas: CobrancaNaTela[];
+  dinheiro: (v: number) => string;
+}) {
+  const ESTORNAVEL = ["RECEIVED", "CONFIRMED"];
+
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="border-b border-border px-5 py-4">
+        <h2 className="text-sm font-semibold text-foreground">Cobranças</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          As últimas emitidas por esta escola.
+        </p>
+      </div>
+
+      {cobrancas.length === 0 ? (
+        <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+          Nenhuma cobrança emitida ainda.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {cobrancas.map((c) => {
+            const s = STATUS[c.status] ?? { rotulo: c.status, tom: "neutral" as const };
+            const podeEstornar = ESTORNAVEL.includes(c.status) && !c.estornada;
+            const taxa = Math.max(0, c.valor - c.valorLiquido);
+
+            /*
+             * Estorno pedido mas ainda não concluído.
+             *
+             * O provedor aceita o pedido, tira o valor do saldo e deixa o
+             * refund em `AWAITING_CRITICAL_ACTION_AUTHORIZATION` — a mesma
+             * trava do saque. Sem dizer isso, a escola vê o dinheiro sumir do
+             * saldo, a cobrança continuar "Recebida", e conclui que quebrou.
+             */
+            const estornoPendente = c.estornada && c.status !== "REFUNDED";
+
+            return (
+              <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {c.pagador ?? c.descricao ?? "Cobrança"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                    {FORMA[c.formaPagamento] ?? c.formaPagamento} · vence{" "}
+                    {c.vencimento.split("-").reverse().join("/")}
+                    {/* Cartão confirmado só vira dinheiro no mês seguinte —
+                        dizer quando é o que evita a pergunta na secretaria. */}
+                    {c.status === "CONFIRMED" && c.creditoEm ? (
+                      <> · cai em {c.creditoEm.split("-").reverse().join("/")}</>
+                    ) : null}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <Badge tone={s.tom}>{s.rotulo}</Badge>
+                    {estornoPendente ? (
+                      <Badge tone="warning">Estorno aguardando liberação</Badge>
+                    ) : null}
+                  </div>
+                  {estornoPendente ? (
+                    <p className="mt-1.5 max-w-[46ch] text-xs text-warning-text">
+                      O valor já saiu do saldo. O provedor exige uma liberação
+                      que ainda não está disponível por aqui.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-foreground tabular-nums">
+                      {dinheiro(c.valor)}
+                    </p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {dinheiro(c.valorLiquido)} líquido
+                    </p>
+                  </div>
+                  {podeEstornar ? (
+                    <EstornoBotao
+                      paymentId={c.id}
+                      valor={c.valor}
+                      taxa={taxa}
+                      pagador={c.pagador ?? "quem pagou"}
+                    />
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -120,55 +353,6 @@ function SaldoCard({
   );
 }
 
-/**
- * Recebido nunca aparece sozinho.
- *
- * Sem o denominador — quantas cobranças foram emitidas —, uma escola com
- * poucos contratos no sistema parece estar levando calote. O número sozinho
- * mente por falta de contexto.
- */
-function FaixaResumo({
-  conta,
-  dinheiro,
-}: {
-  conta: ContaDigital;
-  dinheiro: (v: number) => string;
-}) {
-  const r = conta.resumo!;
-  const mes = new Date(`${r.competencia}-02T00:00:00`).toLocaleDateString("pt-BR", {
-    month: "long",
-  });
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Card className="p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Recebido em {mes}
-        </p>
-        <p className="mt-1.5 text-lg font-semibold text-foreground tabular-nums">
-          {dinheiro(r.recebido)}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-          {r.cobrancasRecebidas} de {r.cobrancasEmitidas} cobranças emitidas
-        </p>
-      </Card>
-
-      <Card className="p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          A receber
-        </p>
-        <p className="mt-1.5 text-lg font-semibold text-foreground tabular-nums">
-          {dinheiro(r.aReceber)}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-          {r.cobrancasEmAberto}{" "}
-          {r.cobrancasEmAberto === 1 ? "cobrança em aberto" : "cobranças em aberto"}
-        </p>
-      </Card>
-    </div>
-  );
-}
-
 function Extrato({
   linhas,
   dinheiro,
@@ -179,15 +363,25 @@ function Extrato({
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-border px-5 py-4">
-        <h2 className="text-sm font-semibold text-foreground">Extrato</h2>
+        <h2 className="text-sm font-semibold text-foreground">
+          Movimentações da conta
+        </h2>
+        {/*
+          Isto é o dinheiro que ENTROU E SAIU, não a lista de cobranças. Uma
+          cobrança de cartão confirmada ainda não aparece aqui: ela só vira
+          movimento quando o valor é creditado, no mês seguinte. Chamar as duas
+          coisas de "extrato" foi o que fez a tela parecer vazia tendo cobrança
+          paga.
+        */}
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Cada cobrança é uma linha. Abra para ver o que foi descontado.
+          Entradas e saídas de dinheiro. Abra para ver o que foi descontado.
         </p>
       </div>
 
       {linhas.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-          Nenhum lançamento ainda.
+          Nada entrou nem saiu ainda. Cobrança paga no cartão só aparece aqui
+          quando o valor é creditado.
         </p>
       ) : (
         <ul className="divide-y divide-border">

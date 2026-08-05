@@ -10,6 +10,8 @@ import {
   consultarDadosBancarios,
   consultarExtrato,
   consultarTaxas,
+  listarCobrancas,
+  type Cobranca,
   type DadosBancarios,
   type Lancamento,
   type Taxas,
@@ -44,14 +46,34 @@ export type LinhaExtrato = {
   detalhes: Array<{ rotulo: string; valor: number }>;
 };
 
-export type ResumoMes = {
-  competencia: string;
-  recebido: number;
-  cobrancasRecebidas: number;
-  cobrancasEmitidas: number;
-  aReceber: number;
-  cobrancasEmAberto: number;
+export type FaixaSituacao = {
+  valor: number;
+  /** O que sobra depois da taxa. É este que a escola recebe de fato. */
+  valorLiquido: number;
+  quantidade: number;
 };
+
+/**
+ * As quatro situações de cobrança, separadas.
+ *
+ * RECEBIDA E CONFIRMADA NUNCA PODEM SER SOMADAS. Confirmada é dinheiro pago
+ * que ainda não caiu — num cartão, cai no mês seguinte. A primeira versão
+ * desta tela somava as duas sob o rótulo "Recebido em agosto", e passava a
+ * dizer que a escola tinha recebido dinheiro que ainda não existia na conta
+ * dela. É o mesmo descasamento que motivou tirar o cartão do leque.
+ */
+export type SituacaoCobrancas = {
+  competencia: string;
+  /** Dinheiro na conta. */
+  recebidas: FaixaSituacao;
+  /** Pago, ainda não creditado. */
+  confirmadas: FaixaSituacao;
+  aguardando: FaixaSituacao;
+  vencidas: FaixaSituacao;
+};
+
+/** Cobrança já com o nome de quem paga, resolvido pelo nosso banco. */
+export type CobrancaNaTela = Cobranca & { pagador: string | null };
 
 export type ContaDigital = {
   estado: EstadoConta;
@@ -59,7 +81,8 @@ export type ContaDigital = {
   motivo: string | null;
   saldo: number;
   extrato: LinhaExtrato[];
-  resumo: ResumoMes | null;
+  cobrancas: CobrancaNaTela[];
+  situacao: SituacaoCobrancas | null;
   taxas: Taxas;
   dadosBancarios: DadosBancarios | null;
   ambiente: string;
@@ -177,7 +200,8 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
     motivo,
     saldo: 0,
     extrato: [],
-    resumo: null,
+    cobrancas: [],
+    situacao: null,
     taxas: { pix: null, boleto: null },
     dadosBancarios: null,
     ambiente: ASAAS_ENV,
@@ -206,52 +230,74 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
   const aprovada = String(cred?.kyc_status ?? "").toLowerCase() === "aprovada";
   const { de, ate, competencia } = intervaloDoMes();
 
-  const [extrato, taxas, banco, recebidas, confirmadas, emitidas, pendentes, vencidas] =
+  const [extrato, taxas, banco, cobrancas, recebidas, confirmadas, pendentes, vencidas] =
     await Promise.all([
       consultarExtrato(chave, { limite: 60 }),
       consultarTaxas(chave),
       consultarDadosBancarios(chave),
+      listarCobrancas(chave, { limite: 20 }),
       estatisticasCobrancas(chave, { status: "RECEIVED", vencimentoDe: de, vencimentoAte: ate }),
       estatisticasCobrancas(chave, { status: "CONFIRMED", vencimentoDe: de, vencimentoAte: ate }),
-      estatisticasCobrancas(chave, { vencimentoDe: de, vencimentoAte: ate }),
       estatisticasCobrancas(chave, { status: "PENDING", vencimentoDe: de, vencimentoAte: ate }),
       estatisticasCobrancas(chave, { status: "OVERDUE", vencimentoDe: de, vencimentoAte: ate }),
     ]);
 
-  const soma = (
-    ...rs: Array<Awaited<ReturnType<typeof estatisticasCobrancas>>>
-  ) =>
-    rs.reduce(
-      (acc, r) =>
-        r.ok
-          ? {
-              // O líquido é o que a escola realmente recebeu. Mostrar o bruto
-              // como "recebido" infla o que ela acha que ganhou.
-              valor: acc.valor + r.valorLiquido,
-              qtd: acc.qtd + r.quantidade,
-            }
-          : acc,
-      { valor: 0, qtd: 0 },
-    );
-
-  const entrou = soma(recebidas, confirmadas);
-  const aberto = soma(pendentes, vencidas);
+  const faixa = (
+    r: Awaited<ReturnType<typeof estatisticasCobrancas>>,
+  ): FaixaSituacao =>
+    r.ok
+      ? { valor: r.valor, valorLiquido: r.valorLiquido, quantidade: r.quantidade }
+      : { valor: 0, valorLiquido: 0, quantidade: 0 };
 
   return {
     estado: aprovada ? "ativa" : "em_analise",
     motivo: null,
     saldo: saldo.ok ? saldo.saldo : 0,
     extrato: extrato.ok ? agrupar(extrato.lancamentos) : [],
-    resumo: {
+    cobrancas: cobrancas.ok ? await comNomeDoPagador(cobrancas.cobrancas) : [],
+    situacao: {
       competencia,
-      recebido: entrou.valor,
-      cobrancasRecebidas: entrou.qtd,
-      cobrancasEmitidas: emitidas.ok ? emitidas.quantidade : 0,
-      aReceber: aberto.valor,
-      cobrancasEmAberto: aberto.qtd,
+      recebidas: faixa(recebidas),
+      confirmadas: faixa(confirmadas),
+      aguardando: faixa(pendentes),
+      vencidas: faixa(vencidas),
     },
     taxas,
     dadosBancarios: banco,
     ambiente: ASAAS_ENV,
   };
+}
+
+/**
+ * Troca o id do cliente no provedor pelo nome do responsável.
+ *
+ * O provedor devolve só o `customer`, que é um id opaco — uma lista de
+ * `cus_000008568655` não diz a ninguém de quem é a cobrança. O nome sai do
+ * nosso próprio banco, pelo vínculo que já existe em `aluno_assinatura`.
+ *
+ * Quem não tem vínculo (cobrança avulsa por QR, por exemplo) fica sem nome, e
+ * a tela cai na descrição — que é justamente o que ela serve para dizer.
+ */
+async function comNomeDoPagador(cobrancas: Cobranca[]): Promise<CobrancaNaTela[]> {
+  const ids = [...new Set(cobrancas.map((c) => c.customerId).filter(Boolean))];
+  if (ids.length === 0) return cobrancas.map((c) => ({ ...c, pagador: null }));
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("aluno_assinatura")
+    .select("asaas_customer_id, guardians(full_name)")
+    .in("asaas_customer_id", ids);
+
+  const nomePorCliente = new Map<string, string>();
+  for (const linha of data ?? []) {
+    const g = (linha as { guardians?: { full_name?: string } | null }).guardians;
+    const nome = g?.full_name;
+    const id = (linha as { asaas_customer_id?: string }).asaas_customer_id;
+    if (id && nome) nomePorCliente.set(id, nome);
+  }
+
+  return cobrancas.map((c) => ({
+    ...c,
+    pagador: nomePorCliente.get(c.customerId) ?? null,
+  }));
 }

@@ -145,3 +145,40 @@ webhook*, em que o Asaas chama a nossa aplicação e espera `APPROVED`/`REFUSED`
 Ressalva: tudo acima é **sandbox**, e a subconta usada **não é BaaS aprovada**
 (contrato não assinado). Autorização de transferência é configuração de conta e
 pode mudar na aprovação — o split, por ser cálculo, tende a valer igual.
+
+## Adendo (04/08/2026, tarde) — a trava tem nome: ação crítica
+
+O saque não é um caso isolado. **Estorno também para na mesma parede**, e o
+nome dela apareceu ao testar: `AWAITING_CRITICAL_ACTION_AUTHORIZATION`.
+
+Medido no sandbox: `POST /payments/{id}/refund` devolve **HTTP 200**, o valor
+sai do saldo na hora (R$ 278,12 → R$ 78,12), a cobrança continua `RECEIVED` e o
+refund fica pendente indefinidamente. Igual ao `POST /transfers`.
+
+### O que destrava, segundo a documentação
+
+Duas condições, ambas configuradas em **Integrações > Mecanismos de segurança**:
+
+1. **Whitelist de IPs** — cadastrar os IPs de saída da aplicação;
+2. **Desativar o evento crítico** — exige validação por token de segurança.
+
+Com as duas, transferências Pix/TED, pagamentos de conta e recargas passam a
+ser *"processadas automaticamente"*.
+
+### O que NÃO funciona
+
+Existe um token de teste de sandbox (`000000`), mas ele não é aceito inline na
+operação. Testado: header `asaas-critical-action-token`, header
+`criticalActionToken`, e os campos de corpo `criticalActionToken`,
+`authorizationToken` e `token` — os cinco devolvem `authorized: false`. Também
+não há recurso `/criticalActions` (404 em cinco caminhos).
+
+### O problema prático que isso cria
+
+A whitelist exige **IP de saída fixo**. Uma aplicação serverless não tem IP
+fixo por padrão — isso precisa ser resolvido na infraestrutura (IP dedicado,
+proxy de saída) antes de a conta digital funcionar de ponta a ponta.
+
+**É esta a pergunta para o gerente, e não mais "como autorizo?":** em subconta
+BaaS, quem cadastra os IPs e desativa o evento crítico — a escola, que não tem
+painel, ou a plataforma pela conta-mãe?
