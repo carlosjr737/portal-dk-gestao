@@ -2,12 +2,8 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ASAAS_ENV } from "@/features/baas/config";
-import {
-  clientePorDocumento,
-  criarCobrancaAvulsa,
-} from "@/features/baas/asaas-conta";
-import { criarClienteAsaas } from "@/features/baas/asaas-client";
-import { motivoDocumentoInvalido } from "@/lib/documento";
+import { criarCobrancaAvulsa } from "@/features/baas/asaas-conta";
+import { resolverClienteDoResponsavel } from "@/features/baas/cliente-pagador";
 
 /**
  * Faturamento mensal — as cobranças do mês nascem no dia 1.
@@ -125,27 +121,6 @@ export async function gerarCobrancasDoMes(
       .neq("status", "cancelada"),
   ]);
 
-  const { data: guardians } = await admin
-    .from("guardians")
-    .select("id, full_name, document, email, phone")
-    .in(
-      "id",
-      contratos.map((c) => c.guardian_id as string),
-    );
-
-  const guardianPorId = new Map(
-    (guardians ?? []).map((g) => [
-      g.id as string,
-      {
-        id: g.id as string,
-        full_name: (g.full_name as string) ?? "",
-        document: (g.document as string | null) ?? "",
-        email: (g.email as string | null) ?? null,
-        phone: (g.phone as string | null) ?? null,
-      },
-    ]),
-  );
-
   const cobrado = new Set(
     (jaCobrados ?? []).map((c) => c.guardian_contract_id as string),
   );
@@ -186,59 +161,33 @@ export async function gerarCobrancasDoMes(
     let cliente = clientePorContrato.get(id) ?? null;
 
     if (!cliente) {
-      const guardian = guardianPorId.get(contrato.guardian_id as string);
-      if (!guardian) {
-        resultado.falhas.push({
-          contrato: id,
-          motivo: "responsável não encontrado",
-        });
+      /*
+       * MESMA REGRA DA COBRANÇA AVULSA, e de propósito: existe → reaproveita,
+       * não existe → cria, sempre procurando pelo documento antes. Duas cópias
+       * dessa ordem divergiriam, e a divergência apareceria como uma família
+       * duplicada no provedor.
+       */
+      const r = await resolverClienteDoResponsavel(
+        chave,
+        contrato.guardian_id as string,
+        escolaId,
+      );
+
+      if (!r.ok) {
+        // O relatório traz o NOME e o motivo, não um id de contrato: é a
+        // diferença entre "621 falhas" e "fulana está sem CPF".
+        resultado.falhas.push({ contrato: id, motivo: r.motivo });
         continue;
       }
 
-      const motivo = motivoDocumentoInvalido(guardian.document);
-      if (motivo) {
-        // Sem CPF válido o provedor recusa. O nome vai no relatório para a
-        // escola saber exatamente quem corrigir.
-        resultado.falhas.push({
-          contrato: id,
-          motivo: `${guardian.full_name} ${motivo}`,
-        });
-        continue;
-      }
-
-      const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");
-
-      cliente = await clientePorDocumento(chave, String(guardian.document));
-
-      if (!cliente) {
-        const criado = await criarClienteAsaas(
-          {
-            name: guardian.full_name,
-            cpfCnpj: soDigitos(guardian.document),
-            email: guardian.email ?? undefined,
-            mobilePhone: soDigitos(guardian.phone) || undefined,
-            externalReference: guardian.id,
-            // A escola entrega a cobrança; cada aviso do provedor é cobrado.
-            notificationDisabled: true,
-          },
-          chave,
-        );
-        if (!criado.ok) {
-          resultado.falhas.push({
-            contrato: id,
-            motivo: `${guardian.full_name}: ${criado.error}`,
-          });
-          continue;
-        }
-        cliente = criado.id;
-      }
+      cliente = r.customerId;
 
       // Guarda o vínculo para o mês seguinte não repetir a busca — e para as
-      // outras telas conseguirem resolver o nome de quem paga.
+      // outras telas resolverem o nome de quem paga.
       await admin.from("aluno_assinatura").insert({
         escola_id: escolaId,
         guardian_contract_id: id,
-        guardian_id: guardian.id,
+        guardian_id: contrato.guardian_id,
         asaas_customer_id: cliente,
         asaas_subscription_id: null,
         status: "pendente",

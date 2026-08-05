@@ -9,13 +9,12 @@ import {
 } from "@/features/auth/session";
 import { ASAAS_ENV } from "@/features/baas/config";
 import {
-  buscarClientes,
   clientePorDocumento,
   criarCobrancaAvulsa,
   pixDaCobranca,
-  type ClienteBusca,
 } from "@/features/baas/asaas-conta";
 import { criarClienteAsaas } from "@/features/baas/asaas-client";
+import { resolverClienteDoResponsavel } from "@/features/baas/cliente-pagador";
 import { motivoDocumentoInvalido } from "@/lib/documento";
 
 export type AvulsaState = {
@@ -56,11 +55,38 @@ async function contexto() {
   return { chave, escolaId, admin };
 }
 
-/** Busca usada pelo campo "Cobrar de", a cada tecla. */
-export async function buscarPagadores(termo: string): Promise<ClienteBusca[]> {
+export type Pagador = { id: string; nome: string; documento: string };
+
+/**
+ * Busca usada pelo campo "Cobrar de", a cada tecla.
+ *
+ * A lista vem dos NOSSOS responsáveis financeiros, não da base do provedor.
+ * A escola pensa em responsável, e quem existe lá é consequência: o cadastro
+ * no provedor é criado na hora de emitir, se ainda não houver.
+ *
+ * A versão anterior buscava no provedor e mostrava só quem já estava lá —
+ * ou seja, escondia justamente quem ainda não tinha sido cobrado.
+ */
+export async function buscarPagadores(termo: string): Promise<Pagador[]> {
   const ctx = await contexto();
   if ("erro" in ctx) return [];
-  return buscarClientes(ctx.chave, termo);
+
+  let q = ctx.admin
+    .from("guardians")
+    .select("id, full_name, document")
+    .eq("escola_id", ctx.escolaId)
+    .order("full_name")
+    .limit(20);
+
+  const t = termo.trim();
+  if (t) q = q.ilike("full_name", `%${t}%`);
+
+  const { data } = await q;
+  return (data ?? []).map((g) => ({
+    id: g.id as string,
+    nome: (g.full_name as string) ?? "",
+    documento: (g.document as string | null) ?? "",
+  }));
 }
 
 function paraNumero(valor: string): number {
@@ -108,11 +134,25 @@ export async function criarAvulsa(
    * cadastro. Obrigar a virar responsável primeiro sujaria a base de
    * responsáveis com gente que não responde por ninguém.
    */
-  let customerId = String(formData.get("customer_id") ?? "").trim();
-  let nomePagador = String(formData.get("customer_nome") ?? "").trim();
+  let customerId = "";
+  let nomePagador = "";
   let telefonePagador: string | null = null;
 
-  if (!customerId) {
+  const guardianId = String(formData.get("guardian_id") ?? "").trim();
+
+  if (guardianId) {
+    // Responsável do nosso cadastro: o vínculo com o provedor é resolvido —
+    // ou criado — aqui, sem a escola precisar saber que ele existe.
+    const r = await resolverClienteDoResponsavel(
+      ctx.chave,
+      guardianId,
+      ctx.escolaId,
+    );
+    if (!r.ok) return { ok: false, message: r.motivo };
+    customerId = r.customerId;
+    nomePagador = r.nome;
+    telefonePagador = r.telefone;
+  } else {
     const nome = String(formData.get("novo_nome") ?? "").trim();
     const documento = String(formData.get("novo_documento") ?? "").trim();
     const email = String(formData.get("novo_email") ?? "").trim();
@@ -180,19 +220,6 @@ export async function criarAvulsa(
   // Boleto também aceita Pix na mesma fatura, então o copia-e-cola vale nos
   // dois casos — é o que a maioria das famílias usa.
   const pix = await pixDaCobranca(ctx.chave, r.id);
-
-  // O telefone de quem já existia sai do nosso cadastro, quando houver: é o
-  // que permite abrir o WhatsApp já no contato certo.
-  if (!telefonePagador) {
-    const { data: g } = await ctx.admin
-      .from("guardians")
-      .select("phone")
-      .eq("escola_id", ctx.escolaId)
-      .ilike("full_name", nomePagador || "")
-      .limit(1)
-      .maybeSingle();
-    telefonePagador = (g?.phone as string | null) ?? null;
-  }
 
   revalidatePath("/financeiro/conta");
   revalidatePath("/financeiro/recebimentos");

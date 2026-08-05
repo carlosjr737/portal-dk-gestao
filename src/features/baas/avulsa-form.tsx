@@ -9,9 +9,8 @@ import {
   buscarPagadores,
   criarAvulsa,
   type AvulsaState,
+  type Pagador,
 } from "@/features/baas/avulsa-actions";
-
-type Pagador = { id: string; nome: string; cpfCnpj: string };
 
 /** Mostra só o miolo do documento — o suficiente para separar homônimos. */
 const mascararDoc = (d: string) => {
@@ -223,7 +222,7 @@ export function AvulsaForm({
                   {escolhido.nome}
                 </span>
                 <span className="block text-xs text-muted-foreground tabular-nums">
-                  {mascararDoc(escolhido.cpfCnpj)}
+                  {escolhido.documento ? mascararDoc(escolhido.documento) : "sem CPF cadastrado"}
                 </span>
               </span>
               <button
@@ -236,8 +235,7 @@ export function AvulsaForm({
               >
                 Trocar
               </button>
-              <input type="hidden" name="customer_id" value={escolhido.id} />
-              <input type="hidden" name="customer_nome" value={escolhido.nome} />
+              <input type="hidden" name="guardian_id" value={escolhido.id} />
             </div>
           ) : cadastrando ? (
             /*
@@ -308,7 +306,7 @@ export function AvulsaForm({
                 ) : resultados.length === 0 ? (
                   <p className="px-3 py-2.5 text-sm text-muted-foreground">
                     {termo.trim()
-                      ? "Ninguém com esse nome."
+                      ? "Nenhum responsável com esse nome."
                       : "Digite para procurar."}
                   </p>
                 ) : (
@@ -322,7 +320,7 @@ export function AvulsaForm({
                         >
                           <span className="text-sm text-foreground">{r.nome}</span>
                           <span className="text-xs text-muted-foreground tabular-nums">
-                            {mascararDoc(r.cpfCnpj)}
+                            {r.documento ? mascararDoc(r.documento) : "sem CPF cadastrado"}
                           </span>
                         </button>
                       </li>
