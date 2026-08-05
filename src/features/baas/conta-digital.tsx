@@ -35,7 +35,10 @@ export function ContaDigitalView({ conta }: { conta: ContaDigital }) {
       <div className="mt-6">
         <Alert tone="info">
           Esta escola ainda não tem conta de pagamentos.{" "}
-          <Link href="/financeiro/conta-pagamentos" className="font-medium underline">
+          <Link
+            href="/financeiro/conta-pagamentos"
+            className="font-medium underline"
+          >
             Criar agora
           </Link>
         </Alert>
@@ -139,10 +142,9 @@ function SituacaoDasCobrancas({
     },
   ];
 
-  const mes = new Date(`${situacao.competencia}-02T00:00:00`).toLocaleDateString(
-    "pt-BR",
-    { month: "long" },
-  );
+  const mes = new Date(
+    `${situacao.competencia}-02T00:00:00`,
+  ).toLocaleDateString("pt-BR", { month: "long" });
 
   return (
     <section>
@@ -160,7 +162,9 @@ function SituacaoDasCobrancas({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {f.rotulo}
               </p>
-              <p className={`mt-1.5 text-lg font-semibold tabular-nums ${f.texto}`}>
+              <p
+                className={`mt-1.5 text-lg font-semibold tabular-nums ${f.texto}`}
+              >
                 {dinheiro(f.dados.valor)}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
@@ -189,7 +193,10 @@ function SituacaoDasCobrancas({
 }
 
 /** Status do provedor traduzido, com o tom que ele merece na tela. */
-const STATUS: Record<string, { rotulo: string; tom: "success" | "info" | "warning" | "danger" | "neutral" }> = {
+const STATUS: Record<
+  string,
+  { rotulo: string; tom: "success" | "info" | "warning" | "danger" | "neutral" }
+> = {
   RECEIVED: { rotulo: "Recebida", tom: "success" },
   RECEIVED_IN_CASH: { rotulo: "Recebida em dinheiro", tom: "success" },
   CONFIRMED: { rotulo: "Confirmada", tom: "info" },
@@ -241,7 +248,10 @@ function Cobrancas({
       ) : (
         <ul className="divide-y divide-border">
           {cobrancas.map((c) => {
-            const s = STATUS[c.status] ?? { rotulo: c.status, tom: "neutral" as const };
+            const s = STATUS[c.status] ?? {
+              rotulo: c.status,
+              tom: "neutral" as const,
+            };
             const podeEstornar = ESTORNAVEL.includes(c.status) && !c.estornada;
             const taxa = Math.max(0, c.valor - c.valorLiquido);
 
@@ -256,36 +266,51 @@ function Cobrancas({
             const estornoPendente = c.estornada && c.status !== "REFUNDED";
 
             return (
-              <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {c.pagador ?? c.descricao ?? "Cobrança"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                    {FORMA[c.formaPagamento] ?? c.formaPagamento} · vence{" "}
-                    {c.vencimento.split("-").reverse().join("/")}
-                    {/* Cartão confirmado só vira dinheiro no mês seguinte —
+              /*
+               * A linha é uma COLUNA, e a confirmação de estorno ocupa a
+               * largura toda embaixo.
+               *
+               * Antes o botão vivia na coluna da direita, e ao abrir a
+               * confirmação ele empurrava o nome e a forma de pagamento para
+               * uma faixa de uma palavra por linha — "Cartão", "de",
+               * "crédito". A confirmação é larga por natureza (tem um aviso
+               * de duas linhas dentro), então ela não cabe ao lado de nada.
+               */
+              <li key={c.id} className="flex flex-col gap-3 px-5 py-3.5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {c.pagador ?? c.descricao ?? "Cobrança"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                      {FORMA[c.formaPagamento] ?? c.formaPagamento} · vence{" "}
+                      {c.vencimento.split("-").reverse().join("/")}
+                      {/* Cartão confirmado só vira dinheiro no mês seguinte —
                         dizer quando é o que evita a pergunta na secretaria. */}
-                    {c.status === "CONFIRMED" && c.creditoEm ? (
-                      <> · cai em {c.creditoEm.split("-").reverse().join("/")}</>
-                    ) : null}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <Badge tone={s.tom}>{s.rotulo}</Badge>
+                      {c.status === "CONFIRMED" && c.creditoEm ? (
+                        <>
+                          {" "}
+                          · cai em {c.creditoEm.split("-").reverse().join("/")}
+                        </>
+                      ) : null}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <Badge tone={s.tom}>{s.rotulo}</Badge>
+                      {estornoPendente ? (
+                        <Badge tone="warning">
+                          Estorno aguardando liberação
+                        </Badge>
+                      ) : null}
+                    </div>
                     {estornoPendente ? (
-                      <Badge tone="warning">Estorno aguardando liberação</Badge>
+                      <p className="mt-1.5 max-w-[46ch] text-xs text-warning-text">
+                        O valor já saiu do saldo. O provedor exige uma liberação
+                        que ainda não está disponível por aqui.
+                      </p>
                     ) : null}
                   </div>
-                  {estornoPendente ? (
-                    <p className="mt-1.5 max-w-[46ch] text-xs text-warning-text">
-                      O valor já saiu do saldo. O provedor exige uma liberação
-                      que ainda não está disponível por aqui.
-                    </p>
-                  ) : null}
-                </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-foreground tabular-nums">
                       {dinheiro(c.valor)}
                     </p>
@@ -293,15 +318,18 @@ function Cobrancas({
                       {dinheiro(c.valorLiquido)} líquido
                     </p>
                   </div>
-                  {podeEstornar ? (
+                </div>
+
+                {podeEstornar ? (
+                  <div className="flex justify-end border-t border-border pt-3">
                     <EstornoBotao
                       paymentId={c.id}
                       valor={c.valor}
                       taxa={taxa}
                       pagador={c.pagador ?? "quem pagou"}
                     />
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -427,16 +455,24 @@ function Extrato({
                     <summary className="cursor-pointer list-none px-5 py-3.5 marker:content-none hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
                       {cabecalho}
                       <span className="mt-1 inline-block text-xs font-medium text-primary">
-                        <span className="group-open:hidden">Ver o que foi descontado</span>
-                        <span className="hidden group-open:inline">Ocultar detalhe</span>
+                        <span className="group-open:hidden">
+                          Ver o que foi descontado
+                        </span>
+                        <span className="hidden group-open:inline">
+                          Ocultar detalhe
+                        </span>
                       </span>
                     </summary>
                     <dl className="mx-5 mb-4 space-y-1.5 rounded-md border border-border bg-muted/40 px-4 py-3">
                       {l.detalhes.map((d, i) => (
-                        <div key={i} className="flex justify-between gap-4 text-xs">
+                        <div
+                          key={i}
+                          className="flex justify-between gap-4 text-xs"
+                        >
                           <dt className="text-muted-foreground">{d.rotulo}</dt>
                           <dd className="font-medium text-foreground tabular-nums">
-                            {d.valor >= 0 ? "+" : "−"} {dinheiro(Math.abs(d.valor))}
+                            {d.valor >= 0 ? "+" : "−"}{" "}
+                            {dinheiro(Math.abs(d.valor))}
                           </dd>
                         </div>
                       ))}
@@ -466,12 +502,16 @@ function DadosDaConta({
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="text-sm font-semibold text-foreground">Dados da conta</h2>
+        <h2 className="text-sm font-semibold text-foreground">
+          Dados da conta
+        </h2>
         {b ? (
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Agência</dt>
-              <dd className="font-medium text-foreground tabular-nums">{b.agencia}</dd>
+              <dd className="font-medium text-foreground tabular-nums">
+                {b.agencia}
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Conta</dt>
