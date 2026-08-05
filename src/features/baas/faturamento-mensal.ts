@@ -2,7 +2,12 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ASAAS_ENV } from "@/features/baas/config";
-import { criarCobrancaAvulsa } from "@/features/baas/asaas-conta";
+import {
+  clientePorDocumento,
+  criarCobrancaAvulsa,
+} from "@/features/baas/asaas-conta";
+import { criarClienteAsaas } from "@/features/baas/asaas-client";
+import { motivoDocumentoInvalido } from "@/lib/documento";
 
 /**
  * Faturamento mensal — as cobranças do mês nascem no dia 1.
@@ -72,7 +77,11 @@ export async function gerarCobrancasDoMes(
   };
 
   const [{ data: escola }, { data: cred }] = await Promise.all([
-    admin.from("school").select("usa_pagamentos").eq("id", escolaId).maybeSingle(),
+    admin
+      .from("school")
+      .select("usa_pagamentos")
+      .eq("id", escolaId)
+      .maybeSingle(),
     admin
       .from("school_payment_credentials")
       .select("api_key")
@@ -116,6 +125,27 @@ export async function gerarCobrancasDoMes(
       .neq("status", "cancelada"),
   ]);
 
+  const { data: guardians } = await admin
+    .from("guardians")
+    .select("id, full_name, document, email, phone")
+    .in(
+      "id",
+      contratos.map((c) => c.guardian_id as string),
+    );
+
+  const guardianPorId = new Map(
+    (guardians ?? []).map((g) => [
+      g.id as string,
+      {
+        id: g.id as string,
+        full_name: (g.full_name as string) ?? "",
+        document: (g.document as string | null) ?? "",
+        email: (g.email as string | null) ?? null,
+        phone: (g.phone as string | null) ?? null,
+      },
+    ]),
+  );
+
   const cobrado = new Set(
     (jaCobrados ?? []).map((c) => c.guardian_contract_id as string),
   );
@@ -145,19 +175,76 @@ export async function gerarCobrancasDoMes(
       continue;
     }
 
-    const cliente = clientePorContrato.get(id);
+    /*
+     * O CADASTRO NO PROVEDOR É CRIADO PELO LOTE quando não existe.
+     *
+     * A primeira versão pulava quem não tinha cadastro — e como quase nenhuma
+     * família tem, o lote cobraria quase ninguém. O medo era duplicar a pessoa
+     * lá dentro; a trava contra isso é procurar pelo DOCUMENTO antes de criar,
+     * que é o que o provedor usa para identificar quem paga.
+     */
+    let cliente = clientePorContrato.get(id) ?? null;
+
     if (!cliente) {
-      /*
-       * Sem cliente no provedor não há como emitir, e criar um aqui, dentro
-       * de um lote que roda sem ninguém olhando, duplicaria a pessoa lá
-       * dentro na primeira divergência de cadastro. O contrato fica de fora e
-       * o motivo vai no relatório.
-       */
-      resultado.falhas.push({
-        contrato: id,
-        motivo: "responsável ainda não tem cadastro no provedor",
+      const guardian = guardianPorId.get(contrato.guardian_id as string);
+      if (!guardian) {
+        resultado.falhas.push({
+          contrato: id,
+          motivo: "responsável não encontrado",
+        });
+        continue;
+      }
+
+      const motivo = motivoDocumentoInvalido(guardian.document);
+      if (motivo) {
+        // Sem CPF válido o provedor recusa. O nome vai no relatório para a
+        // escola saber exatamente quem corrigir.
+        resultado.falhas.push({
+          contrato: id,
+          motivo: `${guardian.full_name} ${motivo}`,
+        });
+        continue;
+      }
+
+      const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+
+      cliente = await clientePorDocumento(chave, String(guardian.document));
+
+      if (!cliente) {
+        const criado = await criarClienteAsaas(
+          {
+            name: guardian.full_name,
+            cpfCnpj: soDigitos(guardian.document),
+            email: guardian.email ?? undefined,
+            mobilePhone: soDigitos(guardian.phone) || undefined,
+            externalReference: guardian.id,
+            // A escola entrega a cobrança; cada aviso do provedor é cobrado.
+            notificationDisabled: true,
+          },
+          chave,
+        );
+        if (!criado.ok) {
+          resultado.falhas.push({
+            contrato: id,
+            motivo: `${guardian.full_name}: ${criado.error}`,
+          });
+          continue;
+        }
+        cliente = criado.id;
+      }
+
+      // Guarda o vínculo para o mês seguinte não repetir a busca — e para as
+      // outras telas conseguirem resolver o nome de quem paga.
+      await admin.from("aluno_assinatura").insert({
+        escola_id: escolaId,
+        guardian_contract_id: id,
+        guardian_id: guardian.id,
+        asaas_customer_id: cliente,
+        asaas_subscription_id: null,
+        status: "pendente",
+        valor: Number(contrato.total_amount ?? 0),
+        forma_pagamento: "BOLETO",
       });
-      continue;
     }
 
     const valor = Number(contrato.total_amount ?? 0);
