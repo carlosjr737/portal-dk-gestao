@@ -475,3 +475,103 @@ export async function cancelarSaque(
   const data = await res.json().catch(() => null);
   return { ok: false, error: mensagemErro(data, res.status) };
 }
+
+/* ------------------------------------------------------------------ */
+/* Cobrança avulsa                                                     */
+/* ------------------------------------------------------------------ */
+
+export type CobrancaAvulsaResult =
+  | {
+      ok: true;
+      id: string;
+      /** Página onde o responsável paga — é o link que a escola entrega. */
+      invoiceUrl: string | null;
+      bankSlipUrl: string | null;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Cobrança única, fora da assinatura.
+ *
+ * Existe para o que a mensalidade recorrente não cobre: uma cobrança
+ * estornada que precisa ser reemitida, um figurino, uma taxa de festival.
+ *
+ * NÃO É ASSINATURA e não mexe em matrícula nenhuma — é um `payment` solto. É
+ * essa a diferença para `criarAssinaturaAsaas`, e ela importa: assinatura se
+ * repete todo mês, e reemitir uma cobrança estornada criando assinatura
+ * cobraria a família para sempre.
+ *
+ * `BOLETO` entrega boleto E Pix na mesma fatura, sem cartão — ver
+ * `FormaPagamento` em `asaas-client.ts`.
+ */
+export async function criarCobrancaAvulsa(
+  chaveApi: string,
+  entrada: {
+    customer: string;
+    valor: number;
+    vencimento: string;
+    descricao: string;
+    forma: "BOLETO" | "PIX";
+    externalReference?: string;
+  },
+): Promise<CobrancaAvulsaResult> {
+  const res = await fetch(`${ASAAS_API_BASE}/payments`, {
+    method: "POST",
+    headers: headers(chaveApi),
+    body: JSON.stringify({
+      customer: entrada.customer,
+      billingType: entrada.forma,
+      value: entrada.valor,
+      dueDate: entrada.vencimento,
+      description: entrada.descricao,
+      externalReference: entrada.externalReference,
+    }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+
+  const d = data as Record<string, unknown>;
+  return {
+    ok: true,
+    id: String(d.id ?? ""),
+    invoiceUrl: (d.invoiceUrl as string | null) ?? null,
+    bankSlipUrl: (d.bankSlipUrl as string | null) ?? null,
+  };
+}
+
+/** Pix copia-e-cola de uma cobrança, para a escola mandar por WhatsApp. */
+export async function pixDaCobranca(
+  chaveApi: string,
+  paymentId: string,
+): Promise<string | null> {
+  const r = await ler<Record<string, unknown>>(
+    `/payments/${paymentId}/pixQrCode`,
+    chaveApi,
+  );
+  return r.ok ? ((r.data.payload as string | undefined) ?? null) : null;
+}
+
+/** Uma cobrança específica, para pré-preencher o "refazer". */
+export async function obterCobranca(
+  chaveApi: string,
+  paymentId: string,
+): Promise<Cobranca | null> {
+  const r = await ler<Record<string, unknown>>(
+    `/payments/${paymentId}`,
+    chaveApi,
+  );
+  if (!r.ok) return null;
+  const p = r.data;
+  return {
+    id: String(p.id ?? ""),
+    customerId: String(p.customer ?? ""),
+    status: String(p.status ?? ""),
+    formaPagamento: String(p.billingType ?? ""),
+    valor: Number(p.value ?? 0),
+    valorLiquido: Number(p.netValue ?? 0),
+    vencimento: String(p.dueDate ?? ""),
+    descricao: String(p.description ?? ""),
+    creditoEm: (p.creditDate as string | null) ?? null,
+    estornada: Array.isArray(p.refunds) && p.refunds.length > 0,
+  };
+}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { QrCode } from "lucide-react";
+import { QrCode, Receipt } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -192,11 +192,18 @@ function SituacaoDasCobrancas({
 
   return (
     <section>
-      <h2 className="text-sm font-semibold text-foreground">
-        Situação das cobranças
+      {/*
+        O MÊS VAI NO TÍTULO, não numa linha de apoio embaixo.
+        Estes cards contam só o que vence no mês corrente, e a lista de
+        cobranças logo abaixo não filtra mês nenhum. Com o recorte escondido
+        num subtítulo, as duas coisas se contradiziam à vista: duas cobranças
+        "Aguardando" na lista e "0 cobranças" no card de aguardando.
+      */}
+      <h2 className="text-sm font-semibold capitalize text-foreground">
+        Situação das cobranças de {mes}
       </h2>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Com vencimento em {mes}.
+        Conta pelo vencimento. Cobrança que vence em outro mês não entra aqui.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -396,6 +403,25 @@ function Cobrancas({
                     />
                   </div>
                 ) : null}
+
+                {/*
+                  Estornou e agora precisa cobrar de novo. Sem esta saída, a
+                  cobrança estornada vira um beco: a mensalidade daquele mês
+                  sumiu e não há por onde reemitir sem mexer na matrícula.
+                */}
+                {c.status === "REFUNDED" || c.estornada ? (
+                  <div className="-mt-1 flex justify-end">
+                    <Link
+                      href={`/financeiro/conta/avulsa?refazer=${encodeURIComponent(c.id)}`}
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "sm",
+                      })}
+                    >
+                      Refazer cobrança
+                    </Link>
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -435,13 +461,25 @@ function SaldoCard({
           </p>
         </div>
 
-        <Link
-          href="/financeiro/conta/cobrar"
-          className={buttonVariants({ className: "h-11 gap-2" })}
-        >
-          <QrCode className="h-4 w-4" aria-hidden />
-          Cobrar por QR Code
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/financeiro/conta/avulsa"
+            className={buttonVariants({ className: "h-11 gap-2" })}
+          >
+            <Receipt className="h-4 w-4" aria-hidden />
+            Nova cobrança
+          </Link>
+          <Link
+            href="/financeiro/conta/cobrar"
+            className={buttonVariants({
+              variant: "outline",
+              className: "h-11 gap-2",
+            })}
+          >
+            <QrCode className="h-4 w-4" aria-hidden />
+            QR Code Pix
+          </Link>
+        </div>
       </div>
     </Card>
   );
