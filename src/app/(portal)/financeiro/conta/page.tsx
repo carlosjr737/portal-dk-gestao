@@ -23,7 +23,19 @@ export const dynamic = "force-dynamic";
  * secretaria a visão de saldo da escola — decisão de produto, não detalhe de
  * implementação. Se for para liberar, libera no modelo de permissão, não aqui.
  */
-export default async function ContaPage() {
+export default async function ContaPage({
+  searchParams,
+}: {
+  /**
+   * `estornada` traz o id da cobrança que acabou de ser estornada.
+   *
+   * Vem pela URL porque a confirmação precisa sobreviver ao re-render: ao
+   * estornar, a cobrança deixa de ser estornável e o botão some — levando
+   * junto qualquer mensagem que morasse nele.
+   */
+  searchParams?: Promise<{ estornada?: string }>;
+}) {
+  const params = await searchParams;
   const user = await getAuthenticatedUser();
   const profile = user ? await getProfileByUserId(user.id) : null;
 
@@ -47,7 +59,7 @@ export default async function ContaPage() {
           </Link>
         }
       />
-      <ContaDigitalView conta={conta} />
+      <ContaDigitalView conta={conta} estornada={params?.estornada ?? null} />
     </div>
   );
 }

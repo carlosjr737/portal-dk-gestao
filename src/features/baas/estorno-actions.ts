@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getAuthenticatedUser,
@@ -10,6 +11,11 @@ import {
 import { ASAAS_ENV } from "@/features/baas/config";
 import { estornarCobranca } from "@/features/baas/asaas-conta";
 
+/**
+ * Só o caminho de ERRO volta por aqui. O sucesso redireciona, porque a
+ * confirmação não pode viver num componente que o próprio sucesso remove da
+ * tela — ver o comentário no fim desta função.
+ */
 export type EstornoState = { ok?: boolean; message?: string };
 
 /**
@@ -72,19 +78,15 @@ export async function estornar(
   revalidatePath("/financeiro/inadimplencia");
 
   /*
-   * "SOLICITADO", NÃO "ESTORNADO".
+   * A CONFIRMAÇÃO NÃO PODE MORAR NO BOTÃO.
    *
-   * O provedor aceita o pedido e já tira o valor do saldo, mas o estorno fica
-   * em `AWAITING_CRITICAL_ACTION_AUTHORIZATION` — a mesma trava do saque.
-   * Medido no sandbox em 04/08/2026. Dizer "estornado" aqui faria a escola
-   * avisar a família que o dinheiro voltou antes de ele ter voltado.
+   * `revalidatePath` re-renderiza a lista, e a cobrança estornada deixa de ser
+   * estornável — o botão desaparece, e a mensagem de sucesso desaparece junto
+   * com ele. Foi o que aconteceu: o estorno funcionou e a tela não disse nada.
    *
-   * O que destrava, segundo a documentação: cadastrar os IPs da aplicação e
-   * desativar o evento crítico em Integrações > Mecanismos de segurança.
+   * Por isso o resultado vai para a URL. Ele sobrevive ao re-render, à
+   * atualização da página, e a tela o mostra no topo, longe de qualquer
+   * componente que possa sumir.
    */
-  return {
-    ok: true,
-    message:
-      "Estorno solicitado. O valor já saiu do saldo, mas o provedor ainda precisa liberar a operação — só avise a família quando ela concluir.",
-  };
+  redirect(`/financeiro/conta?estornada=${encodeURIComponent(paymentId)}`);
 }

@@ -31,9 +31,26 @@ import type {
  * voltou e, quando ele é falso, diz que o valor saiu do saldo e está parado —
  * com o cancelamento ao lado.
  */
-export function ContaDigitalView({ conta }: { conta: ContaDigital }) {
+export function ContaDigitalView({
+  conta,
+  estornada = null,
+}: {
+  conta: ContaDigital;
+  /** Id da cobrança recém-estornada, vindo da URL. */
+  estornada?: string | null;
+}) {
   const dinheiro = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  /*
+   * A cobrança estornada é procurada na lista para o aviso poder dizer DE QUEM
+   * era e QUANTO foi. "Estorno concluído" sozinho obriga a pessoa a caçar na
+   * lista qual foi — e ela acabou de fazer a operação justamente para não
+   * ficar em dúvida.
+   */
+  const recemEstornada = estornada
+    ? (conta.cobrancas.find((c) => c.id === estornada) ?? null)
+    : null;
 
   if (conta.estado === "sem_conta") {
     return (
@@ -71,6 +88,25 @@ export function ContaDigitalView({ conta }: { conta: ContaDigital }) {
       {conta.ambiente !== "production" ? (
         <Alert tone="info">
           Ambiente de testes. Os valores abaixo não são dinheiro real.
+        </Alert>
+      ) : null}
+
+      {estornada ? (
+        <Alert tone="success">
+          <strong className="font-semibold">Estorno concluído.</strong>{" "}
+          {recemEstornada ? (
+            <>
+              {dinheiro(recemEstornada.valor)} devolvidos
+              {recemEstornada.pagador ? ` para ${recemEstornada.pagador}` : ""}.
+              No cartão, o cancelamento aparece na fatura em até dez dias úteis.
+            </>
+          ) : (
+            <>
+              A cobrança foi estornada. No cartão, o cancelamento aparece na
+              fatura de quem pagou em até dez dias úteis.
+            </>
+          )}{" "}
+          A taxa da cobrança não é devolvida pelo provedor.
         </Alert>
       ) : null}
 
