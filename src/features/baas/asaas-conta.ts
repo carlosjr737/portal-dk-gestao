@@ -290,6 +290,12 @@ export type Cobranca = {
   /** Quando o dinheiro cai na conta. Nulo enquanto não houver previsão. */
   creditoEm: string | null;
   estornada: boolean;
+  /**
+   * Página de pagamento hospedada pelo Asaas. É por ela que a escola entrega
+   * a cobrança — o provedor não manda e-mail (`notificationDisabled`), então
+   * este link É o canal.
+   */
+  linkFatura: string | null;
 };
 
 export type CobrancasResult =
@@ -321,6 +327,7 @@ export async function listarCobrancas(
       descricao: String(p.description ?? ""),
       creditoEm: (p.creditDate as string | null) ?? null,
       estornada: Array.isArray(p.refunds) && p.refunds.length > 0,
+      linkFatura: (p.invoiceUrl as string | null) ?? null,
     })),
   };
 }
@@ -573,6 +580,7 @@ export async function obterCobranca(
     descricao: String(p.description ?? ""),
     creditoEm: (p.creditDate as string | null) ?? null,
     estornada: Array.isArray(p.refunds) && p.refunds.length > 0,
+    linkFatura: (p.invoiceUrl as string | null) ?? null,
   };
 }
 
@@ -635,4 +643,38 @@ export async function clientePorDocumento(
 
   const primeiro = ((r.data.data ?? []) as Array<Record<string, unknown>>)[0];
   return primeiro ? String(primeiro.id ?? "") : null;
+}
+
+
+/**
+ * Apaga uma cobrança no provedor.
+ *
+ * SÓ VALE PARA COBRANÇA NÃO PAGA. O Asaas recusa apagar o que já foi
+ * recebido, e com razão: o dinheiro entrou e sumir com o registro deixaria o
+ * extrato sem origem. Para desfazer recebimento existe o estorno, que é outra
+ * coisa e devolve o dinheiro.
+ *
+ * A exclusão é definitiva e não avisa ninguém — se o responsável já recebeu o
+ * link, ele passa a apontar para uma cobrança que não existe. Por isso a tela
+ * confirma antes.
+ */
+export type ExclusaoResult = { ok: true } | { ok: false; error: string };
+
+export async function excluirCobranca(
+  paymentId: string,
+  chave: string,
+): Promise<ExclusaoResult> {
+  const res = await fetch(`${ASAAS_API_BASE}/payments/${paymentId}`, {
+    method: "DELETE",
+    headers: { access_token: chave },
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const d = data as { errors?: Array<{ description?: string }> } | null;
+    return {
+      ok: false,
+      error: d?.errors?.[0]?.description ?? `Erro ${res.status}`,
+    };
+  }
+  return { ok: true };
 }

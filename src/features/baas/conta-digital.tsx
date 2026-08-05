@@ -5,6 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { EstornoBotao } from "@/features/baas/estorno-botao";
+import { CobrancaAcoesBarra } from "@/features/baas/cobranca-acoes-barra";
+import {
+  CircleCheck,
+  Clock,
+  Trash2,
+  TriangleAlert,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 import { SaqueForm, SaquePendente } from "@/features/baas/saque-form";
 import type {
   CobrancaNaTela,
@@ -260,19 +269,28 @@ function SituacaoDasCobrancas({
 }
 
 /** Status do provedor traduzido, com o tom que ele merece na tela. */
+/*
+ * O ícone acelera, o texto informa. Os dois juntos e nunca só o ícone: um
+ * relógio sozinho não distingue "aguardando" de "vencida", e cor sozinha não
+ * chega em quem não enxerga cor.
+ */
 const STATUS: Record<
   string,
-  { rotulo: string; tom: "success" | "info" | "warning" | "danger" | "neutral" }
+  {
+    rotulo: string;
+    tom: "success" | "info" | "warning" | "danger" | "neutral";
+    Icone: LucideIcon;
+  }
 > = {
-  RECEIVED: { rotulo: "Recebida", tom: "success" },
-  RECEIVED_IN_CASH: { rotulo: "Recebida em dinheiro", tom: "success" },
-  CONFIRMED: { rotulo: "Confirmada", tom: "info" },
-  PENDING: { rotulo: "Aguardando", tom: "warning" },
-  OVERDUE: { rotulo: "Vencida", tom: "danger" },
-  REFUNDED: { rotulo: "Estornada", tom: "neutral" },
-  REFUND_REQUESTED: { rotulo: "Estorno em andamento", tom: "neutral" },
-  CHARGEBACK_REQUESTED: { rotulo: "Chargeback", tom: "danger" },
-  DELETED: { rotulo: "Removida", tom: "neutral" },
+  RECEIVED: { rotulo: "Recebida", tom: "success", Icone: CircleCheck },
+  RECEIVED_IN_CASH: { rotulo: "Recebida em dinheiro", tom: "success", Icone: CircleCheck },
+  CONFIRMED: { rotulo: "Confirmada", tom: "info", Icone: CircleCheck },
+  PENDING: { rotulo: "Aguardando", tom: "warning", Icone: Clock },
+  OVERDUE: { rotulo: "Vencida", tom: "danger", Icone: TriangleAlert },
+  REFUNDED: { rotulo: "Estornada", tom: "neutral", Icone: Undo2 },
+  REFUND_REQUESTED: { rotulo: "Estorno em andamento", tom: "neutral", Icone: Undo2 },
+  CHARGEBACK_REQUESTED: { rotulo: "Chargeback", tom: "danger", Icone: TriangleAlert },
+  DELETED: { rotulo: "Removida", tom: "neutral", Icone: Trash2 },
 };
 
 const FORMA: Record<string, string> = {
@@ -318,6 +336,7 @@ function Cobrancas({
             const s = STATUS[c.status] ?? {
               rotulo: c.status,
               tom: "neutral" as const,
+              Icone: Clock,
             };
             const podeEstornar = ESTORNAVEL.includes(c.status) && !c.estornada;
             const taxa = Math.max(0, c.valor - c.valorLiquido);
@@ -362,7 +381,10 @@ function Cobrancas({
                       ) : null}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <Badge tone={s.tom}>{s.rotulo}</Badge>
+                      <Badge tone={s.tom}>
+                        <s.Icone className="mr-1 inline h-3 w-3" aria-hidden />
+                        {s.rotulo}
+                      </Badge>
                       {estornoPendente ? (
                         <Badge tone="warning">
                           Estorno aguardando liberação
@@ -388,40 +410,29 @@ function Cobrancas({
                 </div>
 
                 {/*
-                  Sem borda separando: ela desenhava uma divisória idêntica à
-                  que separa as cobranças, e o botão passava a parecer solto
-                  ENTRE dois itens, sem dono. Recuado à direita e colado ao
-                  bloco de cima, ele pertence visivelmente a esta linha.
+                  Uma barra de ícones no lugar de dois blocos de botão de
+                  texto empilhados. Cada um ocupava a largura toda e empurrava
+                  a lista para baixo; juntos e como ícone, cabem numa faixa.
                 */}
-                {podeEstornar ? (
-                  <div className="-mt-1 flex justify-end">
-                    <EstornoBotao
-                      paymentId={c.id}
-                      valor={c.valor}
-                      taxa={taxa}
-                      pagador={c.pagador ?? "quem pagou"}
-                    />
-                  </div>
-                ) : null}
-
-                {/*
-                  Estornou e agora precisa cobrar de novo. Sem esta saída, a
-                  cobrança estornada vira um beco: a mensalidade daquele mês
-                  sumiu e não há por onde reemitir sem mexer na matrícula.
-                */}
-                {c.status === "REFUNDED" || c.estornada ? (
-                  <div className="-mt-1 flex justify-end">
-                    <Link
-                      href={`/financeiro/conta/avulsa?refazer=${encodeURIComponent(c.id)}`}
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "sm",
-                      })}
-                    >
-                      Refazer cobrança
-                    </Link>
-                  </div>
-                ) : null}
+                <CobrancaAcoesBarra
+                  paymentId={c.id}
+                  status={c.status}
+                  valor={c.valor}
+                  vencimento={c.vencimento}
+                  linkFatura={c.linkFatura}
+                  estornada={c.estornada}
+                  estorno={
+                    podeEstornar ? (
+                      <EstornoBotao
+                        icone
+                        paymentId={c.id}
+                        valor={c.valor}
+                        taxa={taxa}
+                        pagador={c.pagador ?? "quem pagou"}
+                      />
+                    ) : null
+                  }
+                />
               </li>
             );
           })}

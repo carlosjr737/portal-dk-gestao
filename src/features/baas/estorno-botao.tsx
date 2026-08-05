@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { estornar, type EstornoState } from "@/features/baas/estorno-actions";
 
@@ -21,12 +21,15 @@ export function EstornoBotao({
   valor,
   taxa,
   pagador,
+  icone = false,
 }: {
   paymentId: string;
   valor: number;
   /** Diferença entre bruto e líquido — o que NÃO volta no estorno. */
   taxa: number;
   pagador: string;
+  /** Renderiza o gatilho como ícone, para caber na barra de ações. */
+  icone?: boolean;
 }) {
   const [state, formAction, enviando] = useActionState<EstornoState, FormData>(
     estornar,
@@ -48,6 +51,25 @@ export function EstornoBotao({
   }
 
   if (!confirmando) {
+    /*
+     * Como ícone dentro da barra de ações, como texto onde estiver sozinho.
+     * A confirmação abaixo é a mesma nos dois casos — ela é que carrega o
+     * aviso de que o dinheiro volta, e não pode depender do formato do
+     * gatilho.
+     */
+    if (icone) {
+      return (
+        <button
+          type="button"
+          onClick={() => setConfirmando(true)}
+          title="Estornar (devolver o dinheiro)"
+          aria-label="Estornar (devolver o dinheiro)"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input text-muted-foreground transition hover:bg-warning-tint hover:text-warning-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden />
+        </button>
+      );
+    }
     return (
       <Button
         type="button"
