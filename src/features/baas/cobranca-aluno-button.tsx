@@ -61,7 +61,7 @@ export function CobrancaAlunoButton({
   return (
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="contrato_id" value={contratoId} />
-      <input type="hidden" name="billing_type" value="UNDEFINED" />
+      <input type="hidden" name="billing_type" value="BOLETO" />
       <Button
         variant="outline"
         size="sm"

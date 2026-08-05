@@ -185,7 +185,9 @@ export async function garantirCobrancaDoContrato(
         nextDueDate: primeiroVencimento,
         cycle: "MONTHLY",
         // Responsável escolhe como pagar (Pix, boleto ou cartão).
-        billingType: "UNDEFINED",
+        // BOLETO entrega boleto E Pix na mesma fatura, sem cartão — ver
+        // `FormaPagamento`. UNDEFINED aqui deixaria o cartão voltar.
+        billingType: "BOLETO",
         description: "Mensalidade",
         externalReference: guardianContractId,
         endDate,
@@ -203,7 +205,7 @@ export async function garantirCobrancaDoContrato(
       status: "pendente",
       valor,
       proximo_vencimento: primeiroVencimento,
-      forma_pagamento: "UNDEFINED",
+      forma_pagamento: "BOLETO",
     });
 
     if (error) {

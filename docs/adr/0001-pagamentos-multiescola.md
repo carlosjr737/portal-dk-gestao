@@ -73,16 +73,25 @@ Aluno autoriza Pix Automático (1x)
 
 **Motivo — fluxo de caixa, não taxa.** O repasse do cartão só acontece depois da liquidação da bandeira, e parcelado vem mês a mês. A escola dá a aula em agosto e recebe em setembro ou depois, enquanto o professor é pago em agosto do mesmo jeito. É um descasamento criado pela forma de pagamento, e nenhuma régua de inadimplência o enxerga.
 
-**O que isso exige saber sobre o Asaas.** Não existe `billingType` que signifique "tudo menos cartão": o enum é `UNDEFINED | PIX | BOLETO | CREDIT_CARD`, sem combinação. E `UNDEFINED` — que é o que a mensalidade usa, para o responsável escolher — oferece na fatura **o que estiver habilitado na conta**.
+**O que isso exige saber sobre o Asaas.** O enum é `UNDEFINED | PIX | BOLETO | CREDIT_CARD`, sem combinação — e `UNDEFINED`, que a mensalidade usava para o responsável escolher, oferece na fatura **o que estiver habilitado na conta**. Foi por essa porta que uma mensalidade saiu no crédito sem ninguém pedir.
 
-**Consequência prática, em duas metades:**
+### Correção (05/08/2026) — `BOLETO` é o "tudo menos cartão"
 
-| Metade | Onde | O que faz |
-|---|---|---|
-| Código | `FormaPagamento`, formulários, constraint | impede o portal de **pedir** cartão |
-| Conta | configuração da subconta, no Asaas | impede o cartão de **aparecer** na fatura |
+O parágrafo acima concluía que não existia valor que oferecesse boleto e Pix sem cartão, e que só a configuração da conta resolveria. **Está errado, e a correção é simples.**
 
-Só a segunda desliga de fato. A primeira existe para ninguém reintroduzir a opção por descuido — e é por isso que este adendo existe, em vez de a mudança viver só no commit.
+Uma cobrança criada com `billingType: "BOLETO"` sai com **boleto E Pix na mesma fatura**. Verificado na API: `GET /payments/{id}/pixQrCode` de uma cobrança de boleto devolve QR e copia-e-cola. No painel do provedor ela aparece como **"Boleto Bancário / Pix"**.
+
+Ou seja: `BOLETO` é, na prática, o valor que o enum não nomeia — e é uma linha de código, sem depender de configuração de conta nem do gerente.
+
+**A decisão passa a ser:**
+
+| | |
+|---|---|
+| Padrão da mensalidade | `BOLETO` — boleto + Pix, sem cartão |
+| `UNDEFINED` | **não usar em código novo.** É a porta de entrada do cartão |
+| `CREDIT_CARD` | fora do tipo `FormaPagamento` |
+
+**Fica valendo do parágrafo anterior:** assinaturas criadas antes disto continuam com a forma antiga até serem atualizadas (`PUT /subscriptions/{id}` com `updatePendingPayments: true`). Trocar o padrão não reescreve o passado.
 
 ## Adendo (04/08/2026) — split e saque, medidos no sandbox
 
