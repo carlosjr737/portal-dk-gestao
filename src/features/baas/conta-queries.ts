@@ -209,7 +209,7 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
     cobrancas: [],
     saques: [],
     situacao: null,
-    taxas: { pix: null, boleto: null },
+    taxas: { pix: null, boleto: null, pixGratisPorMes: null, pixUsadosNoMes: null },
     dadosBancarios: null,
     ambiente: ASAAS_ENV,
   });

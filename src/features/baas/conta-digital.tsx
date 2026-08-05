@@ -151,6 +151,9 @@ function SituacaoDasCobrancas({
     `${situacao.competencia}-02T00:00:00`,
   ).toLocaleDateString("pt-BR", { month: "long" });
 
+  /** Denominador das barras: tudo que foi cobrado no mês, em qualquer estado. */
+  const total = faixas.reduce((soma, f) => soma + f.dados.valor, 0);
+
   return (
     <section>
       <h2 className="text-sm font-semibold text-foreground">
@@ -177,17 +180,33 @@ function SituacaoDasCobrancas({
               </p>
             </div>
 
-            {/* Barra em cor cheia: é fatia de estado, não rótulo. */}
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            {/*
+              A barra é a FATIA DESTE ESTADO no total cobrado no mês — e só
+              aparece quando existe algo para comparar.
+              A primeira versão preenchia 100% sempre que houvesse ao menos uma
+              cobrança, o que não media nada: quatro barras cheias lado a lado
+              sugerem proporção sem representar nenhuma. E com zero sobrava o
+              trilho cinza, que se lê como "100% de alguma coisa".
+            */}
+            {total > 0 && f.dados.valor > 0 ? (
               <div
-                className={`h-full rounded-full ${f.barra}`}
-                style={{ width: f.dados.quantidade > 0 ? "100%" : "0%" }}
-              />
-            </div>
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+                role="img"
+                aria-label={`${Math.round((f.dados.valor / total) * 100)}% do total cobrado no mês`}
+              >
+                <div
+                  className={`h-full rounded-full ${f.barra}`}
+                  style={{ width: `${(f.dados.valor / total) * 100}%` }}
+                />
+              </div>
+            ) : null}
 
             <p className="text-xs text-muted-foreground tabular-nums">
               {f.dados.quantidade}{" "}
               {f.dados.quantidade === 1 ? "cobrança" : "cobranças"}
+              {total > 0 && f.dados.valor > 0 ? (
+                <> · {Math.round((f.dados.valor / total) * 100)}% do mês</>
+              ) : null}
               <span className="block text-[11px]">{f.ajuda}</span>
             </p>
           </Card>
@@ -325,8 +344,14 @@ function Cobrancas({
                   </div>
                 </div>
 
+                {/*
+                  Sem borda separando: ela desenhava uma divisória idêntica à
+                  que separa as cobranças, e o botão passava a parecer solto
+                  ENTRE dois itens, sem dono. Recuado à direita e colado ao
+                  bloco de cima, ele pertence visivelmente a esta linha.
+                */}
                 {podeEstornar ? (
-                  <div className="flex justify-end border-t border-border pt-3">
+                  <div className="-mt-1 flex justify-end">
                     <EstornoBotao
                       paymentId={c.id}
                       valor={c.valor}
@@ -554,17 +579,47 @@ function DadosDaConta({
         <p className="mt-0.5 text-xs text-muted-foreground">
           Descontadas de cada recebimento.
         </p>
+        {/*
+          Valor ausente vira "não informada", nunca "—". O travessão se lê como
+          "grátis" — e a taxa de Pix existe. Um dado financeiro ambíguo é pior
+          do que um dado faltando declarado.
+        */}
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Recebimento por Pix</dt>
-            <dd className="font-medium text-foreground tabular-nums">
-              {conta.taxas.pix === null ? "—" : dinheiro(conta.taxas.pix)}
+            <dd className="text-right font-medium text-foreground tabular-nums">
+              {conta.taxas.pix === null ? (
+                <span className="font-normal text-muted-foreground">
+                  não informada
+                </span>
+              ) : (
+                dinheiro(conta.taxas.pix)
+              )}
             </dd>
           </div>
+          {/*
+            As primeiras N do mês não pagam taxa. Sem isto, a escola pequena
+            acha que paga R$ 0,99 por mensalidade quando não paga nada.
+          */}
+          {conta.taxas.pixGratisPorMes ? (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              As primeiras {conta.taxas.pixGratisPorMes} do mês são grátis
+              {conta.taxas.pixUsadosNoMes !== null
+                ? ` — ${conta.taxas.pixUsadosNoMes} usadas até agora`
+                : ""}
+              .
+            </p>
+          ) : null}
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Recebimento por boleto</dt>
-            <dd className="font-medium text-foreground tabular-nums">
-              {conta.taxas.boleto === null ? "—" : dinheiro(conta.taxas.boleto)}
+            <dd className="text-right font-medium text-foreground tabular-nums">
+              {conta.taxas.boleto === null ? (
+                <span className="font-normal text-muted-foreground">
+                  não informada
+                </span>
+              ) : (
+                dinheiro(conta.taxas.boleto)
+              )}
             </dd>
           </div>
         </dl>
@@ -596,8 +651,15 @@ function DadosDaConta({
         {conta.saldo > 0 ? (
           <SaqueForm saldo={conta.saldo} />
         ) : (
+          /*
+            Frase, e não botão desabilitado com tooltip.
+            Um controle que a pessoa não tem como habilitar é um beco, e
+            tooltip não existe no toque — o celular é justamente onde esta tela
+            é usada. A frase diz o motivo e diz que o saque nasce aqui.
+          */
           <p className="text-sm text-muted-foreground">
-            Sem saldo disponível para sacar agora.
+            Sem saldo para sacar agora. Quando entrar dinheiro das cobranças, o
+            saque aparece aqui.
           </p>
         )}
 

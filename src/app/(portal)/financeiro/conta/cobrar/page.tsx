@@ -45,7 +45,9 @@ export default async function CobrarPage() {
 
   // A taxa é carregada aqui, no servidor, para o formulário mostrar o líquido
   // enquanto a pessoa digita — sem expor a chave da conta ao navegador.
-  const taxas = chave ? await consultarTaxas(chave) : { pix: null, boleto: null };
+  const taxas = chave
+    ? await consultarTaxas(chave)
+    : { pix: null, boleto: null, pixGratisPorMes: null, pixUsadosNoMes: null };
 
   return (
     <div>

@@ -139,26 +139,61 @@ export async function consultarDadosBancarios(
  * veda apresentar a cobrança como tarifa bancária. O rótulo é
  * "taxa da plataforma".
  */
-export type Taxas = { pix: number | null; boleto: number | null };
+export type Taxas = {
+  pix: number | null;
+  boleto: number | null;
+  /**
+   * Recebimentos Pix sem taxa por mês, e quantos já foram usados.
+   *
+   * Não é detalhe: com 100 grátis por mês, a escola pequena não paga taxa
+   * nenhuma de Pix. Mostrar só "R$ 0,99" faria a conta parecer mais cara do
+   * que é, e ainda esconderia o momento em que a taxa passa a valer.
+   */
+  pixGratisPorMes: number | null;
+  pixUsadosNoMes: number | null;
+};
 
 export async function consultarTaxas(chave: string): Promise<Taxas> {
+  const vazio: Taxas = {
+    pix: null,
+    boleto: null,
+    pixGratisPorMes: null,
+    pixUsadosNoMes: null,
+  };
+
   const r = await ler<Record<string, unknown>>("/myAccount/fees", chave);
-  if (!r.ok) return { pix: null, boleto: null };
+  if (!r.ok) return vazio;
 
   const pagamento = (r.data.payment ?? {}) as Record<string, unknown>;
   const boleto = (pagamento.bankSlip ?? {}) as Record<string, unknown>;
   const pix = (pagamento.pix ?? {}) as Record<string, unknown>;
 
-  // `discountValue` é o valor vigente quando há desconto ativo na conta; o
-  // `defaultValue` é o de tabela. A escola paga o vigente.
+  /*
+   * PIX E BOLETO USAM NOMES DIFERENTES PARA A MESMA COISA.
+   *
+   *   boleto -> defaultValue     / discountValue
+   *   pix    -> fixedFeeValue    / fixedFeeValueWithDiscount
+   *
+   * Ler só os nomes do boleto fazia a taxa de Pix voltar nula, e a tela
+   * mostrava "—" ao lado de "Recebimento por Pix" — que qualquer um lê como
+   * "grátis" ou "não disponível", quando a taxa existe e é a mesma do boleto.
+   */
   const vigente = (o: Record<string, unknown>) => {
-    const desconto = o.discountValue;
-    const padrao = o.defaultValue ?? o.fixedFee;
+    const desconto = o.discountValue ?? o.fixedFeeValueWithDiscount;
+    const padrao = o.defaultValue ?? o.fixedFeeValue ?? o.fixedFee;
     const v = desconto ?? padrao;
     return v === null || v === undefined ? null : Number(v);
   };
 
-  return { pix: vigente(pix), boleto: vigente(boleto) };
+  const numero = (v: unknown) =>
+    v === null || v === undefined ? null : Number(v);
+
+  return {
+    pix: vigente(pix),
+    boleto: vigente(boleto),
+    pixGratisPorMes: numero(pix.monthlyCreditsWithoutFee),
+    pixUsadosNoMes: numero(pix.creditsReceivedOfCurrentMonth),
+  };
 }
 
 /* ------------------------------------------------------------------ */
