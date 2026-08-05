@@ -48,7 +48,8 @@ export async function estornar(
     .maybeSingle();
 
   const chave = (cred?.api_key as string | undefined) ?? null;
-  if (!chave) return { ok: false, message: "Conta de pagamentos não configurada." };
+  if (!chave)
+    return { ok: false, message: "Conta de pagamentos não configurada." };
 
   /*
    * A cobrança é buscada NA CONTA DA ESCOLA, com a chave dela. Isso é o que
@@ -56,7 +57,11 @@ export async function estornar(
    * provedor responde 404 — não há como estornar cobrança alheia mesmo
    * forjando o formulário.
    */
-  const r = await estornarCobranca(chave, paymentId, "Estorno solicitado pela escola");
+  const r = await estornarCobranca(
+    chave,
+    paymentId,
+    "Estorno solicitado pela escola",
+  );
 
   if (!r.ok) {
     return { ok: false, message: `O provedor recusou o estorno: ${r.error}` };

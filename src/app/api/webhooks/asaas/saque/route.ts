@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
   const tipo = String(corpo.type ?? "");
 
   if (!PERMITIDAS.has(tipo)) {
-    const motivo = RECUSA[tipo] ?? `Operação ${tipo || "desconhecida"} não é permitida.`;
+    const motivo =
+      RECUSA[tipo] ?? `Operação ${tipo || "desconhecida"} não é permitida.`;
     console.warn("[SAQUE] recusado", { tipo, motivo });
     return NextResponse.json({ status: "REFUSED", refuseReason: motivo });
   }
@@ -93,10 +94,9 @@ export async function POST(request: NextRequest) {
    * PENDENTE: gravar isto numa tabela, de forma assíncrona, sem bloquear a
    * resposta. Enquanto não existir, o log da hospedagem é a única trilha.
    */
-  const operacao = (corpo[tipo.toLowerCase()] ?? corpo.transfer ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const operacao = (corpo[tipo.toLowerCase()] ??
+    corpo.transfer ??
+    {}) as Record<string, unknown>;
   console.info("[SAQUE] aprovado", {
     tipo,
     id: operacao.id ?? null,

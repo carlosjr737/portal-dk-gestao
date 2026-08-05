@@ -23,23 +23,30 @@ function headers(chave: string) {
 }
 
 function mensagemErro(data: unknown, status: number): string {
-  const d = data as
-    | { errors?: Array<{ description?: string }>; message?: string }
-    | null;
+  const d = data as {
+    errors?: Array<{ description?: string }>;
+    message?: string;
+  } | null;
   return d?.errors?.[0]?.description ?? d?.message ?? `Erro ${status}`;
 }
 
 async function ler<T>(
   caminho: string,
   chave: string,
-): Promise<{ ok: true; data: T } | { ok: false; error: string; status: number }> {
+): Promise<
+  { ok: true; data: T } | { ok: false; error: string; status: number }
+> {
   const res = await fetch(`${ASAAS_API_BASE}${caminho}`, {
     headers: headers(chave),
     cache: "no-store",
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    return { ok: false, error: mensagemErro(data, res.status), status: res.status };
+    return {
+      ok: false,
+      error: mensagemErro(data, res.status),
+      status: res.status,
+    };
   }
   return { ok: true, data: data as T };
 }
@@ -113,7 +120,10 @@ export type DadosBancarios = { agencia: string; conta: string; digito: string };
 export async function consultarDadosBancarios(
   chave: string,
 ): Promise<DadosBancarios | null> {
-  const r = await ler<Record<string, unknown>>("/myAccount/accountNumber", chave);
+  const r = await ler<Record<string, unknown>>(
+    "/myAccount/accountNumber",
+    chave,
+  );
   if (!r.ok) return null;
   return {
     agencia: String(r.data.agency ?? ""),
@@ -160,7 +170,9 @@ export async function consultarTaxas(chave: string): Promise<Taxas> {
  * então na prática esta consulta sempre devolve algo — mas o QR estático
  * precisa de uma chave explícita, e sem ela o provedor recusa.
  */
-export async function primeiraChavePixAtiva(chave: string): Promise<string | null> {
+export async function primeiraChavePixAtiva(
+  chave: string,
+): Promise<string | null> {
   const r = await ler<{ data?: unknown[] }>("/pix/addressKeys", chave);
   if (!r.ok) return null;
   const lista = (r.data.data ?? []) as Array<Record<string, unknown>>;
@@ -179,8 +191,7 @@ export type QrCodeEstatico = {
 };
 
 export type QrCodeResult =
-  | { ok: true; qr: QrCodeEstatico }
-  | { ok: false; error: string };
+  { ok: true; qr: QrCodeEstatico } | { ok: false; error: string };
 
 /**
  * QR Code Pix avulso — cobrança que não é mensalidade.
@@ -247,8 +258,7 @@ export type Cobranca = {
 };
 
 export type CobrancasResult =
-  | { ok: true; cobrancas: Cobranca[] }
-  | { ok: false; error: string };
+  { ok: true; cobrancas: Cobranca[] } | { ok: false; error: string };
 
 export async function listarCobrancas(
   chave: string,
@@ -281,8 +291,7 @@ export async function listarCobrancas(
 }
 
 export type EstornoResult =
-  | { ok: true; status: string }
-  | { ok: false; error: string };
+  { ok: true; status: string } | { ok: false; error: string };
 
 /**
  * Estorna uma cobrança — devolve o dinheiro a quem pagou.
@@ -307,5 +316,127 @@ export async function estornarCobranca(
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
-  return { ok: true, status: String((data as Record<string, unknown>)?.status ?? "REFUNDED") };
+  return {
+    ok: true,
+    status: String((data as Record<string, unknown>)?.status ?? "REFUNDED"),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Saque                                                               */
+/* ------------------------------------------------------------------ */
+
+export type TipoChavePix = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
+
+export type DonoDaChave = {
+  nome: string;
+  /** Vem mascarado do provedor: `***.444.777-**`. Nunca completo. */
+  cpfCnpj: string;
+  banco: string;
+};
+
+/**
+ * De quem é esta chave Pix?
+ *
+ * É a trava contra o erro que não tem volta. Pix cai na hora e não se
+ * desfaz: um dígito trocado manda a mensalidade inteira para um
+ * desconhecido. Mostrar o nome do titular antes de confirmar transforma um
+ * erro de digitação em "não é essa pessoa" — e a escola cancela.
+ */
+export async function consultarChavePix(
+  chaveApi: string,
+  tipo: TipoChavePix,
+  chavePix: string,
+): Promise<{ ok: true; dono: DonoDaChave } | { ok: false; error: string }> {
+  const params = new URLSearchParams({ type: tipo, key: chavePix });
+  const r = await ler<Record<string, unknown>>(
+    `/pix/addressKeys/external?${params}`,
+    chaveApi,
+  );
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const dono = (r.data.owner ?? {}) as Record<string, unknown>;
+  const inst = (r.data.financialInstitution ?? {}) as Record<string, unknown>;
+  return {
+    ok: true,
+    dono: {
+      nome: String(dono.name ?? "").trim(),
+      cpfCnpj: String(dono.cpfCnpj ?? ""),
+      banco: String(inst.name ?? r.data.ispbName ?? ""),
+    },
+  };
+}
+
+export type Saque = {
+  id: string;
+  valor: number;
+  valorLiquido: number;
+  taxa: number;
+  status: string;
+  /** `false` = travado esperando a liberação da validação de saque. */
+  autorizado: boolean;
+  criadoEm: string;
+  destino: string | null;
+  comprovanteUrl: string | null;
+  podeCancelar: boolean;
+};
+
+function paraSaque(t: Record<string, unknown>): Saque {
+  const ba = (t.bankAccount ?? {}) as Record<string, unknown>;
+  return {
+    id: String(t.id ?? ""),
+    valor: Number(t.value ?? 0),
+    valorLiquido: Number(t.netValue ?? 0),
+    taxa: Number(t.transferFee ?? 0),
+    status: String(t.status ?? ""),
+    autorizado: t.authorized === true,
+    criadoEm: String(t.dateCreated ?? ""),
+    destino: (ba.ownerName as string | null) ?? null,
+    comprovanteUrl: (t.transactionReceiptUrl as string | null) ?? null,
+    podeCancelar: t.canBeCancelled === true,
+  };
+}
+
+export async function criarSaque(
+  chaveApi: string,
+  entrada: { valor: number; tipo: TipoChavePix; chavePix: string },
+): Promise<{ ok: true; saque: Saque } | { ok: false; error: string }> {
+  const res = await fetch(`${ASAAS_API_BASE}/transfers`, {
+    method: "POST",
+    headers: headers(chaveApi),
+    body: JSON.stringify({
+      value: entrada.valor,
+      pixAddressKey: entrada.chavePix,
+      pixAddressKeyType: entrada.tipo,
+    }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, error: mensagemErro(data, res.status) };
+  return { ok: true, saque: paraSaque(data as Record<string, unknown>) };
+}
+
+export async function listarSaques(
+  chaveApi: string,
+  limite = 10,
+): Promise<Saque[]> {
+  const r = await ler<{ data?: unknown[] }>(
+    `/transfers?limit=${limite}&offset=0`,
+    chaveApi,
+  );
+  if (!r.ok) return [];
+  return ((r.data.data ?? []) as Array<Record<string, unknown>>).map(paraSaque);
+}
+
+export async function cancelarSaque(
+  chaveApi: string,
+  saqueId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${ASAAS_API_BASE}/transfers/${saqueId}/cancel`, {
+    method: "POST",
+    headers: headers(chaveApi),
+    body: "{}",
+  });
+  if (res.ok) return { ok: true };
+  const data = await res.json().catch(() => null);
+  return { ok: false, error: mensagemErro(data, res.status) };
 }

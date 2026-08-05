@@ -11,7 +11,9 @@ import {
   consultarExtrato,
   consultarTaxas,
   listarCobrancas,
+  listarSaques,
   type Cobranca,
+  type Saque,
   type DadosBancarios,
   type Lancamento,
   type Taxas,
@@ -82,6 +84,7 @@ export type ContaDigital = {
   saldo: number;
   extrato: LinhaExtrato[];
   cobrancas: CobrancaNaTela[];
+  saques: Saque[];
   situacao: SituacaoCobrancas | null;
   taxas: Taxas;
   dadosBancarios: DadosBancarios | null;
@@ -195,12 +198,16 @@ function intervaloDoMes(hoje = new Date()) {
  * existe mais.
  */
 export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
-  const vazio = (estado: EstadoConta, motivo: string | null = null): ContaDigital => ({
+  const vazio = (
+    estado: EstadoConta,
+    motivo: string | null = null,
+  ): ContaDigital => ({
     estado,
     motivo,
     saldo: 0,
     extrato: [],
     cobrancas: [],
+    saques: [],
     situacao: null,
     taxas: { pix: null, boleto: null },
     dadosBancarios: null,
@@ -230,23 +237,53 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
   const aprovada = String(cred?.kyc_status ?? "").toLowerCase() === "aprovada";
   const { de, ate, competencia } = intervaloDoMes();
 
-  const [extrato, taxas, banco, cobrancas, recebidas, confirmadas, pendentes, vencidas] =
-    await Promise.all([
-      consultarExtrato(chave, { limite: 60 }),
-      consultarTaxas(chave),
-      consultarDadosBancarios(chave),
-      listarCobrancas(chave, { limite: 20 }),
-      estatisticasCobrancas(chave, { status: "RECEIVED", vencimentoDe: de, vencimentoAte: ate }),
-      estatisticasCobrancas(chave, { status: "CONFIRMED", vencimentoDe: de, vencimentoAte: ate }),
-      estatisticasCobrancas(chave, { status: "PENDING", vencimentoDe: de, vencimentoAte: ate }),
-      estatisticasCobrancas(chave, { status: "OVERDUE", vencimentoDe: de, vencimentoAte: ate }),
-    ]);
+  const [
+    extrato,
+    taxas,
+    banco,
+    cobrancas,
+    saques,
+    recebidas,
+    confirmadas,
+    pendentes,
+    vencidas,
+  ] = await Promise.all([
+    consultarExtrato(chave, { limite: 60 }),
+    consultarTaxas(chave),
+    consultarDadosBancarios(chave),
+    listarCobrancas(chave, { limite: 20 }),
+    listarSaques(chave, 8),
+    estatisticasCobrancas(chave, {
+      status: "RECEIVED",
+      vencimentoDe: de,
+      vencimentoAte: ate,
+    }),
+    estatisticasCobrancas(chave, {
+      status: "CONFIRMED",
+      vencimentoDe: de,
+      vencimentoAte: ate,
+    }),
+    estatisticasCobrancas(chave, {
+      status: "PENDING",
+      vencimentoDe: de,
+      vencimentoAte: ate,
+    }),
+    estatisticasCobrancas(chave, {
+      status: "OVERDUE",
+      vencimentoDe: de,
+      vencimentoAte: ate,
+    }),
+  ]);
 
   const faixa = (
     r: Awaited<ReturnType<typeof estatisticasCobrancas>>,
   ): FaixaSituacao =>
     r.ok
-      ? { valor: r.valor, valorLiquido: r.valorLiquido, quantidade: r.quantidade }
+      ? {
+          valor: r.valor,
+          valorLiquido: r.valorLiquido,
+          quantidade: r.quantidade,
+        }
       : { valor: 0, valorLiquido: 0, quantidade: 0 };
 
   return {
@@ -255,6 +292,7 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
     saldo: saldo.ok ? saldo.saldo : 0,
     extrato: extrato.ok ? agrupar(extrato.lancamentos) : [],
     cobrancas: cobrancas.ok ? await comNomeDoPagador(cobrancas.cobrancas) : [],
+    saques,
     situacao: {
       competencia,
       recebidas: faixa(recebidas),
@@ -278,7 +316,9 @@ export async function getContaDigital(escolaId: string): Promise<ContaDigital> {
  * Quem não tem vínculo (cobrança avulsa por QR, por exemplo) fica sem nome, e
  * a tela cai na descrição — que é justamente o que ela serve para dizer.
  */
-async function comNomeDoPagador(cobrancas: Cobranca[]): Promise<CobrancaNaTela[]> {
+async function comNomeDoPagador(
+  cobrancas: Cobranca[],
+): Promise<CobrancaNaTela[]> {
   const ids = [...new Set(cobrancas.map((c) => c.customerId).filter(Boolean))];
   if (ids.length === 0) return cobrancas.map((c) => ({ ...c, pagador: null }));
 
@@ -290,7 +330,8 @@ async function comNomeDoPagador(cobrancas: Cobranca[]): Promise<CobrancaNaTela[]
 
   const nomePorCliente = new Map<string, string>();
   for (const linha of data ?? []) {
-    const g = (linha as { guardians?: { full_name?: string } | null }).guardians;
+    const g = (linha as { guardians?: { full_name?: string } | null })
+      .guardians;
     const nome = g?.full_name;
     const id = (linha as { asaas_customer_id?: string }).asaas_customer_id;
     if (id && nome) nomePorCliente.set(id, nome);

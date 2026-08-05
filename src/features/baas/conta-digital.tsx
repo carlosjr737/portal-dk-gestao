@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { EstornoBotao } from "@/features/baas/estorno-botao";
+import { SaqueForm, SaquePendente } from "@/features/baas/saque-form";
 import type {
   CobrancaNaTela,
   ContaDigital,
@@ -20,11 +21,15 @@ import type {
  * cliente só para expandir uma linha mandaria o extrato inteiro para o
  * navegador sem ganho nenhum.
  *
- * NÃO EXISTE BOTÃO DE SAQUE, E É DE PROPÓSITO. O provedor cria a
- * transferência, tira o valor do saldo e para numa autorização que a API não
- * expõe — sem endpoint para autorizar (medido em 04/08/2026, ver adendo do
- * ADR 0001). Um botão aqui prenderia o dinheiro da escola sem nada na tela que
- * a tirasse de lá. Ele entra quando o Asaas destravar.
+ * O SAQUE EXISTE DESDE QUE A VALIDAÇÃO POR WEBHOOK ESTEJA HABILITADA na conta
+ * do provedor. Sem ela, toda saída de dinheiro nasce travada esperando um
+ * token SMS que a escola não tem como usar — ela não acessa o painel. Com ela
+ * habilitada, o provedor pergunta ao portal (`/api/webhooks/asaas/saque`) e a
+ * operação segue.
+ *
+ * Por isso a tela nunca promete que o dinheiro caiu: ela lê o `authorized` que
+ * voltou e, quando ele é falso, diz que o valor saiu do saldo e está parado —
+ * com o cancelamento ao lado.
  */
 export function ContaDigitalView({ conta }: { conta: ContaDigital }) {
   const dinheiro = (v: number) =>
@@ -499,6 +504,19 @@ function DadosDaConta({
 }) {
   const b = conta.dadosBancarios;
 
+  /*
+   * `PENDING` e `BANK_PROCESSING` são os dois estados em que o dinheiro já
+   * saiu do saldo e ainda não chegou — os únicos que precisam de explicação na
+   * tela. `DONE` vira histórico; `CANCELLED` e `FAILED` não interessam, porque
+   * o valor voltou.
+   */
+  const pendentes = conta.saques.filter((s) =>
+    ["PENDING", "BANK_PROCESSING"].includes(s.status),
+  );
+  const concluidos = conta.saques
+    .filter((s) => s.status === "DONE")
+    .slice(0, 3);
+
   return (
     <div className="space-y-4">
       <Card className="p-5">
@@ -552,15 +570,59 @@ function DadosDaConta({
         </dl>
       </Card>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold text-foreground">Saque</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          A transferência do saldo para a conta bancária da escola ainda não
-          está liberada pelo provedor. Assim que estiver, ela aparece aqui.
-        </p>
-        <div className="mt-3">
-          <Badge tone="neutral">Em breve</Badge>
+      <Card className="space-y-4 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Sacar</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Manda o saldo para uma chave Pix da escola.
+          </p>
         </div>
+
+        {/*
+          O saque em andamento vem ANTES do formulário. Quem chega aqui com um
+          saque pendente quer saber dele, não abrir outro — e ver o saldo menor
+          sem explicação é o que gera ligação para a secretaria.
+        */}
+        {pendentes.map((s) => (
+          <SaquePendente
+            key={s.id}
+            id={s.id}
+            valor={s.valor}
+            autorizado={s.autorizado}
+            podeCancelar={s.podeCancelar}
+          />
+        ))}
+
+        {conta.saldo > 0 ? (
+          <SaqueForm saldo={conta.saldo} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Sem saldo disponível para sacar agora.
+          </p>
+        )}
+
+        {concluidos.length > 0 ? (
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Últimos saques
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {concluidos.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-baseline justify-between gap-3 text-xs"
+                >
+                  <span className="text-muted-foreground tabular-nums">
+                    {s.criadoEm.split("-").reverse().join("/")}
+                  </span>
+                  <span className="font-medium text-foreground tabular-nums">
+                    {dinheiro(s.valor)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </Card>
     </div>
   );
