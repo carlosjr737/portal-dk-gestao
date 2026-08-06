@@ -55,6 +55,7 @@ const iconByHref: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
   "/metricas-escola": BarChart3,
   "/metricas-publico": Sparkles,
+  "/metricas-professores": UserRound,
   "/alunos": Users,
   "/responsaveis": BookUser,
   "/matriculas": ClipboardList,
@@ -88,7 +89,12 @@ const navigationGroups = [
   {
     title: "Principal",
     accordion: false,
-    items: ["/dashboard", "/metricas-escola", "/metricas-publico"],
+    items: [
+      "/dashboard",
+      "/metricas-escola",
+      "/metricas-publico",
+      "/metricas-professores",
+    ],
   },
   {
     title: "Gestão acadêmica",

@@ -20,6 +20,7 @@ export const navigationItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/metricas-escola", label: "Métricas da escola" },
   { href: "/metricas-publico", label: "Métricas do público" },
+  { href: "/metricas-professores", label: "Métricas dos professores" },
   { href: "/alunos", label: "Alunos" },
   { href: "/responsaveis", label: "Responsáveis" },
   { href: "/turmas", label: "Turmas" },
