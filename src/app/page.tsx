@@ -225,7 +225,7 @@ export default function SitePage() {
 
       {/* ── recursos ─────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">
           O que ele faz
         </h2>
         <div className="mt-8 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
@@ -247,7 +247,7 @@ export default function SitePage() {
       <section className="border-y border-border bg-card">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1.3fr_1fr] lg:items-center">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">
               A mensalidade cai na conta da escola
             </h2>
             <p className="mt-4 max-w-xl leading-relaxed text-muted-foreground">
@@ -276,7 +276,7 @@ export default function SitePage() {
 
       {/* ── planos ───────────────────────────────────────────────────── */}
       <section id="planos" className="mx-auto max-w-6xl scroll-mt-8 px-6 py-16 sm:py-20">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">
           Planos
         </h2>
         <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -312,21 +312,38 @@ export default function SitePage() {
       </section>
 
       {/* ── rodapé ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-border">
+      {/*
+        Índigo, a segunda cor da marca — que estava definida nos tokens e não
+        aparecia em pixel nenhum da página. Sem ela a landing era branco,
+        cinza e um botão cobalto: cara de template.
+
+        A classe é `bg-inverse` e não `bg-surface-inverse`: o token
+        `--surface-inverse` está mapeado no Tailwind sob a chave `inverse`.
+        A classe com o nome do token não existe, e usá-la deixaria o rodapé
+        transparente com texto branco por cima — ilegível, e sem erro nenhum
+        para avisar.
+
+        Sem `border-t`: a borda cinza-clara não faz sentido sobre o índigo, e
+        o próprio bloco escuro já separa.
+      */}
+      <footer className="bg-inverse">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8">
           <div>
-            <p className="text-sm font-semibold text-foreground">
-              {PLATFORM_NAME}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {PLATFORM_TAGLINE}
-            </p>
+            <p className="text-sm font-semibold text-white">{PLATFORM_NAME}</p>
+            <p className="mt-0.5 text-xs text-white/70">{PLATFORM_TAGLINE}</p>
           </div>
           <div className="flex items-center gap-4">
-            <AsaasSelo fundo="claro" tamanho="sm" />
+            {/* Selo branco: o positivo é navy sobre azul e some no índigo. */}
+            <AsaasSelo fundo="escuro" tamanho="sm" />
+            {/*
+              Branco, não `text-primary`: cobalto sobre índigo dá 2,65:1 e
+              reprova até como componente não-textual. E o anel de foco global
+              também é cobalto, então ele é trocado por branco aqui — senão o
+              foco de teclado desaparece exatamente onde o link está.
+            */}
             <Link
               href="/login"
-              className="text-sm font-medium text-primary hover:underline"
+              className="rounded text-sm font-medium text-white underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               Entrar
             </Link>
