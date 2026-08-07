@@ -33,6 +33,14 @@
   /* Marca */
   --primary: 240 70% 62%;           /* #5B5CE2 cobalto */
   --primary-foreground: 0 0% 100%;  /* 5,15:1 */
+  /*
+   * Hover do botão primário. Era `hover:opacity-90`, que deixa o cobalto
+   * translúcido sobre o fundo claro e empurra o texto branco para a beira do
+   * mínimo AA. Uma cor sólida MAIS ESCURA resolve sem truque: 56% de
+   * luminosidade contra os 62% do normal sobe o contraste com branco de
+   * 5,26:1 para 7,01:1 — de AA para AAA.
+   */
+  --primary-hover: 240 70% 56%;     /* 7,01:1 com branco */
   --surface-inverse: 239 42% 25%;   /* #25265B índigo — barra lateral */
   --ring: 240 70% 62%;
   --radius: 0.5rem;

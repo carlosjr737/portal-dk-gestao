@@ -123,11 +123,7 @@ export default function SitePage() {
               <span className="block text-base font-semibold text-foreground">
                 {PLATFORM_NAME}
               </span>
-              {/* Some no celular: quebrava em duas linhas e dobrava a
-                  altura do cabeçalho para dizer o que o título já diz. */}
-              <span className="hidden text-xs text-muted-foreground sm:block">
-                {PLATFORM_TAGLINE}
-              </span>
+
             </span>
           </span>
 
@@ -169,17 +165,21 @@ export default function SitePage() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="#planos"
-              className={buttonVariants({ className: "h-12 px-6 text-base" })}
+              /*
+                `size: "lg"` em vez de h-12/px-6 à mão. O className passado
+                POR DENTRO do buttonVariants não passa pelo twMerge — o cva
+                só concatena —, e a saída vinha com "h-10 px-4 h-12 px-6".
+                Funcionava por acidente da ordem em que o Tailwind emite as
+                classes, não por decisão. O size `lg` já existia.
+              */
+              className={buttonVariants({ size: "lg" })}
             >
               Ver planos
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
             </Link>
             <Link
               href="/login"
-              className={buttonVariants({
-                variant: "outline",
-                className: "h-12 px-6 text-base",
-              })}
+              className={buttonVariants({ variant: "outline", size: "lg" })}
             >
               Já sou cliente
             </Link>
@@ -214,7 +214,7 @@ export default function SitePage() {
           <p className="text-sm text-muted-foreground">
             Em operação real, todo dia, numa escola com:
           </p>
-          <dl className="mt-5 grid gap-6 sm:grid-cols-4">
+          <dl className="mt-5 grid grid-cols-2 gap-6 sm:grid-cols-4">
             <Numero valor="665" rotulo="matrículas ativas" />
             <Numero valor="433" rotulo="famílias" />
             <Numero valor="52" rotulo="turmas" />

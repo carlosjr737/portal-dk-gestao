@@ -379,6 +379,19 @@ Toda mudança de token entra aqui com o motivo. Manual sem histórico vira manua
 | ago/2026 | Marca passa a Cobalto `#5B5CE2`; magenta do DK sai | direção aprovada: produto independente |
 | ago/2026 | Família única Inter; `font-family: Arial` removido do `globals.css` | a declaração nunca valia — `font-sans` vencia por especificidade — e o produto rodava na fonte do sistema |
 | ago/2026 | `--background` sobe para `#F6F7FB` | contra o card branco, `#FCFCFC` dava 1,02:1 e a tela lia como uma folha só |
+| ago/2026 | Novo token `--primary-hover: 240 70% 56%` | o hover do botão primário era `opacity-90`, que deixa o cobalto translúcido e empurra o texto branco para a beira do AA. Cor sólida mais escura sobe o contraste com branco de 5,26:1 para **7,01:1** — de AA para AAA |
+| ago/2026 | Índigo (`--surface-inverse`) passa a fundo do rodapé da landing | o token existia e não aparecia em pixel nenhum da página pública: branco, cinza e um botão cobalto liam como template. Branco sobre índigo = 13,94:1 |
+| ago/2026 | Sobre o índigo, cobalto sai de link e de anel de foco | cobalto sobre índigo dá **2,65:1** — reprova até o mínimo de 3:1 de componente não-textual. Em superfície escura, link e `focus-visible` vão a branco |
+
+**Nota sobre o nome da classe.** O token é `--surface-inverse`, mas a chave no
+`tailwind.config.ts` é `inverse` — a utilitária é **`bg-inverse`**.
+`bg-surface-inverse` não existe e não gera CSS: usá-la deixa o elemento
+transparente sem erro nenhum para avisar.
+
+**Nota sobre o anel de foco.** Ele vem da regra global `:focus-visible` no
+`globals.css`, e não do `buttonVariants` — o comentário do componente afirmava
+o contrário e foi corrigido. Como a regra desenha o anel em `--primary`, todo
+uso sobre superfície escura precisa trocar o anel no ponto de uso.
 | ago/2026 | `--input` `#8794AA` separado de `--border` | contorno de controle precisa de 3:1; divisória não |
 | ago/2026 | Variante `-text` para cada cor semântica | as quatro cores reprovam como texto sobre branco (2,29:1 a 4,34:1) |
 | ago/2026 | Faixas de desempenho em três matizes | o violeta anterior sugeria uma natureza que não existe |

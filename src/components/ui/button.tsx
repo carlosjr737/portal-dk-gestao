@@ -18,8 +18,16 @@ import { cn } from "@/lib/utils";
  */
 export const buttonVariants = cva(
   /*
-   * Base: o que todo botão tem. O anel de foco vem daqui, então nenhum botão
-   * novo nasce invisível para quem navega por teclado.
+   * Base: o que todo botão tem.
+   *
+   * O anel de foco NÃO vem daqui — este comentário afirmava que sim e estava
+   * errado. Ele vem da regra global `:focus-visible` em `globals.css`, que
+   * vale para todo elemento focável e por isso não precisa ser repetida em
+   * cada componente. Repetir aqui seria classe duplicada com o mesmo efeito.
+   *
+   * A ressalva: aquela regra desenha o anel em `--primary`. Sobre superfície
+   * escura o cobalto some (2,65:1 contra o índigo), e aí o anel precisa ser
+   * trocado no ponto de uso — como no rodapé da landing.
    *
    * Desabilitado é CINZA, não transparente. Era `opacity-60`, e isso falhava
    * de duas formas opostas: no botão de contorno, que já é quase todo branco,
@@ -36,7 +44,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         /** Ação principal da tela. Uma por tela, idealmente. */
-        default: "bg-primary text-primary-foreground hover:opacity-90",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
         /** Ação destrutiva. Reservada a perigo — nunca a comando. */
         destructive:
           "bg-destructive text-destructive-foreground hover:opacity-90",
