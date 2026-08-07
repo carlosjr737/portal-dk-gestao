@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import {
   ArrowRight,
@@ -51,6 +52,23 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+/*
+ * Contato. Era o buraco do funil: a landing inteira tinha cinco links, e os
+ * cinco levavam para `#planos` (sem ação) ou `/login` (exige conta que o
+ * visitante não tem). Quem se interessava não tinha por onde falar com a
+ * empresa.
+ *
+ * A mensagem já vem escrita com o plano de origem. É atribuição pobre — o
+ * texto pode ser apagado antes de enviar —, mas custa zero e responde "de
+ * onde veio esse contato?" enquanto não existe CRM.
+ */
+const WHATSAPP = "5531998413644";
+
+const linkWhatsApp = (plano: "mensal" | "anual") =>
+  `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+    `Olá! Quero conhecer o SouAle (plano ${plano})`,
+  )}`;
 
 const RECURSOS = [
   {
@@ -129,7 +147,8 @@ export default function SitePage() {
 
       {/* ── hero ─────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
-        <div className="max-w-3xl">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
           <p className="text-sm font-medium text-primary">
             Para escolas de dança, música e teatro
           </p>
@@ -164,6 +183,27 @@ export default function SitePage() {
             >
               Já sou cliente
             </Link>
+          </div>
+          </div>
+
+          {/*
+            A página não mostrava um pixel do sistema — a única imagem era o
+            selo do provedor. Esta é a tela real, com nomes fictícios: o print
+            é público e nome de aluno é dado pessoal.
+
+            `priority` porque é o LCP do desktop. Escondida no celular por ora:
+            a versão mobile do print pede outro enquadramento, e uma imagem de
+            1200px espremida em 375 não prova nada e custa banda.
+          */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm lg:block">
+            <Image
+              src="/screens/painel.png"
+              alt="Tela do financeiro do SouAle, com ocupação por turma e lista de inadimplência"
+              width={1200}
+              height={760}
+              priority
+              className="rounded-lg"
+            />
           </div>
         </div>
       </section>
@@ -248,14 +288,18 @@ export default function SitePage() {
           <Plano
             nome="Mensal"
             preco="R$ 390"
-            periodo="por mês"
+            sufixo=" /mês"
+            periodo="cobrado todo mês"
             detalhe="Cancela quando quiser."
+            href={linkWhatsApp("mensal")}
           />
           <Plano
             nome="Anual"
-            preco="R$ 4.212"
-            periodo="por ano"
-            detalhe="Equivale a R$ 351 por mês — um mês de desconto."
+            selo="1 mês grátis"
+            preco="R$ 351"
+            sufixo=" /mês"
+            periodo="cobrado R$ 4.212 ao ano"
+            href={linkWhatsApp("anual")}
             destaque
           />
         </div>
@@ -312,28 +356,71 @@ function Numero({ valor, rotulo }: { valor: string; rotulo: string }) {
 function Plano({
   nome,
   preco,
+  sufixo,
   periodo,
   detalhe,
+  selo,
+  href,
   destaque,
 }: {
   nome: string;
   preco: string;
+  sufixo?: string;
   periodo: string;
-  detalhe: string;
+  detalhe?: string;
+  selo?: string;
+  href: string;
   destaque?: boolean;
 }) {
   return (
     <div
-      className={`rounded-xl border p-6 ${
+      className={`flex flex-col rounded-xl border p-6 ${
         destaque ? "border-2 border-primary" : "border-border"
       }`}
     >
-      <p className="text-sm font-medium text-muted-foreground">{nome}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-muted-foreground">{nome}</p>
+        {/*
+          A borda destacava o card e nada dizia por quê. O selo é o motivo,
+          escrito.
+        */}
+        {selo ? (
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            {selo}
+          </span>
+        ) : null}
+      </div>
+
+      {/*
+        O número grande é o mensal, mesmo no plano anual: R$ 4.212 é o valor
+        certo e a âncora errada — assusta antes de explicar. O total anual
+        continua na linha de baixo, porque é o que vai ser cobrado.
+      */}
       <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
         {preco}
+        {sufixo ? (
+          <span className="text-base font-medium text-muted-foreground">
+            {sufixo}
+          </span>
+        ) : null}
       </p>
       <p className="text-sm text-muted-foreground">{periodo}</p>
-      <p className="mt-3 text-sm text-muted-foreground">{detalhe}</p>
+      {detalhe ? (
+        <p className="mt-3 text-sm text-muted-foreground">{detalhe}</p>
+      ) : null}
+
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonVariants({
+          variant: destaque ? "default" : "outline",
+          size: "lg",
+          className: "mt-5 w-full",
+        })}
+      >
+        Falar com a gente
+      </a>
     </div>
   );
 }
