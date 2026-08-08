@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { varrerAvisosDeAssinatura } from "@/features/plataforma/avisos-assinatura";
 import { enviarEmail } from "@/features/email/client";
 import { isPlatformOwner } from "@/features/plataforma/auth";
+import { getAuthenticatedUser } from "@/features/auth/session";
 
 export const dynamic = "force-dynamic";
 // Um POST ao provedor de e-mail por escola avisada, em série.
@@ -45,8 +46,27 @@ export async function GET(request: NextRequest) {
    */
   const teste = request.nextUrl.searchParams.get("teste");
   if (teste) {
+    /*
+     * A RECUSA DIZ QUAL ELO QUEBROU, e isso não é firula. "unauthorized" seco
+     * deixa três causas indistinguíveis — sessão que não chegou ao servidor,
+     * usuário que não é dono, ou segredo errado — e cada uma tem conserto
+     * diferente. Sem o detalhe, o diagnóstico vira tentativa e erro.
+     *
+     * Não vaza nada: diz apenas se HÁ sessão, nunca de quem.
+     */
     if (!temSegredo && !(await isPlatformOwner())) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      const user = await getAuthenticatedUser();
+      return NextResponse.json(
+        {
+          error: "unauthorized",
+          sessao: Boolean(user),
+          dono: false,
+          dica: user
+            ? "Você está logado, mas este usuário não é dono da plataforma."
+            : "O navegador não mandou sessão nenhuma — entre no portal neste mesmo domínio e tente de novo.",
+        },
+        { status: 401 },
+      );
     }
     const envio = await enviarEmail({
       para: teste,
