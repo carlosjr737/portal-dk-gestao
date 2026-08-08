@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { enviarEmailSemBloquear } from "@/features/email/client";
+import { destinatarioDaEscola } from "@/features/email/destinatarios";
+import { emailUsuarioCriado } from "@/features/email/templates";
+import { roleLabels } from "@/features/auth/permissions";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -124,6 +128,25 @@ export async function createUser(formData: FormData) {
   if (profileError) {
     redirectWithMessage("error", profileError.message);
   }
+
+  /*
+   * A pessoa é avisada de que existe acesso — não da senha.
+   *
+   * O fluxo aqui é o admin escolher a senha e passar por fora; o e-mail só
+   * diz que a conta existe e onde entrar. Mandar senha por e-mail seria
+   * gravá-la em texto puro na caixa de duas pessoas, e ainda ensinaria o
+   * professor a aceitar senha vinda por e-mail — que é exatamente o hábito
+   * que golpe explora.
+   */
+  const destinatario = escolaId ? await destinatarioDaEscola(escolaId) : null;
+  enviarEmailSemBloquear(
+    emailUsuarioCriado({
+      para: email,
+      nomePessoa: name,
+      nomeEscola: destinatario?.nomeEscola ?? "sua escola",
+      papel: roleLabels[role],
+    }),
+  );
 
   revalidatePath(usersPath);
   redirectWithMessage("success", "Usuário criado com sucesso.");

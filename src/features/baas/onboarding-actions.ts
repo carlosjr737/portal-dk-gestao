@@ -13,6 +13,9 @@ import {
   type DocumentoPendente,
 } from "@/features/baas/asaas-client";
 import { ASAAS_ENV } from "@/features/baas/config";
+import { enviarEmailSemBloquear } from "@/features/email/client";
+import { destinatarioDaEscola } from "@/features/email/destinatarios";
+import { emailContaPagamentos } from "@/features/email/templates";
 
 export type OnboardingState = {
   ok?: boolean;
@@ -65,7 +68,7 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
   const admin = createAdminClient();
   const { data: cred } = await admin
     .from("school_payment_credentials")
-    .select("api_key, account_id")
+    .select("api_key, account_id, kyc_status")
     .eq("escola_id", escolaId)
     .eq("environment", ASAAS_ENV)
     .maybeSingle();
@@ -180,6 +183,33 @@ export async function consultarOnboarding(): Promise<OnboardingState> {
   // conta e a de sandbox não vale para produção; e em `school`, porque o
   // painel da plataforma lista as escolas por lá.
   const kyc = paraKycStatus(status.general);
+
+  /*
+   * DESFECHO DA ANÁLISE, UMA VEZ SÓ.
+   *
+   * Esta consulta roda toda vez que alguém abre a tela e a cada volta de foco
+   * da janela — sem comparar com o estado anterior, a escola receberia
+   * "conta aprovada" a cada F5. O aviso sai só quando o status GRAVADO era
+   * outro, e por isso a leitura acontece antes da escrita.
+   *
+   * Só aprovada e recusada avisam: "analise" é o estado de espera, e mandar
+   * e-mail dizendo "continua em análise" é ruído.
+   */
+  const anterior = (cred as { kyc_status?: string | null } | null)?.kyc_status ?? null;
+  if (kyc !== anterior && (kyc === "aprovada" || kyc === "recusada")) {
+    void destinatarioDaEscola(escolaId).then((destinatario) => {
+      if (!destinatario) return;
+      enviarEmailSemBloquear(
+        emailContaPagamentos({
+          para: destinatario.email,
+          nomeEscola: destinatario.nomeEscola,
+          aprovada: kyc === "aprovada",
+          motivo: kyc === "recusada" ? status.general : null,
+        }),
+      );
+    });
+  }
+
   await Promise.all([
     admin
       .from("school_payment_credentials")

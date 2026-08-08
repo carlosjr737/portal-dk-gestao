@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/faturamento-mensal",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/avisos-assinatura",
+      "schedule": "0 11 * * *"
     }
   ]
 }

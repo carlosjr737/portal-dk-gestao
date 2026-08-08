@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sincronizarAvisoDeAssinatura } from "@/features/plataforma/avisos-assinatura";
 
 /**
  * Traduz o evento do provedor para o status da assinatura.
@@ -112,6 +113,29 @@ export async function processarEventoPagamento(
 
   if (error) {
     throw new Error(`falha ao atualizar ${tabela}: ${error.message}`);
+  }
+
+  /*
+   * AVISO POR E-MAIL — só na TRANSIÇÃO, e só da assinatura da PLATAFORMA.
+   *
+   * "Só na transição" evita o trabalho à toa: o provedor reenvia o mesmo
+   * evento quando o endpoint demora. A proteção de verdade contra e-mail
+   * repetido não é esta linha, é o `ultimo_aviso` lá dentro — que também é o
+   * que impede o webhook e a varredura diária de avisarem a mesma coisa.
+   *
+   * "Só da plataforma" porque `aluno_assinatura` é a escola cobrando a
+   * família — e ali quem fala com o responsável é a escola, por decisão de
+   * produto (o provedor está com `notificationDisabled`). Mandar e-mail em
+   * nome da plataforma para a família seria a plataforma se intrometendo
+   * numa relação que não é dela.
+   *
+   * Não bloqueia: falha de e-mail não pode fazer o webhook devolver erro, ou
+   * o provedor reenvia o evento inteiro e o status é reprocessado à toa.
+   */
+  if (tabela === "plataforma_assinatura" && novoStatus && novoStatus !== assinatura.status) {
+    void sincronizarAvisoDeAssinatura(assinatura.escola_id as string).catch((e) =>
+      console.error("[email] aviso de assinatura falhou", e),
+    );
   }
 
   return {

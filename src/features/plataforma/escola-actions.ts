@@ -2,6 +2,8 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { enviarEmailSemBloquear } from "@/features/email/client";
+import { emailAcessoCriado } from "@/features/email/templates";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPlatformOwner } from "@/features/plataforma/auth";
@@ -139,6 +141,19 @@ export async function criarEscola(
     console.error("Plataforma: falha ao gerar link de acesso", linkError);
   } else {
     linkAcesso = linkData.properties?.action_link;
+  }
+
+  /*
+   * O link continua aparecendo na tela DE PROPÓSITO, mesmo com o e-mail
+   * saindo. E-mail atrasa, cai em spam e às vezes o endereço tem um dígito
+   * errado — e nesse dia quem cadastrou a escola precisa do link à mão para
+   * mandar pelo WhatsApp. Tirar a cópia manual troca uma redundância barata
+   * por um travamento no primeiro acesso do cliente.
+   */
+  if (linkAcesso) {
+    enviarEmailSemBloquear(
+      emailAcessoCriado({ para: admin_email, nomeEscola: nome, linkAcesso }),
+    );
   }
 
   revalidatePath("/plataforma");
