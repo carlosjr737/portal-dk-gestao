@@ -4,6 +4,7 @@ import { getAuthenticatedUser, getCurrentEscolaId } from "@/features/auth/sessio
 import { getSituacaoAssinatura } from "@/features/plataforma/assinatura-guard";
 import { buttonVariants } from "@/components/ui/button";
 import { PLATFORM_NAME } from "@/lib/branding";
+import { SouAleLogo } from "@/components/brand/souale-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,13 @@ export default async function AssinaturaPendentePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6">
       <div className="w-full max-w-lg rounded-lg border border-border bg-white p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          {PLATFORM_NAME}
-        </p>
+        {/*
+          Esta tela aparece quando o acesso é suspenso — é a plataforma
+          falando com a escola, não a escola com ela mesma. A marca aqui diz
+          de quem é a cobrança.
+        */}
+        <SouAleLogo altura={32} />
+        <span className="sr-only">{PLATFORM_NAME}</span>
         <h1 className="mt-2 text-2xl font-bold leading-8 tracking-tight text-foreground">
           {cancelada ? "Assinatura cancelada" : "Assinatura em atraso"}
         </h1>

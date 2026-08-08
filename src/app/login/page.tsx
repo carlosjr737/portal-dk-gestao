@@ -3,6 +3,7 @@ import { LoginForm } from "@/features/auth/login-form";
 import { getAuthenticatedUser } from "@/features/auth/session";
 import { Card } from "@/components/ui/card";
 import { PLATFORM_NAME } from "@/lib/branding";
+import { SouAleLogo } from "@/components/brand/souale-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <Card className="w-full max-w-md p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-foreground">
+        {/* A marca no lugar do nome em texto: o login é a primeira tela de
+            quem chega pelo link, e é onde ela precisa se apresentar. */}
+        <SouAleLogo altura={34} />
+        <h1 className="sr-only">
           {PLATFORM_NAME}
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">

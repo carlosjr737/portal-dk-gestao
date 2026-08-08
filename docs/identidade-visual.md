@@ -370,6 +370,44 @@ Evoluir por camadas, usando o dashboard como tela-piloto e transformando as deci
 
 ---
 
+## A marca
+
+O símbolo junta três leituras numa forma só: o contorno desenha um **"a"**
+minúsculo (Ale, a assistente), a curva **envolve** como cuidado — sem apelar
+para cadeado ou escudo — e o **check** diz operação concluída. No logotipo,
+"Ale" leva o Cobalto e mais peso: o produto não é um portal genérico.
+
+As cores da marca são as que a interface já usava. Índigo `#25265B` é o
+`--surface-inverse` e Cobalto `#5B5CE2` é o `--primary` — a marca nasceu na
+mesma paleta, então o logo não briga com tela nenhuma.
+
+| Versão | Quando | Arquivo |
+|---|---|---|
+| Principal | fundo branco ou o fundo da página | `public/marca/logo.svg` |
+| Negativa | sobre Índigo ou foto escura | `public/marca/logo-negativa.svg` |
+| Monocromática | impressão em uma cor | `public/marca/logo-mono.svg` |
+| Símbolo | **abaixo de 96px de largura** | `public/marca/simbolo.svg` |
+
+**A regra dos 96px não é sugestão.** Abaixo disso o wordmark vira borrão e o
+"a" some junto; o componente `SouAleLogo` avisa no console em
+desenvolvimento quando alguém pede a versão completa pequena demais.
+
+Espaço mínimo ao redor: a espessura do traço do símbolo.
+
+**Uma cor nova, ainda sem token.** Lavanda `#B8B9FF` existe só dentro da
+versão negativa do logo — é o "Ale" sobre Índigo. Não virou token porque a
+interface não a usa em lugar nenhum; se um dia usar, entra aqui com o
+contraste medido.
+
+**Um desencontro de um dígito.** O manual da marca chama o fundo claro de
+`#F7F7FB`; o `--background` do produto é `#F6F7FB`. A diferença é
+imperceptível e nada quebra, mas a fonte da verdade do fundo continua sendo
+o token.
+
+**Pendência do manual, não de código:** concluir a busca no INPI para
+"SouAle" e "Ale" nas classes de software e educação antes de ampliar os
+desdobramentos.
+
 ## Registro de decisões
 
 Toda mudança de token entra aqui com o motivo. Manual sem histórico vira manual que ninguém confia.

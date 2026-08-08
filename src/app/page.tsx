@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { AsaasSelo } from "@/components/brand/asaas-selo";
+import { SouAleLogo } from "@/components/brand/souale-logo";
 import { buttonVariants } from "@/components/ui/button";
 import {
   PLATFORM_NAME,
@@ -50,6 +51,26 @@ export const metadata: Metadata = {
     siteName: PLATFORM_NAME,
     locale: "pt_BR",
     type: "website",
+    /*
+       Sem isto o link compartilhado no WhatsApp aparecia como texto puro. A
+       imagem é a marca sobre o Índigo com a chamada da página — 1200×630, a
+       proporção que WhatsApp, LinkedIn e Twitter recortam sem cortar nada.
+    */
+    images: [
+      {
+        url: "/marca/og.png",
+        width: 1200,
+        height: 630,
+        alt: "SouAle — a secretaria da sua escola em um lugar só",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${PLATFORM_NAME} — ${PLATFORM_TAGLINE}`,
+    description:
+      "Matrícula, turmas, chamada e cobrança das mensalidades num sistema só.",
+    images: ["/marca/og.png"],
   },
 };
 
@@ -115,17 +136,15 @@ export default function SitePage() {
       {/* ── topo ─────────────────────────────────────────────────────── */}
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <span className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              A
-            </span>
-            <span className="leading-tight">
-              <span className="block text-base font-semibold text-foreground">
-                {PLATFORM_NAME}
-              </span>
-
-            </span>
-          </span>
+          {/*
+            O logotipo substitui o quadrado com "A" e o nome em texto: ele já
+            É os dois, e o placeholder era só o que existia antes da marca.
+            Link para a raiz porque logo de cabeçalho é o caminho de volta que
+            todo mundo tenta primeiro.
+          */}
+          <Link href="/" className="rounded" aria-label={`${PLATFORM_NAME} — início`}>
+            <SouAleLogo altura={32} />
+          </Link>
 
           <div className="flex items-center gap-2">
             <Link
@@ -329,8 +348,10 @@ export default function SitePage() {
       <footer className="bg-inverse">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8">
           <div>
-            <p className="text-sm font-semibold text-white">{PLATFORM_NAME}</p>
-            <p className="mt-0.5 text-xs text-white/70">{PLATFORM_TAGLINE}</p>
+            {/* Negativa: "Sou" em branco e "Ale" em lavanda, a versão que o
+                manual pede sobre Índigo. */}
+            <SouAleLogo fundo="escuro" altura={32} />
+            <p className="mt-2 text-xs text-white/70">{PLATFORM_TAGLINE}</p>
           </div>
           <div className="flex items-center gap-4">
             {/* Selo branco: o positivo é navy sobre azul e some no índigo. */}
