@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { varrerAvisosDeAssinatura } from "@/features/plataforma/avisos-assinatura";
 import { enviarEmail } from "@/features/email/client";
+import { isPlatformOwner } from "@/features/plataforma/auth";
 
 export const dynamic = "force-dynamic";
 // Um POST ao provedor de e-mail por escola avisada, em série.
@@ -18,17 +19,8 @@ export const maxDuration = 300;
  */
 export async function GET(request: NextRequest) {
   const segredo = process.env.CRON_SECRET?.trim();
-
-  // Mesma postura do lote de faturamento: sem segredo, recusa. Aberto,
-  // qualquer um dispararia e-mail de cobrança para a base inteira.
-  if (!segredo) {
-    console.error("[AVISOS] CRON_SECRET não configurado");
-    return NextResponse.json({ error: "not_configured" }, { status: 503 });
-  }
-
-  if (request.headers.get("authorization") !== `Bearer ${segredo}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const temSegredo =
+    Boolean(segredo) && request.headers.get("authorization") === `Bearer ${segredo}`;
 
   /*
    * TESTE DE ENCANAMENTO: ?teste=alguem@dominio.com
@@ -39,18 +31,42 @@ export async function GET(request: NextRequest) {
    * pergunta se a chave está configurada e se o provedor aceita o remetente,
    * que é exatamente o que costuma estar quebrado.
    *
+   * ACEITA O DONO DA PLATAFORMA LOGADO, e não só o segredo do cron. O motivo é
+   * concreto: na Vercel, variável marcada como "Sensitive" nunca mais é
+   * exibida nem exportada — nem no painel, nem por `vercel env pull`, que
+   * devolve `[SENSITIVE]`. Quem configurou o CRON_SECRET não consegue lê-lo de
+   * volta, e exigir esse valor transformaria um teste de dois minutos em
+   * rotacionar um segredo de produção. O dono da plataforma já enxerga todas
+   * as escolas; mandar um e-mail para um endereço que ele digitou não amplia
+   * poder nenhum.
+   *
    * A resposta devolve o motivo cru do provedor. É o que transforma "não
    * chegou" em "domínio não verificado" ou "chave inválida".
    */
   const teste = request.nextUrl.searchParams.get("teste");
   if (teste) {
+    if (!temSegredo && !(await isPlatformOwner())) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
     const envio = await enviarEmail({
       para: teste,
       assunto: "Teste de envio — SouAle",
       html: "<p>Se este e-mail chegou, o envio automático está funcionando.</p>",
       texto: "Se este e-mail chegou, o envio automático está funcionando.",
     });
-    return NextResponse.json({ teste: teste, ...envio });
+    return NextResponse.json({ teste, remetente: process.env.EMAIL_REMETENTE ?? "(padrão)", ...envio });
+  }
+
+  /*
+   * A VARREDURA continua só com o segredo. Ela fala com a base inteira, e o
+   * dono logado não precisa dela: o cron roda todo dia sozinho.
+   */
+  if (!segredo) {
+    console.error("[AVISOS] CRON_SECRET não configurado");
+    return NextResponse.json({ error: "not_configured" }, { status: 503 });
+  }
+  if (!temSegredo) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const inicio = Date.now();
