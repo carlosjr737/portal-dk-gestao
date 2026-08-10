@@ -74,21 +74,29 @@ function paraTextoPuro(html: string): string {
 export type TextoDoTemplate = { assunto: string; corpo: string; personalizado: boolean };
 
 /**
- * O texto em vigor: o personalizado, se existir; senão o padrão do código.
+ * O texto em vigor para uma escola: o dela, se editou; senão o padrão.
  *
  * Falha de leitura NÃO derruba o envio — cai no padrão e registra. O e-mail
  * de suspensão não pode deixar de sair porque a tabela de personalização
- * está indisponível.
+ * está indisponível; texto padrão chegando é muito melhor que nada chegando.
  */
-export async function textoEmVigor(chave: ChaveTemplate): Promise<TextoDoTemplate> {
+export async function textoEmVigor(
+  chave: ChaveTemplate,
+  escolaId: string | null,
+): Promise<TextoDoTemplate> {
   const d = definicao(chave);
   const padrao = { assunto: d.assuntoPadrao, corpo: d.corpoPadrao, personalizado: false };
+
+  // Sem escola não há personalização possível — é o caso da escola sendo
+  // criada agora, que ainda não existia para editar texto nenhum.
+  if (!escolaId) return padrao;
 
   try {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("email_template")
       .select("assunto, corpo")
+      .eq("escola_id", escolaId)
       .eq("chave", chave)
       .maybeSingle();
 
@@ -124,12 +132,14 @@ export async function textoEmVigor(chave: ChaveTemplate): Promise<TextoDoTemplat
 export async function renderizar(p: {
   chave: ChaveTemplate;
   para: string;
+  /** De quem é o texto. Sem escola, sai o padrão. */
+  escolaId: string | null;
   valores: Record<string, string>;
   /** Para a prévia: usa o texto passado em vez do que está gravado. */
   rascunho?: { assunto: string; corpo: string };
 }): Promise<Email> {
   const d = definicao(p.chave);
-  const base = p.rascunho ?? (await textoEmVigor(p.chave));
+  const base = p.rascunho ?? (await textoEmVigor(p.chave, p.escolaId));
 
   const assunto = substituir(base.assunto, p.valores, false);
   const corpoHtml = substituir(base.corpo, p.valores, true);

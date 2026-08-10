@@ -13,12 +13,14 @@ import "server-only";
  * │ PERSONALIZADO, e a ausência de linha significa "usa o padrão".      │
  * └─────────────────────────────────────────────────────────────────────┘
  *
- * TEXTO GLOBAL, NÃO POR ESCOLA. Cinco dos seis e-mails são a plataforma
- * falando com a escola (cobrança, suspensão, conta aprovada) — deixar a
- * escola reescrever a carta de cobrança que ela própria recebe não faz
- * sentido. E a prova está na própria regra de variáveis obrigatórias:
- * "Usuário adicionado" exige `{escola}`. Variável para o nome da escola só
- * existe porque UM texto serve TODAS as escolas.
+ * UM TEXTO POR ESCOLA, com o da plataforma como base.
+ *
+ * Cada escola fala do seu jeito com a própria equipe, e a mesma frase que
+ * soa certa numa soa dura na outra. Por isso a busca é em cascata: o texto
+ * da escola, se ela editou; senão o texto da plataforma; senão o padrão
+ * daqui. Escola que nunca abriu a aba recebe o texto bem escrito por
+ * omissão, e escola que editou fica com o dela — sem ninguém precisar
+ * escolher nada para o sistema funcionar.
  */
 
 export type Grupo = "acesso" | "assinatura" | "conta_pagamentos";
@@ -191,11 +193,6 @@ export const CATALOGO: DefinicaoTemplate[] = [
         nome: "vencimento",
         porque: "Sem a data, a escola não consegue conferir se o aviso é do mês certo.",
       },
-      {
-        nome: "link_pagamento",
-        porque:
-          "Sem ele o e-mail avisa da dívida e não deixa pagar. Cobrança sem meio de pagar é pior que nenhuma cobrança.",
-      },
     ],
     botao: { rotulo: "Pagar agora", variavelDoLink: "link_pagamento" },
   },
@@ -215,13 +212,13 @@ export const CATALOGO: DefinicaoTemplate[] = [
       V_VALOR,
       { nome: "link_pagamento", rotulo: "Link de pagamento", exemplo: "https://www.asaas.com/i/exemplo" },
     ],
-    obrigatorias: [
-      {
-        nome: "link_pagamento",
-        porque:
-          "Este é o e-mail de quem já está sem acesso. Sem o link, a escola precisa pedir para alguém o caminho de voltar.",
-      },
-    ],
+    /*
+     * Sem obrigatória. `{link_pagamento}` seria a candidata natural — o
+     * e-mail de quem já perdeu o acesso é o que mais precisa do caminho de
+     * volta — mas o sistema ainda não produz esse link, e exigir o que
+     * ninguém consegue inserir travaria o salvar sem saída.
+     */
+    obrigatorias: [],
     botao: { rotulo: "Pagar e reativar", variavelDoLink: "link_pagamento" },
   },
   {
