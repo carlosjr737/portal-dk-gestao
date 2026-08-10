@@ -27,7 +27,18 @@ import "server-only";
  */
 
 export type ResultadoEnvio =
-  | { ok: true; id: string }
+  | {
+      ok: true;
+      id: string;
+      /**
+       * Para onde FOI de verdade — que não é `email.para` quando o desvio está
+       * ligado. Sem este campo, "enviado com sucesso" e "não chegou" convivem
+       * sem explicação, e a busca vai parar no provedor, no spam e no DNS antes
+       * de alguém lembrar da variável de ambiente.
+       */
+      destino: string;
+      desviado: boolean;
+    }
   | { ok: false; motivo: "nao_configurado" | "erro"; detalhe?: string };
 
 const REMETENTE_PADRAO = "SouAle <contato@souale.com.br>";
@@ -88,7 +99,7 @@ export async function enviarEmail(email: Email): Promise<ResultadoEnvio> {
       return { ok: false, motivo: "erro", detalhe: dados?.message ?? `HTTP ${res.status}` };
     }
 
-    return { ok: true, id: dados?.id ?? "" };
+    return { ok: true, id: dados?.id ?? "", destino, desviado: Boolean(desvio) };
   } catch (e) {
     console.error("[email] falha de rede", e);
     return {
