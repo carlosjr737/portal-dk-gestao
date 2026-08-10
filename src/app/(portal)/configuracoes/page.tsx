@@ -19,6 +19,16 @@ export default function ConfiguracoesPage() {
             Gerencie acessos, perfis e status dos usuários do sistema.
           </p>
         </Link>
+
+        <Link
+          href="/configuracoes/comunicacao"
+          className="rounded-md border border-border bg-white p-4 transition hover:border-primary"
+        >
+          <h2 className="text-lg font-semibold text-foreground">Comunicação</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Ajuste o texto dos e-mails que o sistema manda sozinho.
+          </p>
+        </Link>
       </section>
     </div>
   );
