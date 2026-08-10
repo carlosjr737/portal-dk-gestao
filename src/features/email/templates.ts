@@ -31,7 +31,7 @@ const TEXTO = "#1A1A2E";
 const CINZA = "#5B6478";
 const BORDA = "#E2E5EC";
 
-function moldura(conteudo: string, previa: string): string {
+export function moldura(conteudo: string, previa: string): string {
   return `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:0;background:#F6F7FB;">
@@ -55,7 +55,7 @@ ${conteudo}
 </td></tr></table></body></html>`;
 }
 
-function botao(href: string, rotulo: string): string {
+export function botao(href: string, rotulo: string): string {
   /* <a> com padding, não <button>: Outlook não renderiza botão em e-mail. */
   return `<p style="margin:24px 0 0;"><a href="${href}" style="display:inline-block;background:${COBALTO};color:#FFFFFF;text-decoration:none;font:600 15px/1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:14px 24px;border-radius:8px;">${rotulo}</a></p>`;
 }
