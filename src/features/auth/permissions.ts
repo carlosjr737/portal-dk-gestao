@@ -122,7 +122,12 @@ export const PERMISSOES_PADRAO: Record<UserRole, string[]> = {
 const ocultosNoMenu: Record<UserRole, string[]> = {
   admin: [],
   equipe: [],
-  professor: ["/dashboard"],
+  /*
+   * O Dashboard saía do menu do professor porque era o painel da ESCOLA —
+   * indicadores gerais e faturamento, nada que fosse dele. Agora a mesma rota
+   * mostra o painel dele, então esconder passou a ser o contrário do certo.
+   */
+  professor: [],
 };
 
 /**
@@ -162,7 +167,13 @@ export function canAccessPath(
   pathname: string,
   permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
 ) {
-  if (pathname === "/acesso-nao-autorizado") {
+  /*
+   * Estas duas passam para qualquer papel, por necessidade estrutural:
+   * "/inicio" é quem DESCOBRE o destino de cada um — barrá-la seria barrar a
+   * entrada —, e a tela de acesso negado precisa poder ser exibida
+   * justamente para quem foi barrado.
+   */
+  if (pathname === "/acesso-nao-autorizado" || pathname === "/inicio") {
     return true;
   }
   // A direção não passa pelo mapa: acesso total, sempre. Ver PERMISSOES_PADRAO.
@@ -190,8 +201,23 @@ export function getNavigationForRole(
  * O professor caía em /dashboard — indicadores da escola inteira, e sem o
  * item no menu para voltar. O dia dele começa na chamada.
  */
-export function getHomeForRole(role: UserRole): string {
-  return role === "professor" ? "/chamada" : "/dashboard";
+export function getHomeForRole(
+  role: UserRole,
+  permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
+): string {
+  const preferida = role === "professor" ? "/chamada" : "/dashboard";
+  if (canAccessPath(role, preferida, permissoes)) return preferida;
+
+  /*
+   * A PREFERIDA PODE TER SIDO FECHADA PELA ESCOLA, e mandar alguém para uma
+   * tela proibida é o começo de um beco: a pessoa entra, leva "acesso
+   * negado" e não chegou a lugar nenhum para poder navegar. Foi o que
+   * aconteceu quando o Dashboard saiu do professor.
+   *
+   * Cair na primeira tela que o papel realmente abre é feio e funciona.
+   */
+  const primeira = navigationItems.find((i) => canAccessPath(role, i.href, permissoes));
+  return primeira?.href ?? "/acesso-nao-autorizado";
 }
 
 function matchesPrefix(pathname: string, prefix: string) {

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPrefixes = [
   "/dashboard",
+  "/inicio",
   "/alunos",
   "/responsaveis",
   "/turmas",
@@ -72,7 +73,9 @@ export async function middleware(request: NextRequest) {
 
   if (request.nextUrl.pathname === "/login" && user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    // /inicio decide o destino pelo papel. Aqui não dá: o middleware só
+    // enxerga que existe alguém logado, não QUEM é.
+    url.pathname = "/inicio";
     url.searchParams.delete("message");
     url.searchParams.delete("next");
     return NextResponse.redirect(url);

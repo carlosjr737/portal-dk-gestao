@@ -21,6 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Sparkline } from "@/components/ui/sparkline";
+import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
+import { getPainelProfessor } from "@/features/teacher-home/queries";
+import { PainelDoProfessor } from "@/features/teacher-home/painel";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +76,23 @@ const brl = new Intl.NumberFormat("pt-BR", {
 });
 
 export default async function DashboardPage() {
+  /*
+   * MESMA ROTA, CONTEÚDO OUTRO.
+   *
+   * Este painel mostra faturamento, inadimplência e a escola inteira — foi
+   * por isso que a direção tirou o Dashboard do professor, e tirar deixou
+   * ele sem porta de entrada nenhuma. Trocar o conteúdo em vez de trancar a
+   * porta resolve os dois lados: o professor entra em algo útil, e nenhum
+   * número de dinheiro atravessa.
+   */
+  const usuario = await getAuthenticatedUser();
+  const perfil = usuario ? await getProfileByUserId(usuario.id) : null;
+
+  if (perfil?.role === "professor") {
+    const dados = await getPainelProfessor(perfil.email, perfil.escolaId);
+    return <PainelDoProfessor dados={dados} />;
+  }
+
   const [data, inad] = await Promise.all([
     getDashboardData(),
     getInadimplenciaDoMes(),
