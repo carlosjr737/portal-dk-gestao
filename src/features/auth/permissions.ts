@@ -239,16 +239,27 @@ export function getHomeForRole(
   role: UserRole,
   permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
 ): string {
-  const preferida = role === "professor" ? "/chamada" : "/dashboard";
-  if (canAccessPath(role, preferida, permissoes)) return preferida;
+  /*
+   * TODO MUNDO ABRE NO DASHBOARD, inclusive quem dá aula: aquela rota agora
+   * mostra o painel de cada um — a escola para a direção, as turmas e o DNA
+   * para o professor. Antes ele caía na chamada porque o Dashboard era só da
+   * escola, e mandá-lo para lá seria mostrar faturamento a quem não é da
+   * conta.
+   *
+   * A segunda opção do professor continua sendo a chamada: se a escola
+   * fechar o Dashboard para ele, o dia dele começa ali de qualquer jeito, e
+   * é mais útil que a primeira tela alfabética da lista.
+   */
+  const preferidas = role === "professor" ? ["/dashboard", "/chamada"] : ["/dashboard"];
+
+  for (const rota of preferidas) {
+    if (canAccessPath(role, rota, permissoes)) return rota;
+  }
 
   /*
-   * A PREFERIDA PODE TER SIDO FECHADA PELA ESCOLA, e mandar alguém para uma
-   * tela proibida é o começo de um beco: a pessoa entra, leva "acesso
-   * negado" e não chegou a lugar nenhum para poder navegar. Foi o que
-   * aconteceu quando o Dashboard saiu do professor.
-   *
-   * Cair na primeira tela que o papel realmente abre é feio e funciona.
+   * Nenhuma preferida disponível. Cair na primeira tela que o papel realmente
+   * abre é feio e funciona — o beco começa quando o login manda alguém para
+   * uma porta trancada, que foi como o acesso da Marcella quebrou.
    */
   const primeira = navigationItems.find((i) => canAccessPath(role, i.href, permissoes));
   return primeira?.href ?? "/acesso-nao-autorizado";
