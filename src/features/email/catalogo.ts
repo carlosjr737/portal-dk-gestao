@@ -302,14 +302,27 @@ export function definicao(chave: ChaveTemplate): DefinicaoTemplate {
  * Confere assunto E corpo juntos: `{escola}` no assunto cumpre a exigência
  * tão bem quanto no corpo, e recusar isso obrigaria a repetir o nome duas
  * vezes só para o validador ficar satisfeito.
+ *
+ * ┌─ O BOTÃO FIXO TAMBÉM ENTREGA ───────────────────────────────────────┐
+ * │ A variável do botão conta como presente, porque o botão SEMPRE sai  │
+ * │ com ela. Exigi-la escrita no corpo obrigava a colar uma URL crua no │
+ * │ meio do texto, ao lado de um botão que já leva ao mesmo lugar.      │
+ * │                                                                     │
+ * │ E não era só chato: os textos PADRÃO deste arquivo não trazem       │
+ * │ `{link_acesso}` no corpo — quem tentasse salvar o texto de fábrica  │
+ * │ do "Acesso criado" era recusado por não conter algo que ele nunca   │
+ * │ conteve. Validação que reprova o próprio padrão está errada, não o  │
+ * │ padrão.                                                             │
+ * └─────────────────────────────────────────────────────────────────────┘
  */
 export function faltandoObrigatorias(
   chave: ChaveTemplate,
   assunto: string,
   corpo: string,
 ): Obrigatoria[] {
+  const d = definicao(chave);
   const texto = `${assunto}\n${corpo}`;
-  return definicao(chave).obrigatorias.filter(
-    (o) => !texto.includes(`{${o.nome}}`),
+  return d.obrigatorias.filter(
+    (o) => !texto.includes(`{${o.nome}}`) && d.botao?.variavelDoLink !== o.nome,
   );
 }
