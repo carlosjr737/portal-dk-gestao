@@ -147,6 +147,8 @@ const navigationGroups = [
       "/configuracoes/escola",
       "/configuracoes/usuarios",
       "/configuracoes/pina-acessos",
+      "/configuracoes/comunicacao",
+      "/configuracoes/permissoes",
       "/configuracoes",
     ],
   },
@@ -166,18 +168,42 @@ export function Sidebar({
     () => new Map(navigation.map((item) => [item.href, item])),
     [navigation],
   );
-  const visibleGroups = useMemo(
-    () =>
-      navigationGroups
-        .map((group) => ({
-          ...group,
-          visibleItems: group.items
-            .map((href) => navigationByHref.get(href))
-            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-        }))
-        .filter((group) => group.visibleItems.length > 0),
-    [navigationByHref],
-  );
+  const visibleGroups = useMemo(() => {
+    const grupos = navigationGroups.map((group) => ({
+      ...group,
+      visibleItems: group.items
+        .map((href) => navigationByHref.get(href))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    }));
+
+    /*
+     * ITEM SEM GRUPO NÃO SOME — vai para o fim, visível.
+     *
+     * `navigationGroups` é uma segunda lista de hrefs, paralela à de
+     * permissões. Foi exatamente assim que "Comunicação" e "Permissões"
+     * ficaram invisíveis no menu: a permissão liberava, o agrupamento não
+     * conhecia, e o item sumia sem erro nenhum — o pior tipo de defeito,
+     * porque nada quebra e ninguém percebe.
+     *
+     * Cair num grupo "Outros" é feio de propósito: dá para ver e dá para
+     * arrumar. Sumir era bonito e errado.
+     */
+    const agrupados = new Set(navigationGroups.flatMap((g) => [...g.items]));
+    const orfaos = navigation.filter((item) => !agrupados.has(item.href));
+
+    if (process.env.NODE_ENV !== "production" && orfaos.length > 0) {
+      console.warn(
+        "Sidebar: itens fora de navigationGroups —",
+        orfaos.map((o) => o.href).join(", "),
+      );
+    }
+
+    const todos = orfaos.length
+      ? [...grupos, { title: "Outros", accordion: true, visibleItems: orfaos }]
+      : grupos;
+
+    return todos.filter((group) => group.visibleItems.length > 0);
+  }, [navigationByHref, navigation]);
   const activeHref = getActiveHref(
     pathname,
     visibleGroups.flatMap((group) => group.visibleItems.map((item) => item.href)),

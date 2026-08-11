@@ -29,6 +29,16 @@ export default function ConfiguracoesPage() {
             Ajuste o texto dos e-mails que o sistema manda sozinho.
           </p>
         </Link>
+
+        <Link
+          href="/configuracoes/permissoes"
+          className="rounded-md border border-border bg-white p-4 transition hover:border-primary"
+        >
+          <h2 className="text-lg font-semibold text-foreground">Permissões</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Escolha o que cada função enxerga no sistema.
+          </p>
+        </Link>
       </section>
     </div>
   );
