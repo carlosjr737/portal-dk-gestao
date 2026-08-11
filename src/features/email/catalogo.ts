@@ -23,7 +23,7 @@ import "server-only";
  * escolher nada para o sistema funcionar.
  */
 
-export type Grupo = "acesso" | "assinatura" | "conta_pagamentos";
+export type Grupo = "acesso" | "assinatura" | "conta_pagamentos" | "pina";
 
 export type ChaveTemplate =
   | "acesso_criado"
@@ -31,7 +31,8 @@ export type ChaveTemplate =
   | "assinatura_confirmada"
   | "assinatura_atrasada"
   | "assinatura_suspensa"
-  | "conta_pagamentos";
+  | "conta_pagamentos"
+  | "pina_liberado";
 
 export type Variavel = {
   nome: string;
@@ -80,6 +81,11 @@ export const GRUPOS: Array<{ chave: Grupo; nome: string; descricao: string }> = 
     chave: "conta_pagamentos",
     nome: "Conta de pagamentos",
     descricao: "O desfecho da análise da conta no Asaas.",
+  },
+  {
+    chave: "pina",
+    nome: "Pina",
+    descricao: "O convite para o app de formações.",
   },
 ];
 
@@ -248,6 +254,35 @@ export const CATALOGO: DefinicaoTemplate[] = [
       },
     ],
     botao: { rotulo: "Ver o que fazer", variavelDoLink: "link_painel" },
+  },
+  {
+    chave: "pina_liberado",
+    grupo: "pina",
+    nome: "Acesso ao Pina liberado",
+    quandoSai: "Quando a escola avisa a equipe sobre o Pina. Não é automático.",
+    assuntoPadrao: "Seu acesso ao Pina está liberado",
+    corpoPadrao:
+      "<p><strong>Você já pode usar o Pina</strong></p>" +
+      "<p>Olá, {pessoa}. O Pina é onde você monta as formações do palco " +
+      "arrastando os alunos, guarda cada coreografia por música e acompanha o " +
+      "espetáculo ao vivo no dia.</p>" +
+      "<p>Ele está ligado ao seu cadastro na {escola}: <strong>você não precisa " +
+      "criar senha nova</strong>. É só entrar no sistema e clicar em Pina, no " +
+      "menu.</p>" +
+      "<p>Qualquer dúvida, é só responder este e-mail.</p>",
+    variaveis: [
+      V_ESCOLA,
+      { nome: "pessoa", rotulo: "Nome da pessoa", exemplo: "Marina" },
+      { nome: "link_acesso", rotulo: "Link do sistema", exemplo: "https://souale.com.br/pina" },
+    ],
+    obrigatorias: [
+      {
+        nome: "link_acesso",
+        porque:
+          "Sem ele o convite anuncia uma novidade e não diz por onde começar — e quem recebe fica esperando um segundo e-mail que não vem.",
+      },
+    ],
+    botao: { rotulo: "Abrir o Pina", variavelDoLink: "link_acesso" },
   },
 ];
 

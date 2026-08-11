@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/session";
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { PinaAccessManager } from "@/features/pina/pina-access-manager";
+import { ConvitePina } from "@/features/pina/convite-pina";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,10 @@ export default async function PinaAcessosPage() {
       />
       <div className="mt-6">
         <PinaAccessManager professores={professores} />
+      </div>
+
+      <div className="mt-8">
+        <ConvitePina professores={professores} />
       </div>
     </div>
   );

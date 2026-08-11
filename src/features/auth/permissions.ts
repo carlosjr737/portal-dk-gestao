@@ -29,6 +29,7 @@ export type Categoria = (typeof CATEGORIAS)[number]["chave"];
 
 export const navigationItems = [
   { href: "/dashboard", label: "Dashboard", categoria: "visao" },
+  { href: "/pina", label: "Pina", categoria: "visao", destaque: true },
   { href: "/metricas-escola", label: "Métricas da escola", categoria: "visao" },
   { href: "/metricas-publico", label: "Métricas do público", categoria: "visao" },
   { href: "/metricas-professores", label: "Métricas dos professores", categoria: "visao" },
@@ -105,7 +106,7 @@ export const PERMISSOES_PADRAO: Record<UserRole, string[]> = {
     "/financeiro/inadimplencia",
     "/financeiro/conta",
   ],
-  professor: ["/dashboard", "/chamada", "/calendario", "/turmas"],
+  professor: ["/dashboard", "/chamada", "/calendario", "/turmas", "/pina"],
 };
 
 /**

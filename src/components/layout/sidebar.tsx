@@ -11,6 +11,7 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  Clapperboard,
   Drama,
   FileSpreadsheet,
   GraduationCap,
@@ -60,6 +61,7 @@ type SidebarProps = {
 const iconByHref: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
   "/metricas-escola": BarChart3,
+  "/pina": Clapperboard,
   "/metricas-publico": Sparkles,
   "/metricas-professores": UserRound,
   "/alunos": Users,
@@ -97,6 +99,7 @@ const navigationGroups = [
     accordion: false,
     items: [
       "/dashboard",
+      "/pina",
       "/metricas-escola",
       "/metricas-publico",
       "/metricas-professores",
@@ -278,6 +281,7 @@ export function Sidebar({
                       href={item.href}
                       label={item.label}
                       active={activeHref === item.href}
+                      destaque={"destaque" in item && item.destaque === true}
                       onClose={onClose}
                     />
                   ))}
@@ -337,11 +341,14 @@ function NavLink({
   href,
   label,
   active,
+  destaque = false,
   onClose,
 }: {
   href: string;
   label: string;
   active: boolean;
+  /** Produto à parte, não mais uma tela. Ver o comentário abaixo. */
+  destaque?: boolean;
   onClose: () => void;
 }) {
   const Icon = iconByHref[href] ?? LayoutDashboard;
@@ -355,11 +362,26 @@ function NavLink({
         "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition",
         active
           ? "bg-primary text-primary-foreground"
-          : "text-white/70 hover:bg-white/10 hover:text-white",
+          : destaque
+            ? /*
+               * DESTAQUE É CONTORNO, NÃO PREENCHIMENTO.
+               *
+               * Fundo cheio competiria com o item ativo — dois itens
+               * "acesos" ao mesmo tempo, e o usuário perde a referência de
+               * onde está. A borda diz "isto é outra coisa" sem disputar a
+               * mesma linguagem do "você está aqui".
+               */
+              "border border-white/25 bg-white/[0.07] text-white hover:bg-white/15"
+            : "text-white/70 hover:bg-white/10 hover:text-white",
       )}
     >
       <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
+      {destaque && !active ? (
+        <span className="ml-auto rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/90">
+          app
+        </span>
+      ) : null}
     </Link>
   );
 }
