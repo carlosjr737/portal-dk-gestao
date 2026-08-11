@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PERMISSOES_PADRAO, type UserRole } from "@/features/auth/permissions";
+import { EDICAO_PADRAO, PERMISSOES_PADRAO, type UserRole } from "@/features/auth/permissions";
 
 /**
  * As permissões em vigor numa escola.
@@ -33,7 +33,7 @@ export const permissoesDaEscola = cache(
       const admin = createAdminClient();
       const { data, error } = await admin
         .from("permissao_tela")
-        .select("papel, href")
+        .select("papel, href, pode_editar")
         .eq("escola_id", escolaId);
 
       if (error) {
@@ -77,3 +77,55 @@ export async function papelConfigurado(
     .eq("papel", papel);
   return (count ?? 0) > 0;
 }
+
+/**
+ * Onde cada papel pode escrever, nesta escola.
+ *
+ * Função à parte, e não um campo a mais no retorno de `permissoesDaEscola`:
+ * quem monta o menu não precisa saber de edição, e alargar aquele tipo faria
+ * a barra lateral carregar um dado que ela não usa até o navegador.
+ */
+export const edicaoDaEscola = cache(
+  async (escolaId: string | null): Promise<Record<UserRole, string[]>> => {
+    if (!escolaId) return EDICAO_PADRAO;
+
+    try {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from("permissao_tela")
+        .select("papel, href, pode_editar")
+        .eq("escola_id", escolaId);
+
+      if (error) {
+        console.error("[permissoes] edição indisponível, usando padrão", {
+          escolaId,
+          erro: error.message,
+        });
+        return EDICAO_PADRAO;
+      }
+
+      const porPapel = new Map<string, string[]>();
+      const vistos = new Set<string>();
+      for (const l of data ?? []) {
+        const papel = l.papel as string;
+        vistos.add(papel);
+        if (l.pode_editar) {
+          porPapel.set(papel, [...(porPapel.get(papel) ?? []), l.href as string]);
+        }
+      }
+
+      return {
+        admin: EDICAO_PADRAO.admin,
+        // Papel configurado sem nenhuma tela editável edita NADA — não volta
+        // ao padrão. Foi uma escolha da escola, não ausência de escolha.
+        equipe: vistos.has("equipe") ? (porPapel.get("equipe") ?? []) : EDICAO_PADRAO.equipe,
+        professor: vistos.has("professor")
+          ? (porPapel.get("professor") ?? [])
+          : EDICAO_PADRAO.professor,
+      };
+    } catch (e) {
+      console.error("[permissoes] edição falhou, usando padrão", { escolaId, erro: e });
+      return EDICAO_PADRAO;
+    }
+  },
+);

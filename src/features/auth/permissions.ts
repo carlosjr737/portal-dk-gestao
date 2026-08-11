@@ -109,6 +109,40 @@ export const PERMISSOES_PADRAO: Record<UserRole, string[]> = {
 };
 
 /**
+ * Onde cada papel pode MEXER, de fábrica.
+ *
+ * Ver e editar são perguntas separadas porque a resposta é diferente: o
+ * professor precisa consultar o rodízio para saber em que sala vai dar aula,
+ * e não precisa remontar o mês. Com um interruptor só, a escolha seria entre
+ * cegá-lo e deixá-lo desfazer o trabalho da secretaria.
+ *
+ * O professor edita a CHAMADA — é o trabalho dele, e ninguém mais tem como
+ * saber quem faltou. O resto ele lê.
+ */
+export const EDICAO_PADRAO: Record<UserRole, string[]> = {
+  admin: ["/"],
+  equipe: ["/"],
+  professor: ["/chamada"],
+};
+
+/**
+ * Se o papel pode ESCREVER nesta tela.
+ *
+ * Quem não pode ver também não pode editar — a checagem de visão vem antes,
+ * senão uma tela fechada com edição marcada viraria uma porta dos fundos.
+ */
+export function podeEditar(
+  role: UserRole,
+  pathname: string,
+  permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
+  edicao: Record<UserRole, string[]> = EDICAO_PADRAO,
+): boolean {
+  if (role === "admin") return true;
+  if (!canAccessPath(role, pathname, permissoes)) return false;
+  return (edicao[role] ?? []).some((prefix) => matchesPrefix(pathname, prefix));
+}
+
+/**
  * Itens que o papel NÃO vê no menu, mesmo tendo permissão de rota.
  *
  * Existe para esconder tela que a pessoa pode abrir mas não é o caminho dela

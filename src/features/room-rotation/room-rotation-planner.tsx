@@ -46,6 +46,12 @@ type PlannerFilters = {
 type RoomRotationPlannerProps = {
   data: RoomRotationPageData;
   filters: PlannerFilters;
+  /**
+   * Perfil que consulta mas não altera. Serve só para o arrastar, que não
+   * passa por formulário e por isso escapa do `fieldset disabled` da página.
+   * A permissão de verdade está em `exigirEdicao`, no servidor.
+   */
+  somenteLeitura?: boolean;
 };
 
 type DragPayload = {
@@ -60,6 +66,7 @@ type Notice = {
 export function RoomRotationPlanner({
   data,
   filters,
+  somenteLeitura = false,
 }: RoomRotationPlannerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -102,6 +109,9 @@ export function RoomRotationPlanner({
   }, []);
 
   function handleDragStart(classId: string) {
+    // Arrastar é o único caminho de escrita que não passa por formulário,
+    // então escapa do `fieldset disabled` que a página aplica em volta.
+    if (somenteLeitura) return;
     dropHandledRef.current = false;
     setDraggedClassId(classId);
     console.log("[ROOM ROTATION DND] drag start", {

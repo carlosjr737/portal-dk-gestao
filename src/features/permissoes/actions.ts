@@ -54,6 +54,16 @@ export async function salvarPermissoes(
     .map(String)
     .filter((h) => conhecidos.has(h));
 
+  /*
+   * Edição só vale para tela que a pessoa VÊ. Sem este cruzamento, marcar
+   * "pode editar" e depois desmarcar a tela deixaria uma linha dizendo que
+   * alguém edita algo que não enxerga — verdade nenhuma, e confusa de ler
+   * depois.
+   */
+  const editaveis = new Set(
+    formData.getAll("editar").map(String).filter((h) => escolhidos.includes(h)),
+  );
+
   const admin = createAdminClient();
 
   /*
@@ -74,7 +84,12 @@ export async function salvarPermissoes(
 
   if (escolhidos.length > 0) {
     const { error } = await admin.from("permissao_tela").insert(
-      escolhidos.map((href) => ({ escola_id: auth.escolaId, papel, href })),
+      escolhidos.map((href) => ({
+        escola_id: auth.escolaId,
+        papel,
+        href,
+        pode_editar: editaveis.has(href),
+      })),
     );
     if (error) return { erro: `Não foi possível salvar: ${error.message}` };
   }

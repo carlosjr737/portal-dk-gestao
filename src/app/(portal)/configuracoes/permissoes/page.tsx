@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
 import { getAuthenticatedUser, getCurrentEscolaId, getProfileByUserId } from "@/features/auth/session";
 import { CATEGORIAS, navigationItems } from "@/features/auth/permissions";
-import { papelConfigurado, permissoesDaEscola } from "@/features/auth/permissoes-escola";
+import { edicaoDaEscola, papelConfigurado, permissoesDaEscola } from "@/features/auth/permissoes-escola";
 import { PainelPermissoes } from "@/features/permissoes/painel";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +43,7 @@ export default async function PermissoesPage() {
 
   const escolaId = await getCurrentEscolaId();
   const permissoes = await permissoesDaEscola(escolaId);
+  const edicao = await edicaoDaEscola(escolaId);
   const [equipeConfig, professorConfig] = await Promise.all([
     papelConfigurado(escolaId, "equipe"),
     papelConfigurado(escolaId, "professor"),
@@ -73,6 +74,7 @@ export default async function PermissoesPage() {
           equipe: permissoes.equipe,
           professor: permissoes.professor,
         }}
+        editaveisPorPapel={{ equipe: edicao.equipe, professor: edicao.professor }}
         configurados={{ equipe: equipeConfig, professor: professorConfig }}
       />
     </div>

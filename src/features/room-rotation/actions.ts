@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { buildRoomRotationQuery } from "@/features/room-rotation/data";
 import { formatRotationMonth } from "@/features/room-rotation/constants";
+import { exigirEdicao } from "@/features/auth/exigir-edicao";
 
 const dayGroupSchema = z.enum(["SEG_QUA", "TER_QUI", "SEX", "SAB"]);
 const rotationLabelSchema = z.enum([
@@ -46,6 +47,7 @@ function parseFilters(formData: FormData) {
 }
 
 export async function createRoomRotationPlan(formData: FormData) {
+  await exigirEdicao("/rodizio-salas");
   const filters = parseFilters(formData);
   const supabase = await createClient();
   const name = `RODIZIO DE SALA ${filters.rotationLabel.replace("Rodízio ", "")} - ${formatRotationMonth(filters.year, filters.month).toUpperCase()}`;
@@ -104,6 +106,7 @@ export async function ensureRoomRotationPlanForDrop(input: {
   dayGroup: "SEG_QUA" | "TER_QUI" | "SEX" | "SAB";
   rotationLabel: "Rodízio 1" | "Rodízio 2" | "Rodízio 3" | "Rodízio 4" | "Rodízio 5";
 }) {
+  await exigirEdicao("/rodizio-salas");
   const parsed = z
     .object({
       year: z.number().int().min(2000),
@@ -166,6 +169,7 @@ export async function ensureRoomRotationPlanForDrop(input: {
 }
 
 export async function saveRoomRotationAssignment(formData: FormData) {
+  await exigirEdicao("/rodizio-salas");
   const parsed = assignmentSchema.parse({
     year: formData.get("year"),
     month: formData.get("month"),
@@ -209,6 +213,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
   endTime?: string | null;
   dayGroup: "SEG_QUA" | "TER_QUI" | "SEX" | "SAB";
 }) {
+  await exigirEdicao("/rodizio-salas");
   console.log("[ROOM ROTATION ASSIGNMENT] save start", {
     rotationPlanId: input.rotationPlanId,
     classId: input.classId,
@@ -343,6 +348,7 @@ export async function saveRoomRotationAssignmentDrop(input: {
 }
 
 export async function deleteRoomRotationAssignment(formData: FormData) {
+  await exigirEdicao("/rodizio-salas");
   const filters = parseFilters(formData);
   const assignmentId = String(formData.get("assignmentId") ?? "");
   const supabase = await createClient();
@@ -363,6 +369,7 @@ export async function deleteRoomRotationAssignment(formData: FormData) {
 }
 
 export async function deleteRoomRotationAssignmentDrop(assignmentId: string) {
+  await exigirEdicao("/rodizio-salas");
   const supabase = await createClient();
   const { error } = await supabase
     .from("room_rotation_assignments")
@@ -390,6 +397,7 @@ function timeToMinutes(time: string) {
 }
 
 export async function publishRoomRotationPlan(formData: FormData) {
+  await exigirEdicao("/rodizio-salas");
   const filters = parseFilters(formData);
   const rotationPlanId = String(formData.get("rotationPlanId") ?? "");
   const supabase = await createClient();
@@ -412,6 +420,7 @@ export async function publishRoomRotationPlan(formData: FormData) {
 }
 
 export async function copyPreviousRoomRotationPlan(formData: FormData) {
+  await exigirEdicao("/rodizio-salas");
   const filters = parseFilters(formData);
   const sourcePlanId = String(formData.get("sourcePlanId") ?? "");
   const targetPlanId = String(formData.get("rotationPlanId") ?? "");

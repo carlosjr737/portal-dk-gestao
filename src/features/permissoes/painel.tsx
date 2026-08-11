@@ -19,12 +19,14 @@ export function PainelPermissoes({
   categorias,
   itens,
   permitidasPorPapel,
+  editaveisPorPapel,
   configurados,
 }: {
   papeis: Papel[];
   categorias: Array<{ chave: string; nome: string }>;
   itens: Item[];
   permitidasPorPapel: Record<string, string[]>;
+  editaveisPorPapel: Record<string, string[]>;
   configurados: Record<string, boolean>;
 }) {
   const [papelAberto, setPapelAberto] = useState(papeis[0]?.chave ?? "");
@@ -58,6 +60,7 @@ export function PainelPermissoes({
           categorias={categorias}
           itens={itens}
           permitidas={permitidasPorPapel[papel.chave] ?? []}
+          editaveis={editaveisPorPapel[papel.chave] ?? []}
           configurado={configurados[papel.chave] ?? false}
         />
       ) : (
@@ -81,15 +84,18 @@ function FormularioPapel({
   categorias,
   itens,
   permitidas,
+  editaveis,
   configurado,
 }: {
   papel: Papel;
   categorias: Array<{ chave: string; nome: string }>;
   itens: Item[];
   permitidas: string[];
+  editaveis: string[];
   configurado: boolean;
 }) {
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set(permitidas));
+  const [podeEditar, setPodeEditar] = useState<Set<string>>(new Set(editaveis));
   const [estado, acaoSalvar, salvando] = useActionState<EstadoPermissoes, FormData>(
     salvarPermissoes,
     {},
@@ -144,6 +150,11 @@ function FormularioPapel({
       {[...marcadas].map((h) => (
         <input key={h} type="hidden" name="href" value={h} />
       ))}
+      {[...podeEditar]
+        .filter((h) => marcadas.has(h))
+        .map((h) => (
+          <input key={`e-${h}`} type="hidden" name="editar" value={h} />
+        ))}
 
       {estado.erro ? <Alert tone="danger">{estado.erro}</Alert> : null}
       {estado.ok ? (
@@ -194,6 +205,27 @@ function FormularioPapel({
                     {itens.some((i) => i.href.startsWith(`${item.href}/`)) ? (
                       <span className="text-xs text-muted-foreground">
                         abre tudo abaixo
+                      </span>
+                    ) : null}
+
+                    {/* Só aparece para tela marcada: perguntar se edita algo
+                        que não vê seria uma pergunta sem resposta possível. */}
+                    {marcadas.has(item.href) ? (
+                      <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={podeEditar.has(item.href)}
+                          onChange={() =>
+                            setPodeEditar((atual) => {
+                              const nova = new Set(atual);
+                              if (nova.has(item.href)) nova.delete(item.href);
+                              else nova.add(item.href);
+                              return nova;
+                            })
+                          }
+                          className="h-3.5 w-3.5 accent-primary"
+                        />
+                        pode editar
                       </span>
                     ) : null}
                   </label>
