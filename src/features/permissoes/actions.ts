@@ -67,32 +67,27 @@ export async function salvarPermissoes(
   const admin = createAdminClient();
 
   /*
-   * APAGA E REGRAVA, dentro do mesmo salvamento.
+   * UMA CHAMADA SÓ, DENTRO DE UMA TRANSAÇÃO.
    *
-   * A lista gravada é a verdade completa do papel — não um conjunto de
-   * exceções. Fazer diferença (inserir o que entrou, apagar o que saiu)
-   * daria o mesmo resultado com mais chance de sobrar linha órfã, e é
-   * justamente a sobra que reabriria uma tela que a escola fechou.
+   * Antes eram duas: apagar as telas do papel e inserir a lista nova. O
+   * PostgREST não abre transação entre chamadas, então o primeiro erro no
+   * insert deixava o papel com ZERO linha. Não é hipótese — aconteceu: a
+   * coluna `pode_editar` ainda não existia no banco, o insert falhou, e a
+   * configuração inteira do professor sumiu de uma vez, silenciosamente,
+   * caindo no padrão sem ninguém pedir.
+   *
+   * Dentro da função, ou as duas coisas acontecem ou nenhuma.
    */
-  const { error: erroDelete } = await admin
-    .from("permissao_tela")
-    .delete()
-    .eq("escola_id", auth.escolaId)
-    .eq("papel", papel);
+  const { error } = await admin.rpc("salvar_permissoes_tela", {
+    p_escola: auth.escolaId,
+    p_papel: papel,
+    p_telas: escolhidos.map((href) => ({
+      href,
+      pode_editar: editaveis.has(href),
+    })),
+  });
 
-  if (erroDelete) return { erro: `Não foi possível salvar: ${erroDelete.message}` };
-
-  if (escolhidos.length > 0) {
-    const { error } = await admin.from("permissao_tela").insert(
-      escolhidos.map((href) => ({
-        escola_id: auth.escolaId,
-        papel,
-        href,
-        pode_editar: editaveis.has(href),
-      })),
-    );
-    if (error) return { erro: `Não foi possível salvar: ${error.message}` };
-  }
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` };
 
   /*
    * NENHUMA TELA MARCADA é gravado como tal, e não como "volta ao padrão".
