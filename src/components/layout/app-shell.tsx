@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { LogoutButton } from "@/features/auth/logout-button";
-import { roleLabels, type UserProfile } from "@/features/auth/permissions";
+import { roleLabels, type UserProfile, type UserRole } from "@/features/auth/permissions";
 import { PLATFORM_NAME } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { AsaasSelo } from "@/components/brand/asaas-selo";
@@ -11,6 +11,8 @@ import { AsaasSelo } from "@/components/brand/asaas-selo";
 type AppShellProps = {
   children: React.ReactNode;
   profile: UserProfile;
+  /** Permissões resolvidas no servidor — o menu deriva delas, não de si. */
+  permissoes?: Record<UserRole, string[]>;
   /** Escola cobra pelo sistema? Esconde as telas que dependem disso. */
   usaModuloFinanceiro?: boolean;
   /** Nome da escola do usuário logado, exibido na barra lateral. */
@@ -20,6 +22,7 @@ type AppShellProps = {
 export function AppShell({
   children,
   profile,
+  permissoes,
   usaModuloFinanceiro = true,
   escolaNome,
 }: AppShellProps) {
@@ -31,6 +34,7 @@ export function AppShell({
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         role={profile.role}
+        permissoes={permissoes}
         usaModuloFinanceiro={usaModuloFinanceiro}
         escolaNome={escolaNome}
       />

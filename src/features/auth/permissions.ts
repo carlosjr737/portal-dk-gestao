@@ -16,41 +16,68 @@ export const roleLabels: Record<UserRole, string> = {
   professor: "Professor",
 };
 
-export const navigationItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/metricas-escola", label: "Métricas da escola" },
-  { href: "/metricas-publico", label: "Métricas do público" },
-  { href: "/metricas-professores", label: "Métricas dos professores" },
-  { href: "/alunos", label: "Alunos" },
-  { href: "/responsaveis", label: "Responsáveis" },
-  { href: "/turmas", label: "Turmas" },
-  { href: "/salas", label: "Salas" },
-  { href: "/rodizio-salas", label: "Rodízio de Salas" },
-  { href: "/professores", label: "Professores" },
-  { href: "/modalidades", label: "Modalidades" },
-  { href: "/niveis", label: "Níveis" },
-  { href: "/matriculas", label: "Matrículas" },
-  { href: "/chamada", label: "Chamada" },
-  { href: "/calendario", label: "Calendário" },
-  { href: "/dna-professores", label: "DNA do Professor" },
-  { href: "/espetaculos", label: "Espetáculos" },
-  { href: "/importar-alunos", label: "Importar alunos" },
-  { href: "/financeiro", label: "Financeiro" },
-  { href: "/financeiro/faturamento-turmas", label: "Faturamento por turma" },
-  { href: "/financeiro/professores", label: "Financeiro dos professores" },
-  { href: "/financeiro/recebimentos", label: "Recebimentos" },
-  { href: "/financeiro/conta", label: "Conta da escola" },
-  { href: "/financeiro/conta-pagamentos", label: "Conta de pagamentos" },
-  { href: "/financeiro/inadimplencia", label: "Inadimplência" },
-  { href: "/financeiro/growth-churn", label: "Growth & Churn" },
-  { href: "/financeiro/entradas-saidas", label: "Entradas & Saídas" },
-  { href: "/configuracoes", label: "Configurações" },
-  { href: "/configuracoes/escola", label: "Minha escola" },
-  { href: "/configuracoes/usuarios", label: "Usuários" },
-  { href: "/configuracoes/pina-acessos", label: "Acessos ao Pina" },
+export const CATEGORIAS = [
+  { chave: "visao", nome: "Visão geral" },
+  { chave: "pessoas", nome: "Pessoas" },
+  { chave: "ensino", nome: "Ensino" },
+  { chave: "espaco", nome: "Espaço" },
+  { chave: "financeiro", nome: "Financeiro" },
+  { chave: "config", nome: "Configurações" },
 ] as const;
 
-const roleRoutePrefixes: Record<UserRole, string[]> = {
+export type Categoria = (typeof CATEGORIAS)[number]["chave"];
+
+export const navigationItems = [
+  { href: "/dashboard", label: "Dashboard", categoria: "visao" },
+  { href: "/metricas-escola", label: "Métricas da escola", categoria: "visao" },
+  { href: "/metricas-publico", label: "Métricas do público", categoria: "visao" },
+  { href: "/metricas-professores", label: "Métricas dos professores", categoria: "visao" },
+  { href: "/alunos", label: "Alunos", categoria: "pessoas" },
+  { href: "/responsaveis", label: "Responsáveis", categoria: "pessoas" },
+  { href: "/professores", label: "Professores", categoria: "pessoas" },
+  { href: "/matriculas", label: "Matrículas", categoria: "pessoas" },
+  { href: "/importar-alunos", label: "Importar alunos", categoria: "pessoas" },
+  { href: "/turmas", label: "Turmas", categoria: "ensino" },
+  { href: "/modalidades", label: "Modalidades", categoria: "ensino" },
+  { href: "/niveis", label: "Níveis", categoria: "ensino" },
+  { href: "/chamada", label: "Chamada", categoria: "ensino" },
+  { href: "/calendario", label: "Calendário", categoria: "ensino" },
+  { href: "/dna-professores", label: "DNA do Professor", categoria: "ensino" },
+  { href: "/espetaculos", label: "Espetáculos", categoria: "ensino" },
+  { href: "/salas", label: "Salas", categoria: "espaco" },
+  { href: "/rodizio-salas", label: "Rodízio de Salas", categoria: "espaco" },
+  { href: "/financeiro", label: "Financeiro", categoria: "financeiro" },
+  { href: "/financeiro/faturamento-turmas", label: "Faturamento por turma", categoria: "financeiro" },
+  { href: "/financeiro/professores", label: "Financeiro dos professores", categoria: "financeiro" },
+  { href: "/financeiro/recebimentos", label: "Recebimentos", categoria: "financeiro" },
+  { href: "/financeiro/conta", label: "Conta da escola", categoria: "financeiro" },
+  { href: "/financeiro/conta-pagamentos", label: "Conta de pagamentos", categoria: "financeiro" },
+  { href: "/financeiro/inadimplencia", label: "Inadimplência", categoria: "financeiro" },
+  { href: "/financeiro/growth-churn", label: "Growth & Churn", categoria: "financeiro" },
+  { href: "/financeiro/entradas-saidas", label: "Entradas & Saídas", categoria: "financeiro" },
+  { href: "/configuracoes", label: "Configurações", categoria: "config" },
+  { href: "/configuracoes/escola", label: "Minha escola", categoria: "config" },
+  { href: "/configuracoes/usuarios", label: "Usuários", categoria: "config" },
+  { href: "/configuracoes/comunicacao", label: "Comunicação", categoria: "config" },
+  { href: "/configuracoes/permissoes", label: "Permissões", categoria: "config" },
+  { href: "/configuracoes/pina-acessos", label: "Acessos ao Pina", categoria: "config" },
+] as const;
+
+/**
+ * O que cada papel enxerga, de fábrica.
+ *
+ * É o PADRÃO, não a lei: a escola pode redesenhar isto na tela de Permissões,
+ * e o que estiver gravado ganha. Ausência de gravação significa "usa este
+ * mapa" — mesmo raciocínio dos textos de e-mail: o padrão vive em código
+ * porque assim é impossível de perder.
+ *
+ * A DIREÇÃO É INTOCÁVEL e não por preguiça de fazer a caixinha. Ela é a única
+ * que alcança a tela de Permissões; deixar desmarcar ali significa que um
+ * clique errado tranca a escola inteira para fora da própria administração, e
+ * o conserto vira SQL no banco. Um poder que só se usa para se destruir não
+ * precisa existir.
+ */
+export const PERMISSOES_PADRAO: Record<UserRole, string[]> = {
   admin: ["/"],
   equipe: [
     "/dashboard",
@@ -67,6 +94,16 @@ const roleRoutePrefixes: Record<UserRole, string[]> = {
     "/dna-professores",
     "/espetaculos",
     "/importar-alunos",
+    /*
+     * Inadimplência e cobrança entram para o aux adm por decisão do Carlos:
+     * é ele quem persegue quem não pagou e quem emite a cobrança no dia a
+     * dia. `/financeiro/conta` cobre as telas de cobrar e de avulsa.
+     *
+     * As duas dependem do módulo de pagamento ligado — escola sem Asaas não
+     * vê nenhuma das duas, mesmo com a permissão marcada aqui.
+     */
+    "/financeiro/inadimplencia",
+    "/financeiro/conta",
   ],
   professor: ["/dashboard", "/chamada", "/calendario", "/turmas"],
 };
@@ -114,21 +151,34 @@ export function isUserRole(value: string | null | undefined): value is UserRole 
   return value === "admin" || value === "equipe" || value === "professor";
 }
 
-export function canAccessPath(role: UserRole, pathname: string) {
+/**
+ * `permissoes` chega resolvido de fora (banco ou padrão). Esta função
+ * continua pura: quem sabe consultar o banco é o servidor, e uma função de
+ * decisão que faz I/O é impossível de testar e fácil de chamar no lugar
+ * errado.
+ */
+export function canAccessPath(
+  role: UserRole,
+  pathname: string,
+  permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
+) {
   if (pathname === "/acesso-nao-autorizado") {
     return true;
   }
+  // A direção não passa pelo mapa: acesso total, sempre. Ver PERMISSOES_PADRAO.
+  if (role === "admin") return true;
 
-  return roleRoutePrefixes[role].some((prefix) => matchesPrefix(pathname, prefix));
+  return (permissoes[role] ?? []).some((prefix) => matchesPrefix(pathname, prefix));
 }
 
 export function getNavigationForRole(
   role: UserRole,
   usaModuloFinanceiro = true,
+  permissoes: Record<UserRole, string[]> = PERMISSOES_PADRAO,
 ) {
   return navigationItems.filter(
     (item) =>
-      canAccessPath(role, item.href) &&
+      canAccessPath(role, item.href, permissoes) &&
       !ocultosNoMenu[role].some((prefix) => matchesPrefix(item.href, prefix)) &&
       (usaModuloFinanceiro || !exigeModuloFinanceiro(item.href)),
   );

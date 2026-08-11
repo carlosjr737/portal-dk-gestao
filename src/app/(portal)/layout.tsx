@@ -5,6 +5,7 @@ import {
   canAccessPath,
   exigeModuloFinanceiro,
 } from "@/features/auth/permissions";
+import { permissoesDaEscola } from "@/features/auth/permissoes-escola";
 import { getEscolaNome } from "@/features/school/escola-nome";
 import { escolaUsaModuloFinanceiro } from "@/features/school/modulo-financeiro";
 import {
@@ -35,7 +36,12 @@ export default async function PortalLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") ?? "/dashboard";
 
-  if (!canAccessPath(profile.role, pathname)) {
+  /*
+   * O PORTÃO É AQUI, no servidor, antes de renderizar qualquer coisa.
+   * Esconder o item do menu não protege nada: a URL continua digitável.
+   */
+  const permissoes = await permissoesDaEscola(profile.escolaId ?? null);
+  if (!canAccessPath(profile.role, pathname, permissoes)) {
     redirect("/acesso-nao-autorizado");
   }
 
@@ -58,6 +64,7 @@ export default async function PortalLayout({
 
   return (
     <AppShell
+      permissoes={permissoes}
       profile={profile}
       usaModuloFinanceiro={usaModuloFinanceiro}
       escolaNome={escolaNome}

@@ -39,6 +39,12 @@ type SidebarProps = {
   isOpen: boolean;
   onClose: () => void;
   role: UserRole;
+  /**
+   * As permissões da escola, resolvidas no servidor. Vêm por prop em vez de
+   * serem lidas aqui porque este componente é de cliente — e permissão que o
+   * navegador busca é permissão que o navegador pode mentir.
+   */
+  permissoes?: Record<UserRole, string[]>;
   usaModuloFinanceiro?: boolean;
   /** Nome da escola do usuário logado. O produto serve várias. */
   escolaNome?: string | null;
@@ -150,11 +156,12 @@ export function Sidebar({
   isOpen,
   onClose,
   role,
+  permissoes,
   usaModuloFinanceiro = true,
   escolaNome,
 }: SidebarProps) {
   const pathname = usePathname();
-  const navigation = getNavigationForRole(role, usaModuloFinanceiro);
+  const navigation = getNavigationForRole(role, usaModuloFinanceiro, permissoes);
   const navigationByHref = useMemo(
     () => new Map(navigation.map((item) => [item.href, item])),
     [navigation],
