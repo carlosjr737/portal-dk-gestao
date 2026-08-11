@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { calcularDimensoes } from "@/features/metricas/dimensoes";
 
 /**
  * A foto mensal das métricas.
@@ -160,19 +161,46 @@ export async function capturarEscola(
   const admin = createAdminClient();
 
   try {
-    const valores = await calcularMetricas(escolaId);
-    const linhas = Object.entries(valores).map(([metrica, valor]) => ({
-      escola_id: escolaId,
-      competencia,
-      metrica,
-      valor,
-      origem,
-      capturado_em: new Date().toISOString(),
-    }));
+    const agora = new Date().toISOString();
 
-    const { error } = await admin
-      .from("metrica_mensal")
-      .upsert(linhas, { onConflict: "escola_id,competencia,metrica" });
+    const [valoresEscola, dimensionadas, escola] = await Promise.all([
+      calcularMetricas(escolaId),
+      calcularDimensoes(escolaId, competencia),
+      admin.from("school").select("nome").eq("id", escolaId).maybeSingle(),
+    ]);
+
+    const nomeEscola = (escola.data?.nome as string | null) ?? "Escola";
+
+    const linhas = [
+      // Na dimensão 'escola', entidade_id repete o escola_id: chave primária
+      // não aceita coluna anulável, e um id sentinela seria pior de ler.
+      ...Object.entries(valoresEscola).map(([metrica, valor]) => ({
+        escola_id: escolaId,
+        competencia,
+        dimensao: "escola",
+        entidade_id: escolaId,
+        entidade_nome: nomeEscola,
+        metrica,
+        valor,
+        origem,
+        capturado_em: agora,
+      })),
+      ...dimensionadas.map((l) => ({
+        escola_id: escolaId,
+        competencia,
+        dimensao: l.dimensao,
+        entidade_id: l.entidadeId,
+        entidade_nome: l.entidadeNome,
+        metrica: l.metrica,
+        valor: l.valor,
+        origem,
+        capturado_em: agora,
+      })),
+    ];
+
+    const { error } = await admin.from("metrica_mensal").upsert(linhas, {
+      onConflict: "escola_id,competencia,dimensao,entidade_id,metrica",
+    });
 
     if (error) return { escolaId, competencia, gravadas: 0, erro: error.message };
     return { escolaId, competencia, gravadas: linhas.length };

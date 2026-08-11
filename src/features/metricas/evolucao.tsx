@@ -41,6 +41,7 @@ export async function EvolucaoMensal({ escolaId }: { escolaId: string | null }) 
   const { data, error } = await admin
     .from("metrica_mensal")
     .select("competencia, metrica, valor, origem")
+    .eq("dimensao", "escola")
     .eq("escola_id", escolaId)
     .order("competencia", { ascending: true });
 
