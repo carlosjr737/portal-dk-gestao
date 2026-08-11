@@ -8,7 +8,7 @@ import {
 } from "@/features/auth/session";
 import { enviarEmail } from "@/features/email/client";
 import { renderizar } from "@/features/email/render";
-import { PLATFORM_URL } from "@/lib/branding";
+import { provisionPinaProfessor } from "@/features/pina/provision";
 
 export type EstadoConvite = {
   ok?: boolean;
@@ -31,6 +31,20 @@ export type EstadoConvite = {
  * │ Como é manual, ele TAMBÉM não guarda "já enviei": quem decide        │
  * │ reenviar é quem clica. A trava contra repetição é a tela dizer       │
  * │ quantos foram, não o sistema recusar.                                │
+ * └─────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ O LINK É DE SENHA DO PINA, NÃO DO PORTAL ──────────────────────────┐
+ * │ A primeira versão mandava "entre no sistema e clique em Pina" — e a  │
+ * │ maior parte da equipe NÃO TEM conta no portal. O convite apontava    │
+ * │ para uma porta que essas pessoas não possuem.                        │
+ * │                                                                     │
+ * │ Agora cada convite provisiona a conta do Pina e leva o link de       │
+ * │ definição de senha da PESSOA. Funciona para quem nunca entrou no     │
+ * │ SouAle, que é o caso da maioria — e quem tiver portal continua       │
+ * │ podendo entrar pelo menu, sem usar este link.                        │
+ * │                                                                     │
+ * │ O link é pessoal e expira. É por isso que ele nasce no momento do    │
+ * │ envio, e não fica guardado em lugar nenhum.                          │
  * └─────────────────────────────────────────────────────────────────────┘
  *
  * O texto sai do catálogo (`pina_liberado`), então a escola pode reescrevê-lo
@@ -85,6 +99,17 @@ export async function enviarConvitePina(
       continue;
     }
 
+    /*
+     * Provisiona antes de mandar. Idempotente: conta que já existe é
+     * atualizada, e o link de senha é gerado novo — que é o certo, porque o
+     * anterior pode ter expirado sem ninguém saber.
+     */
+    const conta = await provisionPinaProfessor(p.id as string);
+    if (!conta.ok) {
+      falhas.push({ nome, motivo: traduzir(conta.error) });
+      continue;
+    }
+
     const mensagem = await renderizar({
       chave: "pina_liberado",
       para: email,
@@ -92,7 +117,7 @@ export async function enviarConvitePina(
       valores: {
         escola: nomeEscola,
         pessoa: nome.split(" ")[0] ?? nome,
-        link_acesso: `${PLATFORM_URL}/pina`,
+        link_acesso: conta.resetLink,
       },
     });
 
@@ -102,4 +127,20 @@ export async function enviarConvitePina(
   }
 
   return { ok: true, enviados, semEmail, falhas };
+}
+
+/** Erro do provedor vira frase que diz o que fazer. */
+function traduzir(codigo: string): string {
+  switch (codigo) {
+    case "firebase_not_configured":
+      return "a integração com o Pina não está configurada no servidor";
+    case "sem_email":
+      return "não tem e-mail no cadastro";
+    case "email_em_outra_conta":
+      return "este e-mail já está em outra conta do Pina — a secretaria precisa resolver o duplicado";
+    case "reset_link_error":
+      return "não foi possível gerar o link de senha";
+    default:
+      return codigo;
+  }
 }

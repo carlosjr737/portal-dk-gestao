@@ -265,24 +265,28 @@ export const CATALOGO: DefinicaoTemplate[] = [
       "<p><strong>Você já pode usar o Pina</strong></p>" +
       "<p>Olá, {pessoa}. O Pina é onde você monta as formações do palco " +
       "arrastando os alunos, guarda cada coreografia por música e acompanha o " +
-      "espetáculo ao vivo no dia.</p>" +
-      "<p>Ele está ligado ao seu cadastro na {escola}: <strong>você não precisa " +
-      "criar senha nova</strong>. É só entrar no sistema e clicar em Pina, no " +
-      "menu.</p>" +
-      "<p>Qualquer dúvida, é só responder este e-mail.</p>",
+      "espetáculo ao vivo no dia do show.</p>" +
+      "<p>A {escola} liberou seu acesso. Clique no botão abaixo para criar sua " +
+      "senha — leva menos de um minuto, e é só na primeira vez.</p>" +
+      "<p>O link é seu e vale por tempo limitado. Se expirar, peça um novo para " +
+      "a secretaria.</p>",
     variaveis: [
       V_ESCOLA,
       { nome: "pessoa", rotulo: "Nome da pessoa", exemplo: "Marina" },
-      { nome: "link_acesso", rotulo: "Link do sistema", exemplo: "https://souale.com.br/pina" },
+      {
+        nome: "link_acesso",
+        rotulo: "Link para criar a senha",
+        exemplo: "https://www.pinaform.app/auth/action?mode=resetPassword",
+      },
     ],
     obrigatorias: [
       {
         nome: "link_acesso",
         porque:
-          "Sem ele o convite anuncia uma novidade e não diz por onde começar — e quem recebe fica esperando um segundo e-mail que não vem.",
+          "É o único caminho de entrada de quem não tem conta no SouAle — e essa é a maior parte da equipe. Sem ele, o convite anuncia uma novidade e não deixa ninguém usar.",
       },
     ],
-    botao: { rotulo: "Abrir o Pina", variavelDoLink: "link_acesso" },
+    botao: { rotulo: "Criar minha senha do Pina", variavelDoLink: "link_acesso" },
   },
 ];
 

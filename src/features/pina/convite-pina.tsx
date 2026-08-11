@@ -33,8 +33,10 @@ export function ConvitePina({ professores }: { professores: Professor[] }) {
           Avisar a equipe sobre o Pina
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manda um e-mail contando o que é o Pina e como entrar. O texto sai da
-          aba Comunicação — dá para reescrevê-lo antes de disparar.
+          Cria a conta de cada um no Pina e manda um e-mail com o link para
+          definir a senha. <strong>Funciona para quem não tem acesso ao
+          SouAle</strong> — a maioria da equipe. O texto sai da aba
+          Comunicação, dá para reescrevê-lo antes de disparar.
         </p>
       </div>
 
