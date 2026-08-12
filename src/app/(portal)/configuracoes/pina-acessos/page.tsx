@@ -5,6 +5,8 @@ import { getAuthenticatedUser, getProfileByUserId } from "@/features/auth/sessio
 import { getStaffDisplayName } from "@/features/staff/formatters";
 import { PinaAccessManager } from "@/features/pina/pina-access-manager";
 import { ConvitePina } from "@/features/pina/convite-pina";
+import { listarPessoasPina } from "@/features/pina/pessoas";
+import { getCurrentEscolaId } from "@/features/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,8 @@ export default async function PinaAcessosPage() {
   if (!profile || !["admin", "equipe"].includes(profile.role)) {
     notFound();
   }
+
+  const pessoas = await listarPessoasPina(await getCurrentEscolaId());
 
   const supabase = await createClient();
   const { data: staff } = await supabase
@@ -39,7 +43,7 @@ export default async function PinaAcessosPage() {
       </div>
 
       <div className="mt-8">
-        <ConvitePina professores={professores} />
+        <ConvitePina pessoas={pessoas} />
       </div>
     </div>
   );

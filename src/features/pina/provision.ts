@@ -22,18 +22,57 @@ export async function provisionPinaProfessor(
   staffMemberId: string,
   espetaculoId?: string,
 ): Promise<ProvisionResult> {
-  const auth = getPinaFirebaseAuth();
-  if (!auth) return { ok: false, error: "firebase_not_configured" };
-
   const admin = createAdminClient();
   const { data: staff } = await admin
     .from("staff_members")
-    .select("id, email, role, escola_id")
+    .select("id, email, escola_id")
     .eq("id", staffMemberId)
     .maybeSingle();
 
   if (!staff) return { ok: false, error: "staff_not_found" };
-  const email = (staff.email as string | null)?.trim();
+
+  return provisionPinaConta(
+    {
+      uid: staffMemberId,
+      email: (staff.email as string | null) ?? null,
+      escolaId: (staff.escola_id as string | null) ?? null,
+      staffMemberId,
+    },
+    espetaculoId,
+  );
+}
+
+/**
+ * O núcleo: cria/atualiza a conta no Firebase e devolve o link de senha.
+ *
+ * ┌─ POR QUE ISTO EXISTE SEPARADO ──────────────────────────────────────┐
+ * │ A versão anterior só sabia provisionar quem tinha ficha em          │
+ * │ `staff_members`. Mas o sistema tem DOIS cadastros — `profiles` (quem │
+ * │ entra no portal) e `staff_members` (quem dá aula) — e adicionar em   │
+ * │ um não cria no outro. Quem foi cadastrado só como usuário ficava     │
+ * │ invisível para o Pina, sem erro nenhum: a lista simplesmente não o   │
+ * │ continha.                                                            │
+ * │                                                                     │
+ * │ O UID CONTINUA SENDO O DO PROFESSOR QUANDO ELE EXISTE. É o que faz  │
+ * │ os dados do Pina baterem com as turmas daqui; para quem só tem       │
+ * │ perfil, o uid é o do perfil — mesma regra que o SSO já usava.        │
+ * └─────────────────────────────────────────────────────────────────────┘
+ */
+export async function provisionPinaConta(
+  pessoa: {
+    uid: string;
+    email: string | null;
+    escolaId: string | null;
+    /** null quando a pessoa não tem ficha de professor. */
+    staffMemberId: string | null;
+  },
+  espetaculoId?: string,
+): Promise<ProvisionResult> {
+  const auth = getPinaFirebaseAuth();
+  if (!auth) return { ok: false, error: "firebase_not_configured" };
+
+  const admin = createAdminClient();
+  const email = pessoa.email?.trim();
   if (!email) return { ok: false, error: "sem_email" };
 
   // papel: se o e-mail bate com um profile admin/equipe -> master; senão professor.
@@ -47,7 +86,9 @@ export async function provisionPinaProfessor(
       ? "master"
       : "professor";
 
-  const uid = staffMemberId;
+  const uid = pessoa.uid;
+  const staffMemberId = pessoa.staffMemberId;
+  const staff = { escola_id: pessoa.escolaId };
   // escolaId vai na claim: é o que permite a API do Pina barrar acesso a
   // espetáculo de outra escola (o admin client de lá ignora a RLS).
   const claims = {

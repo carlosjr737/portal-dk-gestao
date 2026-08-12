@@ -82,6 +82,9 @@ export const PERMISSOES_PADRAO: Record<UserRole, string[]> = {
   admin: ["/"],
   equipe: [
     "/dashboard",
+    // Aux adm no Pina entra como "master": enxerga os espetáculos da escola
+    // inteira, o que é o papel dele — organizar, não dançar.
+    "/pina",
     "/metricas-escola",
     "/metricas-publico",
     "/alunos",

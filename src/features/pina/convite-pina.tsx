@@ -6,7 +6,14 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { enviarConvitePina, type EstadoConvite } from "@/features/pina/convite-actions";
 
-type Professor = { id: string; nome: string; email: string | null };
+type Pessoa = {
+  uid: string;
+  nome: string;
+  email: string | null;
+  papelNoPina: "professor" | "master";
+  origem: "professor" | "usuario" | "ambos";
+  semTurmas: boolean;
+};
 
 /**
  * O convite em massa — separado da liberação de acesso de propósito.
@@ -16,15 +23,15 @@ type Professor = { id: string; nome: string; email: string | null };
  * tem desfazer. Juntar os dois num botão só faria a escola mandar e-mail sem
  * ter decidido mandar.
  */
-export function ConvitePina({ professores }: { professores: Professor[] }) {
+export function ConvitePina({ pessoas }: { pessoas: Pessoa[] }) {
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [estado, acao, enviando] = useActionState<EstadoConvite, FormData>(
     enviarConvitePina,
     {},
   );
 
-  const comEmail = professores.filter((p) => p.email);
-  const todos = comEmail.length > 0 && comEmail.every((p) => marcados.has(p.id));
+  const comEmail = pessoas.filter((p) => p.email);
+  const todos = comEmail.length > 0 && comEmail.every((p) => marcados.has(p.uid));
 
   return (
     <form action={acao} className="space-y-4 rounded-lg border border-border p-5">
@@ -35,8 +42,9 @@ export function ConvitePina({ professores }: { professores: Professor[] }) {
         <p className="mt-1 text-sm text-muted-foreground">
           Cria a conta de cada um no Pina e manda um e-mail com o link para
           definir a senha. <strong>Funciona para quem não tem acesso ao
-          SouAle</strong> — a maioria da equipe. O texto sai da aba
-          Comunicação, dá para reescrevê-lo antes de disparar.
+          SouAle</strong>. A lista junta os professores e os usuários do
+          sistema — os dois cadastros. O texto sai da aba Comunicação, dá para
+          reescrevê-lo antes de disparar.
         </p>
       </div>
 
@@ -74,7 +82,7 @@ export function ConvitePina({ professores }: { professores: Professor[] }) {
         <button
           type="button"
           onClick={() =>
-            setMarcados(todos ? new Set() : new Set(comEmail.map((p) => p.id)))
+            setMarcados(todos ? new Set() : new Set(comEmail.map((p) => p.uid)))
           }
           className="text-sm text-primary hover:underline"
         >
@@ -83,30 +91,50 @@ export function ConvitePina({ professores }: { professores: Professor[] }) {
       </div>
 
       <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
-        {professores.map((p) => (
-          <li key={p.id}>
+        {pessoas.map((p) => (
+          <li key={p.uid}>
             <label
-              className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
+              className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm ${
                 p.email ? "cursor-pointer hover:bg-muted/40" : "opacity-60"
               }`}
             >
               <input
                 type="checkbox"
                 name="staffId"
-                value={p.id}
+                value={p.uid}
                 disabled={!p.email}
-                checked={marcados.has(p.id)}
+                checked={marcados.has(p.uid)}
                 onChange={() =>
                   setMarcados((atual) => {
                     const nova = new Set(atual);
-                    if (nova.has(p.id)) nova.delete(p.id);
-                    else nova.add(p.id);
+                    if (nova.has(p.uid)) nova.delete(p.uid);
+                    else nova.add(p.uid);
                     return nova;
                   })
                 }
                 className="h-4 w-4 accent-primary"
               />
               <span className="text-foreground">{p.nome}</span>
+
+              {/* "master" enxerga a escola inteira no Pina; professor vê só as
+                  turmas dele. Dizer isso aqui evita liberar sem perceber. */}
+              {p.papelNoPina === "master" ? (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                  vê tudo
+                </span>
+              ) : null}
+
+              {/*
+                Perfil sem ficha de professor não tem turma — o Pina abre vazio
+                e a pessoa acha que o acesso quebrou. Melhor avisar antes de
+                mandar o convite do que explicar depois.
+              */}
+              {p.semTurmas ? (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                  sem turma — cadastre em Professores
+                </span>
+              ) : null}
+
               <span className="ml-auto text-xs text-muted-foreground">
                 {p.email ?? "sem e-mail no cadastro"}
               </span>

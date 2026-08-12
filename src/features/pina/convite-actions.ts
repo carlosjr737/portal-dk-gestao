@@ -8,7 +8,8 @@ import {
 } from "@/features/auth/session";
 import { enviarEmail } from "@/features/email/client";
 import { renderizar } from "@/features/email/render";
-import { provisionPinaProfessor } from "@/features/pina/provision";
+import { provisionPinaConta } from "@/features/pina/provision";
+import { listarPessoasPina } from "@/features/pina/pessoas";
 
 export type EstadoConvite = {
   ok?: boolean;
@@ -68,34 +69,21 @@ export async function enviarConvitePina(
   if (ids.length === 0) return { erro: "Escolha pelo menos uma pessoa." };
 
   const admin = createAdminClient();
-  const [{ data: equipe }, { data: escola }] = await Promise.all([
-    admin
-      .from("staff_members")
-      .select("id, full_name, artistic_name, email")
-      .eq("escola_id", escolaId)
-      .in("id", ids),
+  const [pessoas, { data: escola }] = await Promise.all([
+    listarPessoasPina(escolaId),
     admin.from("school").select("nome").eq("id", escolaId).maybeSingle(),
   ]);
 
   const nomeEscola = (escola?.nome as string | null) ?? "sua escola";
+  const escolhidas = pessoas.filter((p) => ids.includes(p.uid));
 
   let enviados = 0;
   const semEmail: string[] = [];
   const falhas: Array<{ nome: string; motivo: string }> = [];
 
-  for (const p of equipe ?? []) {
-    const nome =
-      ((p.artistic_name as string | null)?.trim() || (p.full_name as string | null)) ??
-      "Professor";
-    const email = (p.email as string | null)?.trim();
-
-    /*
-     * Sem e-mail não é falha de envio, é falha de cadastro — e por isso vem
-     * numa lista à parte. Misturar as duas faria a escola procurar problema
-     * no provedor quando o buraco está no cadastro dela.
-     */
-    if (!email) {
-      semEmail.push(nome);
+  for (const pessoa of escolhidas) {
+    if (!pessoa.email) {
+      semEmail.push(pessoa.nome);
       continue;
     }
 
@@ -104,26 +92,31 @@ export async function enviarConvitePina(
      * atualizada, e o link de senha é gerado novo — que é o certo, porque o
      * anterior pode ter expirado sem ninguém saber.
      */
-    const conta = await provisionPinaProfessor(p.id as string);
+    const conta = await provisionPinaConta({
+      uid: pessoa.uid,
+      email: pessoa.email,
+      escolaId,
+      staffMemberId: pessoa.staffMemberId,
+    });
     if (!conta.ok) {
-      falhas.push({ nome, motivo: traduzir(conta.error) });
+      falhas.push({ nome: pessoa.nome, motivo: traduzir(conta.error) });
       continue;
     }
 
     const mensagem = await renderizar({
       chave: "pina_liberado",
-      para: email,
+      para: pessoa.email,
       escolaId,
       valores: {
         escola: nomeEscola,
-        pessoa: nome.split(" ")[0] ?? nome,
+        pessoa: pessoa.nome.split(" ")[0] ?? pessoa.nome,
         link_acesso: conta.resetLink,
       },
     });
 
     const envio = await enviarEmail(mensagem);
     if (envio.ok) enviados += 1;
-    else falhas.push({ nome, motivo: envio.detalhe ?? envio.motivo });
+    else falhas.push({ nome: pessoa.nome, motivo: envio.detalhe ?? envio.motivo });
   }
 
   return { ok: true, enviados, semEmail, falhas };
