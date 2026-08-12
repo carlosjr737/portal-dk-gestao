@@ -11,6 +11,7 @@ type Pessoa = {
   nome: string;
   email: string | null;
   papelNoPina: "professor" | "master";
+  somenteLeitura: boolean;
   origem: "professor" | "usuario" | "ambos";
   semTurmas: boolean;
 };
@@ -120,7 +121,7 @@ export function ConvitePina({ pessoas }: { pessoas: Pessoa[] }) {
                   turmas dele. Dizer isso aqui evita liberar sem perceber. */}
               {p.papelNoPina === "master" ? (
                 <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                  vê tudo
+                  {p.somenteLeitura ? "vê tudo, não edita" : "vê tudo"}
                 </span>
               ) : null}
 

@@ -86,6 +86,15 @@ export async function provisionPinaConta(
       ? "master"
       : "professor";
 
+  /*
+   * Aux adm vê tudo e não edita nada — a mesma regra do SSO, gravada NA CONTA
+   * porque quem entra pelo login direto não passa pelo token do portal.
+   *
+   * Só "equipe": a direção continua podendo mexer. E a claim é adicional a
+   * role="master" de propósito — ver o comentário no /api/pina/sso-token.
+   */
+  const somenteLeitura = (profile?.role as string | undefined) === "equipe";
+
   const uid = pessoa.uid;
   const staffMemberId = pessoa.staffMemberId;
   const staff = { escola_id: pessoa.escolaId };
@@ -95,6 +104,7 @@ export async function provisionPinaConta(
     role,
     professorId: staffMemberId,
     escolaId: (staff.escola_id as string | null) ?? null,
+    somenteLeitura,
   };
 
   // upsert do usuário Firebase

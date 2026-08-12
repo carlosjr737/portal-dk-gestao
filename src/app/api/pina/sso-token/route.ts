@@ -31,6 +31,21 @@ export async function POST() {
   }
 
   const role = viewer.role === "professor" ? "professor" : "master";
+
+  /*
+   * AUX ADM VÊ TUDO E NÃO EDITA NADA.
+   *
+   * A claim é ADICIONAL, não um papel novo: o Pina continua recebendo
+   * role="master" e enxergando a escola inteira. Inventar um role
+   * "master_leitura" quebraria toda checagem `role === "master"` lá dentro e
+   * trancaria a equipe fora do que ela PODE ver — o oposto do pedido.
+   *
+   * A CONTRAPARTIDA HONESTA: a edição acontece dentro do Pina, contra o banco
+   * DELE. Nossas APIs aqui são só de leitura (só GET). Então esta claim é um
+   * pedido assinado, não uma tranca: enquanto o Pina não olhar para
+   * `somenteLeitura`, o aux adm continua conseguindo editar por lá.
+   */
+  const somenteLeitura = viewer.role === "equipe";
   const uid = viewer.staffMemberId ?? viewer.profileId;
 
   try {
@@ -40,6 +55,7 @@ export async function POST() {
       // escola precisa vir assinada no token.
       escolaId: await getCurrentEscolaId(),
       professorId: viewer.staffMemberId,
+      somenteLeitura,
     });
     return NextResponse.json({ token });
   } catch (error) {

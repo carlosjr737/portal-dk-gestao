@@ -36,6 +36,8 @@ export type PessoaPina = {
   staffMemberId: string | null;
   /** O que ela vai ser dentro do Pina. */
   papelNoPina: "professor" | "master";
+  /** Aux adm enxerga tudo e não altera nada. Ver o contrato em docs/. */
+  somenteLeitura: boolean;
   /** Para a tela poder explicar por que alguém está aqui. */
   origem: "professor" | "usuario" | "ambos";
   /** Sem ficha de professor não há turma — e sem turma o Pina abre vazio. */
@@ -77,6 +79,7 @@ export async function listarPessoasPina(escolaId: string | null): Promise<Pessoa
       email,
       staffMemberId: s.id as string,
       papelNoPina: "professor",
+      somenteLeitura: false,
       origem: "professor",
       semTurmas: false,
     };
@@ -93,12 +96,15 @@ export async function listarPessoasPina(escolaId: string | null): Promise<Pessoa
     const email = (p.email as string | null) ?? null;
     const k = chave(email);
     const ehMaster = ["admin", "equipe"].includes(p.role as string);
+    // Só o aux adm é leitor. A direção continua podendo mexer.
+    const soLeitura = (p.role as string) === "equipe";
     const existente = k ? porEmail.get(k) : undefined;
 
     if (existente) {
       // Já tem ficha de professor: mantém o uid do professor e só apura o papel.
       existente.origem = "ambos";
       if (ehMaster) existente.papelNoPina = "master";
+      if (soLeitura) existente.somenteLeitura = true;
       continue;
     }
     if (!email) continue;
@@ -109,6 +115,7 @@ export async function listarPessoasPina(escolaId: string | null): Promise<Pessoa
       email,
       staffMemberId: null,
       papelNoPina: ehMaster ? "master" : "professor",
+      somenteLeitura: soLeitura,
       origem: "usuario",
       /*
        * Perfil sem ficha de professor não tem turma vinculada. Para quem é
