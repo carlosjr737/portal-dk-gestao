@@ -6,6 +6,7 @@ import {
 } from "@/features/teacher-dna/constants";
 import { TeacherDnaPillarBars } from "@/features/teacher-dna/components/teacher-dna-pillar-bars";
 import { DnaReportDownloadButton } from "@/features/teacher-dna/components/dna-report-download-button";
+import { DnaVideoDownloadButton } from "@/features/teacher-dna/components/dna-video-download-button";
 import {
   formatScore,
   getAssessmentOverallScore,
@@ -36,7 +37,10 @@ export function TeacherDnaLessonDetail({
             {getPerformanceLabel(overall)}
           </p>
         </div>
-        <DnaReportDownloadButton reportPath={assessment.report_path} />
+        <div className="inline-flex items-center gap-2">
+          <DnaReportDownloadButton reportPath={assessment.report_path} />
+          <DnaVideoDownloadButton videoGcsFile={assessment.video_gcs_file} />
+        </div>
       </div>
 
       <TeacherDnaPillarBars

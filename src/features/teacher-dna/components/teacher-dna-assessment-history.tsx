@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TeacherDnaLessonsModal } from "@/features/teacher-dna/components/teacher-dna-lessons-dialog";
 import { DnaReportDownloadButton } from "@/features/teacher-dna/components/dna-report-download-button";
+import { DnaVideoDownloadButton } from "@/features/teacher-dna/components/dna-video-download-button";
 import {
   formatScore,
   getAssessmentOverallScore,
@@ -80,10 +81,15 @@ export function TeacherDnaAssessmentHistory({
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <DnaReportDownloadButton
-                      reportPath={assessment.report_path}
-                      label="Baixar PDF"
-                    />
+                    <div className="inline-flex items-center gap-2">
+                      <DnaReportDownloadButton
+                        reportPath={assessment.report_path}
+                        label="Baixar PDF"
+                      />
+                      <DnaVideoDownloadButton
+                        videoGcsFile={assessment.video_gcs_file}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               );

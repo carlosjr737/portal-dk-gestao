@@ -32,6 +32,7 @@ export type TeacherDnaAssessment = {
   improvements: string[] | null;
   summary: string | null;
   report_path: string | null;
+  video_gcs_file: string | null;
   created_at: string;
 };
 

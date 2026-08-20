@@ -66,7 +66,7 @@ export async function getTeacherDnaDashboardData(
     supabase
       .from("teacher_dna_assessments")
       .select(
-        "id, teacher_id, class_id, lesson_date, source, overall_score, pillar_scores, strengths, improvements, summary, report_path, created_at",
+        "id, teacher_id, class_id, lesson_date, source, overall_score, pillar_scores, strengths, improvements, summary, report_path, video_gcs_file, created_at",
       )
       .gte("lesson_date", period.start)
       .lte("lesson_date", period.end)
@@ -231,6 +231,7 @@ function normalizeAssessment(
     overall_score: overall,
     pillar_scores: pillarScores,
     report_path: assessment.report_path ?? null,
+    video_gcs_file: assessment.video_gcs_file ?? null,
   };
 }
 
